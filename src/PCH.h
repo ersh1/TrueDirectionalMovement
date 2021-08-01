@@ -3,7 +3,10 @@
 #include "RE/Skyrim.h"
 #include "SKSE/SKSE.h"
 
+//#include <xbyak/xbyak.h>
+
 #pragma warning(push)
+#include <SimpleIni.h>
 #ifdef NDEBUG
 #	include <spdlog/sinks/basic_file_sink.h>
 #else

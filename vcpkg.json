@@ -7,7 +7,9 @@
   "dependencies": [
     "boost-atomic",
     "boost-stl-interfaces",
+	"simpleini",
     "span-lite",
-    "spdlog"
+    "spdlog",
+	"xbyak"
   ]
 }
