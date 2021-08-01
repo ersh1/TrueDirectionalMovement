@@ -1,5 +1,3 @@
-This is a basic plugin template for use with CommonLibSSE
-
 ## Requirements
 * [CMake](https://cmake.org/)
 	* Add this to your `PATH`
