@@ -43,18 +43,21 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> PlayerInputHandlerVtbl{ REL::ID(267811) };
-			_ProcessButton = PlayerInputHandlerVtbl.write_vfunc(0x4, ProcessButton);
 			REL::Relocation<std::uintptr_t> FirstPersonStateVtbl{ RE::Offset::FirstPersonState::Vtbl };
 			_OnEnterState = FirstPersonStateVtbl.write_vfunc(0x1, OnEnterState);
+			_OnExitState = FirstPersonStateVtbl.write_vfunc(0x2, OnExitState);
+			REL::Relocation<std::uintptr_t> PlayerInputHandlerVtbl{ REL::ID(267811) };
+			_ProcessButton = PlayerInputHandlerVtbl.write_vfunc(0x4, ProcessButton);
 		}
 
 	private:
-		static void ProcessButton(RE::FirstPersonState* a_this, RE::ButtonEvent* a_event, RE::PlayerControlsData* a_data);
 		static void OnEnterState(RE::FirstPersonState* a_this);
-
-		static inline REL::Relocation<decltype(ProcessButton)> _ProcessButton;
+		static void OnExitState(RE::FirstPersonState* a_this);
+		static void ProcessButton(RE::FirstPersonState* a_this, RE::ButtonEvent* a_event, RE::PlayerControlsData* a_data);
+		
 		static inline REL::Relocation<decltype(OnEnterState)> _OnEnterState;
+		static inline REL::Relocation<decltype(OnExitState)> _OnExitState;
+		static inline REL::Relocation<decltype(ProcessButton)> _ProcessButton;
 	};
 
 	class ThirdPersonStateHook

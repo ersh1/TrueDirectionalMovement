@@ -8,44 +8,51 @@ namespace Hooks
 {
 	struct SaveCamera
 	{
-		bool bRotationSaved = false;
+		enum class RotationType : uint8_t
+		{
+			kNone,
+			kFirstPerson,
+			kThirdPerson,
+			kHorse
+		};
+		RotationType rotationType = RotationType::kNone;
 		RE::NiPoint2 rotation { 0.f, 0.f };
 		bool bZoomSaved = false;
 		float zoom = 0.f;
 
-		void SaveX(float a_x)
+		void SaveX(float a_x, RotationType a_rotationType)
 		{
 			rotation.x = a_x;
-			bRotationSaved = true;
+			rotationType = a_rotationType;
 		}
 
-		void SaveY(float a_y)
+		void SaveY(float a_y, RotationType a_rotationType)
 		{
 			rotation.y = a_y;
-			bRotationSaved = true;
+			rotationType = a_rotationType;
 		}
 
-		void SaveXY(RE::NiPoint2 a_xy)
+		void SaveXY(RE::NiPoint2 a_xy, RotationType a_rotationType)
 		{
 			rotation = a_xy;
-			bRotationSaved = true;
+			rotationType = a_rotationType;
 		}
 
 		float ConsumeX()
 		{
-			bRotationSaved = false;
+			rotationType = RotationType::kNone;
 			return rotation.x;
 		}
 
 		float ConsumeY()
 		{
-			bRotationSaved = false;
+			rotationType = RotationType::kNone;
 			return rotation.y;
 		}
 
 		RE::NiPoint2& ConsumeXY()
 		{
-			bRotationSaved = false;
+			rotationType = RotationType::kNone;
 			return rotation;
 		}
 
@@ -248,16 +255,29 @@ namespace Hooks
 		if (directionalMovementHandler->GetFreeCameraEnabled()) {
 			auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 			if (playerCharacter) {
-				// turn character towards where the camera was looking before entering first person state
-
-				if (savedCamera.bRotationSaved) {
+				// turn character towards where the camera was looking in third person state before entering first person state
+				if (savedCamera.rotationType == SaveCamera::RotationType::kThirdPerson) {
 					playerCharacter->SetRotationZ(savedCamera.ConsumeX());
 				}
+				savedCamera.bZoomSaved = false;
+
 				directionalMovementHandler->ResetDesiredAngle();
 			}
 		}
 
 		_OnEnterState(a_this);
+	}
+
+	void FirstPersonStateHook::OnExitState(RE::FirstPersonState* a_this)
+	{
+		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+		
+		if (playerCharacter)
+		{
+			savedCamera.SaveX(playerCharacter->data.angle.z, SaveCamera::RotationType::kFirstPerson);
+		}
+		
+		_OnExitState(a_this);
 	}
 
 	void FirstPersonStateHook::ProcessButton(RE::FirstPersonState* a_this, RE::ButtonEvent* a_event, RE::PlayerControlsData* a_data)
@@ -285,7 +305,7 @@ namespace Hooks
 		_OnEnterState(a_this);
 
 		if (DirectionalMovementHandler::GetSingleton()->GetFreeCameraEnabled()) {
-			if (savedCamera.bRotationSaved) {
+			if (savedCamera.rotationType == SaveCamera::RotationType::kHorse) {
 				a_this->freeRotation.x = savedCamera.ConsumeX();
 			}
 
@@ -303,7 +323,7 @@ namespace Hooks
 			RE::NiPoint2 rot = a_this->freeRotation;
 			rot.x += playerCharacter->data.angle.z;
 			rot.y += playerCharacter->data.angle.x;
-			savedCamera.SaveXY(rot);
+			savedCamera.SaveXY(rot, SaveCamera::RotationType::kThirdPerson);
 			savedCamera.SaveZoom(a_this->targetZoomOffset);
 		}
 
@@ -405,9 +425,12 @@ namespace Hooks
 			RE::Actor* horse = nullptr;
 			horse = static_cast<RE::Actor*>(a_this->horseRefHandle.get().get());
 
-			if (savedCamera.bRotationSaved) {
+			if (savedCamera.rotationType != SaveCamera::RotationType::kNone) {
 				RE::NiPoint2 rot = savedCamera.ConsumeXY();
-				playerCharacter->data.angle.x = -rot.y;
+				if (savedCamera.rotationType == SaveCamera::RotationType::kThirdPerson) {
+					playerCharacter->data.angle.x = -rot.y;
+				}
+				
 				a_this->freeRotation.x = NormalAbsoluteAngle(rot.x - horse->data.angle.z);
 			}
 
@@ -422,7 +445,7 @@ namespace Hooks
 	void HorseCameraStateHook::OnExitState(RE::HorseCameraState* a_this)
 	{
 		if (DirectionalMovementHandler::GetSingleton()->GetFreeCameraEnabled()) {
-			savedCamera.SaveXY(a_this->freeRotation);
+			savedCamera.SaveXY(a_this->freeRotation, SaveCamera::RotationType::kHorse);
 			savedCamera.SaveZoom(a_this->currentZoomOffset);
 		}
 
@@ -462,7 +485,7 @@ namespace Hooks
 	void TweenMenuCameraStateHook::OnEnterState(RE::TESCameraState* a_this)
 	{
 		if (DirectionalMovementHandler::GetSingleton()->GetFreeCameraEnabled()) {
-			savedCamera.bRotationSaved = false;
+			savedCamera.rotationType = SaveCamera::RotationType::kNone;
 		}
 		
 		_OnEnterState(a_this);
@@ -471,7 +494,7 @@ namespace Hooks
 	void TweenMenuCameraStateHook::OnExitState(RE::TESCameraState* a_this)
 	{
 		if (DirectionalMovementHandler::GetSingleton()->GetFreeCameraEnabled()) {
-			savedCamera.bRotationSaved = false;
+			savedCamera.rotationType = SaveCamera::RotationType::kNone;
 		}
 
 		_OnExitState(a_this);
@@ -480,7 +503,7 @@ namespace Hooks
 	void VATSCameraStateHook::OnExitState(RE::TESCameraState* a_this)
 	{
 		if (DirectionalMovementHandler::GetSingleton()->GetFreeCameraEnabled()) {
-			savedCamera.bRotationSaved = false;
+			savedCamera.rotationType = SaveCamera::RotationType::kNone;
 		}
 
 		_OnExitState(a_this);
@@ -490,10 +513,15 @@ namespace Hooks
 	{
 		if (a_this->transitionFrom->id == RE::CameraStates::kMount && a_this->transitionTo->id == RE::CameraStates::kThirdPerson)
 		{
-			if (savedCamera.bRotationSaved) {
+			if (savedCamera.rotationType == SaveCamera::RotationType::kHorse) {
 				auto thirdPersonState = static_cast<RE::ThirdPersonState*>(a_this->transitionTo);
 				auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 				thirdPersonState->freeRotation.x = savedCamera.ConsumeX();
+				playerCharacter->data.angle.x = -savedCamera.ConsumeY();
+			}
+		} else if (a_this->transitionFrom->id == RE::CameraStates::kMount && a_this->transitionTo->id == RE::CameraStates::kFirstPerson) {
+			if (savedCamera.rotationType == SaveCamera::RotationType::kHorse) {
+				auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 				playerCharacter->data.angle.x = -savedCamera.ConsumeY();
 			}
 		}

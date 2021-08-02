@@ -65,6 +65,18 @@ void DirectionalMovementHandler::Update()
 		UpdateRotation();
 	} else {
 		UpdateRotationLockedCam();
+
+		if (_bHeadtracking)
+		{
+			auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+			auto playerCamera = RE::PlayerCamera::GetSingleton();
+			if (playerCharacter && playerCamera && playerCamera->currentState && playerCamera->currentState->id != RE::CameraState::kThirdPerson)
+			{
+				// disable headtracking while not in third person
+				playerCharacter->actorState2.headTracking = false;
+				playerCharacter->SetGraphVariableBool("IsNPC", false);
+			}
+		}
 	}
 }
 
