@@ -90,6 +90,7 @@ namespace Hooks
 		Actor_SetRotationHook::Hook();
 		EnemyHealthHook::Hook();
 		HeadtrackingHook::Hook();
+		NukeSetIsNPCHook::Hook();
 
 		logger::trace("...success");
 	}
@@ -388,7 +389,8 @@ namespace Hooks
 					pitchDelta = desiredPitch - currentPitch;
 				}
 
-				cameraTarget->SetRotationX(cameraTarget->data.angle.x + pitchDelta);
+				//cameraTarget->SetRotationX(cameraTarget->data.angle.x + pitchDelta);
+				cameraTarget->data.angle.x += pitchDelta;
 				a_this->freeRotation.y += pitchDelta;
 			}
 		}
@@ -436,6 +438,8 @@ namespace Hooks
 
 			if (savedCamera.bZoomSaved) {
 				a_this->targetZoomOffset = savedCamera.ConsumeZoom();
+				a_this->currentZoomOffset = a_this->targetZoomOffset;
+				a_this->savedZoomOffset = a_this->targetZoomOffset;
 			}
 
 			a_this->horseCurrentDirection = horse->GetHeading(false);
@@ -659,6 +663,14 @@ namespace Hooks
 	{
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 
+		bool bBehaviorPatchInstalled = DirectionalMovementHandler::IsBehaviorPatchInstalled(a_this);
+
+		if (bBehaviorPatchInstalled)
+		{
+			// for good measure
+			a_this->SetGraphVariableBool("IsNPC", false);
+		}
+
 		if (DirectionalMovementHandler::IsIFPV())
 		{
 			a_this->actorState2.headTracking = false;
@@ -667,7 +679,14 @@ namespace Hooks
 		}
 				
 		bool bIsHeadtrackingEnabled = directionalMovementHandler->IsHeadtrackingEnabled();
+		bool bIsBlocking = false;
+		bool bIsSprinting = false;
+
 		if (bIsHeadtrackingEnabled && a_this->currentProcess) {
+			if (!bBehaviorPatchInstalled) {
+				a_this->SetGraphVariableBool("IsNPC", true);
+			}
+			
 			// expire dialogue headtrack if timer is up
 			if (a_this->currentProcess->high && a_this->currentProcess->high->headTrack3) {
 				if (directionalMovementHandler->GetDialogueHeadtrackTimer() <= 0.f) {
@@ -680,22 +699,32 @@ namespace Hooks
 			auto cameraState = RE::PlayerCamera::GetSingleton()->currentState;
 			if (target) {
 				a_this->actorState2.headTracking = true;
-				a_this->SetGraphVariableBool("IsNPC", true);
+				if (!bBehaviorPatchInstalled) {
+					a_this->SetGraphVariableBool("IsNPC", true);
+				}
 			} else {
 				a_this->actorState2.headTracking = false;
-				a_this->SetGraphVariableBool("IsNPC", false);
+				/*if (!bBehaviorPatchInstalled) {
+					a_this->SetGraphVariableBool("IsNPC", false);
+				}	*/
 			}
-		}
 
-		// disable headtracking while attacking
-		if (a_this->actorState1.meleeAttackState > RE::ATTACK_STATE_ENUM::kNone && a_this->actorState1.meleeAttackState < RE::ATTACK_STATE_ENUM::kBowDraw) {
-			a_this->actorState2.headTracking = false;
+			bIsBlocking = a_this->actorState2.wantBlocking;
+			bIsSprinting = a_this->actorState1.sprinting;
+			// disable headtracking while attacking or blocking without behavior patch
+			if ((!bBehaviorPatchInstalled && bIsBlocking) ||
+				(a_this->actorState1.meleeAttackState > RE::ATTACK_STATE_ENUM::kNone)) {
+				a_this->actorState2.headTracking = false;
+				if (!bBehaviorPatchInstalled) {
+					a_this->SetGraphVariableBool("IsNPC", false);
+				}
+			}
 		}
 		
 		// run original function
 		_ProcessTracking(a_this, a_delta, a_obj3D);
 
-		if (bIsHeadtrackingEnabled && directionalMovementHandler->IsCameraHeadtrackingEnabled() && a_this->currentProcess)
+		if (bIsHeadtrackingEnabled && !bIsSprinting && !bIsBlocking && directionalMovementHandler->IsCameraHeadtrackingEnabled() && a_this->currentProcess)
 		{
 			// try camera headtracking
 			auto highProcess = a_this->currentProcess->high;
@@ -710,9 +739,11 @@ namespace Hooks
 					highProcess->SetHeadtrackTarget(1, nullptr);
 				}
 
-				a_this->SetGraphVariableBool("IsNPC", true);
+				if (!bBehaviorPatchInstalled) {
+					a_this->SetGraphVariableBool("IsNPC", true);
+				}
 					
-				directionalMovementHandler->UpdateDynamicHeadtracking();
+				directionalMovementHandler->UpdateCameraHeadtracking();
 			}
 		}
 	}
@@ -812,16 +843,22 @@ namespace Hooks
 		_ProcessEvent(a_this, a_event, a_dispatcher);
 	}
 
-	static void ApplyYawDelta(RE::NiPoint3& a_angle)
+	static void ApplyYawDelta(RE::ActorState* a_actorState, RE::NiPoint3& a_angle)
 	{
-		a_angle.z -= DirectionalMovementHandler::GetSingleton()->GetYawDelta();
+		auto actor = static_cast<RE::Actor*>(a_actorState);
+		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+		bool bIsAIDriven = actor->movementController && !actor->movementController->unk1C5;
+		if (directionalMovementHandler->IsFreeCamera() && !bIsAIDriven)
+		{
+			a_angle.z -= DirectionalMovementHandler::GetSingleton()->GetYawDelta();
+		}
 	}
 
 	void PlayerCharacterHook::GetAngle(RE::ActorState* a_this, RE::NiPoint3& a_angle)
 	{
 		_GetAngle(a_this, a_angle);
 		
-		ApplyYawDelta(a_angle);
+		ApplyYawDelta(a_this, a_angle);
 	}
 
 	void PlayerCharacterHook::Sprint(RE::PlayerCharacter* a_this)
@@ -1007,5 +1044,19 @@ namespace Hooks
 		}
 
 		return bCanProcessControls;
+	}
+
+	void NukeSetIsNPCHook::SetBool(RE::IAnimationGraphManagerHolder* a_this, RE::BSFixedString* a_variableName, bool* a_value)
+	{
+		if (a_variableName && a_variableName->c_str() == "IsNPC"sv)
+		{
+			auto ref = static_cast<RE::TESObjectREFR*>(a_this);
+			auto formID = ref->formID;
+			if (formID == 0x14 && DirectionalMovementHandler::IsBehaviorPatchInstalled(ref)) // player
+			{
+				*a_value = false;
+			}
+		}
+		_SetBool(a_this, a_variableName, a_value);
 	}
 }

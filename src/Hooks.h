@@ -309,5 +309,23 @@ namespace Hooks
 		static inline REL::Relocation<decltype(SetHeadtrackTarget4)> _SetHeadtrackTarget4;
 	};
 
+	class NukeSetIsNPCHook
+	{
+	public:
+		static void Hook()
+		{
+			//REL::Relocation<uintptr_t> hook{ REL::ID(static_cast<std::uint64_t>(55694)) };  // 996FD0, papyrus wrapper
+			REL::Relocation<uintptr_t> hook{ REL::ID(static_cast<std::uint64_t>(32141)) };  // 4F06E0
+
+			auto& trampoline = SKSE::GetTrampoline();
+			//_SetBool = trampoline.write_call<5>(hook.address() + 0x4C, SetBool);
+			_SetBool = trampoline.write_call<5>(hook.address() + 0xE, SetBool);
+		}
+
+	private:
+		static void SetBool(RE::IAnimationGraphManagerHolder* a_this, RE::BSFixedString* a_variableName, bool* a_value);
+		static inline REL::Relocation<decltype(SetBool)> _SetBool;
+	};
+
 	void Install();
 }

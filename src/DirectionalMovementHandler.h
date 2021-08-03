@@ -119,7 +119,7 @@ public:
 	
 	void SetHeadtrackTarget(RE::TESObjectREFR* a_target);
 
-	void UpdateDynamicHeadtracking();
+	void UpdateCameraHeadtracking();
 
 	RE::NiPoint3 GetCameraRotation();
 
@@ -202,6 +202,8 @@ public:
 	void LoadIniSettings();
 
 	void SaveDefaultNearClip();
+
+	static bool IsBehaviorPatchInstalled(RE::TESObjectREFR* a_ref);
 
 	inline auto& GetBossRaces() const
 	{
@@ -304,7 +306,8 @@ private:
 
 	float _defaultNearClip = -1.f;
 
-	RE::SpellItem* _targetLockSpell;
+	RE::SpellItem* _targetLockSpell = nullptr;
+	RE::TESGlobal* _directionalMovementGlobal = nullptr;
 
 	float _desiredAngle = -1.f;
 

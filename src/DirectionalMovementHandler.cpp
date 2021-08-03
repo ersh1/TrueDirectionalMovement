@@ -31,8 +31,14 @@ void DirectionalMovementHandler::Update()
 	
 	if (IsFreeCamera()) {
 		bool bShouldFaceCrosshair = ShouldFaceCrosshair();
+		if (_directionalMovementGlobal){
+			_directionalMovementGlobal->value = 1;
+		}
 		if (bShouldFaceCrosshair || _target) {
 			SetDesiredAngleToTarget(RE::PlayerCharacter::GetSingleton(), _target);
+			if (_directionalMovementGlobal) {
+				_directionalMovementGlobal->value = 0;
+			}
 			if (!bShouldFaceCrosshair && _target) {
 				LookAtTarget(_target);
 			}
@@ -66,15 +72,19 @@ void DirectionalMovementHandler::Update()
 	} else {
 		UpdateRotationLockedCam();
 
-		if (_bHeadtracking)
-		{
+		if (_directionalMovementGlobal) {
+			_directionalMovementGlobal->value = 0;
+		}
+
+		if (_bHeadtracking) {
 			auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 			auto playerCamera = RE::PlayerCamera::GetSingleton();
-			if (playerCharacter && playerCamera && playerCamera->currentState && playerCamera->currentState->id != RE::CameraState::kThirdPerson)
-			{
+			if (playerCharacter && playerCamera && playerCamera->currentState && playerCamera->currentState->id != RE::CameraState::kThirdPerson){
 				// disable headtracking while not in third person
 				playerCharacter->actorState2.headTracking = false;
-				playerCharacter->SetGraphVariableBool("IsNPC", false);
+				if (!IsBehaviorPatchInstalled(playerCharacter)){
+					playerCharacter->SetGraphVariableBool("IsNPC", false);
+				}
 			}
 		}
 	}
@@ -525,7 +535,7 @@ void DirectionalMovementHandler::ToggleTargetLock(bool bEnable)
 			SetTarget(actor);	
 
 			// Set graph variable
-			playerCharacter->SetGraphVariableBool("TDM_TargetLock", true);
+			playerCharacter->SetGraphVariableBool("tdmTargetLock", true);
 
 			// Add spell so DAR can detect target lock
 			if (_targetLockSpell) {
@@ -545,7 +555,7 @@ void DirectionalMovementHandler::ToggleTargetLock(bool bEnable)
 		SetTarget(RE::ActorHandle());
 
 		// Set graph variable
-		playerCharacter->SetGraphVariableBool("TDM_TargetLock", true);
+		playerCharacter->SetGraphVariableBool("tdmTargetLock", true);
 
 		// Remove spell so DAR can detect target lock
 		if (_targetLockSpell) {
@@ -989,7 +999,7 @@ void DirectionalMovementHandler::SetHeadtrackTarget(RE::TESObjectREFR* a_target)
 	}
 }
 
-void DirectionalMovementHandler::UpdateDynamicHeadtracking()
+void DirectionalMovementHandler::UpdateCameraHeadtracking()
 {
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	auto thirdPersonState = static_cast<RE::ThirdPersonState*>(RE::PlayerCamera::GetSingleton()->cameraStates[RE::CameraState::kThirdPerson].get());
@@ -1274,6 +1284,15 @@ void DirectionalMovementHandler::SetHeadtracking(bool a_enable)
 {
 	Locker locker(_lock);
 	_bHeadtracking = a_enable;
+	if (!a_enable)
+	{
+		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+		if (playerCharacter)
+		{
+			playerCharacter->actorState2.headTracking = false;
+			playerCharacter->SetGraphVariableBool("IsNPC", false);
+		}
+	}
 }
 
 float DirectionalMovementHandler::GetDialogueHeadtrackingDuration() const
@@ -1857,6 +1876,7 @@ void DirectionalMovementHandler::Initialize()
 	auto dataHandler = RE::TESDataHandler::GetSingleton();
 	if (dataHandler) {
 		_targetLockSpell = dataHandler->LookupForm<RE::SpellItem>(0x805, "TrueDirectionalMovement.esp");
+		_directionalMovementGlobal = dataHandler->LookupForm<RE::TESGlobal>(0x807, "TrueDirectionalMovement.esp");
 	}
 }
 
@@ -1974,6 +1994,17 @@ void DirectionalMovementHandler::SaveDefaultNearClip()
 	if (_defaultNearClip == -1.f) {
 		_defaultNearClip = *g_fNearDistance;
 	}
+}
+
+bool DirectionalMovementHandler::IsBehaviorPatchInstalled(RE::TESObjectREFR* a_ref)
+{
+	if (!a_ref)
+	{
+		return false;
+	}
+
+	bool bOut;
+	return a_ref->GetGraphVariableBool("tdmDummy", bOut);
 }
 
 DirectionalMovementHandler::DirectionalMovementHandler() :

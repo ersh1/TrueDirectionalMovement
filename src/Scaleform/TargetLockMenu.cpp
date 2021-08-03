@@ -263,6 +263,20 @@ namespace Scaleform
 		if (uiMovie) {
 			if (widgetHandler->_bShowReticle) {
 				uiMovie->SetVariable("_root.ReticleHolder._visible", bTrue);
+
+				{
+					RE::GFxValue arg[1];
+					arg[0].SetNumber(static_cast<uint32_t>(widgetHandler->_reticleStyle));
+					_reticle.Invoke("setReticleType", nullptr, arg, 1);
+				}
+
+				{
+					float reticleAlpha = widgetHandler->_bUseHUDOpacityForReticle ? *g_fHUDOpacity : widgetHandler->_reticleOpacity;
+					reticleAlpha *= 100.f;
+					RE::GFxValue arg[1];
+					arg[0].SetNumber(reticleAlpha);
+					_reticle.Invoke("setReticleAlpha", nullptr, arg, 1);
+				}
 			} else {
 				uiMovie->SetVariable("_root.ReticleHolder._visible", bFalse);
 			}
@@ -289,20 +303,6 @@ namespace Scaleform
 				case WidgetHandler::TargetLockLevelMode::kOutline:
 					_targetBar.Invoke("levelDisplayOutline");
 					break;
-				}
-
-				{
-					RE::GFxValue arg[1];
-					arg[0].SetNumber(static_cast<uint32_t>(widgetHandler->_reticleStyle));
-					_reticle.Invoke("setReticleType", nullptr, arg, 1);
-				}
-
-				{
-					float reticleAlpha = widgetHandler->_bUseHUDOpacityForReticle ? *g_fHUDOpacity : widgetHandler->_reticleOpacity;
-					reticleAlpha *= 100.f;
-					RE::GFxValue arg[1];
-					arg[0].SetNumber(reticleAlpha);
-					_reticle.Invoke("setReticleAlpha", nullptr, arg, 1);
 				}
 
 				{

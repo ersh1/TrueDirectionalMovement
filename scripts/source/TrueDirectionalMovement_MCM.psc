@@ -143,6 +143,8 @@ Event OnPageReset(String a_page)
 		AddKeyMapOptionST("TargetLockKey_K", "$TrueDirectionalMovement_TargetLockKey_OptionText", TrueDirectionalMovement.GetTargetLockKey())
 		AddToggleOptionST("TargetLockUseMouse_S", "$TrueDirectionalMovement_TargetLockUseMouse_OptionText", TrueDirectionalMovement.GetTargetLockUseMouse())
 		AddToggleOptionST("TargetLockUseScrollWheel_S", "$TrueDirectionalMovement_TargetLockUseScrollWheel_OptionText", TrueDirectionalMovement.GetTargetLockUseScrollWheel())
+
+		AddHeaderOption("$TrueDirectionalMovement_OptionalControls_HeaderText")
 		AddKeyMapOptionST("SwitchTargetLeftKey_K", "$TrueDirectionalMovement_SwitchTargetLeftKey_OptionText", TrueDirectionalMovement.GetSwitchTargetLeftKey())
 		AddKeyMapOptionST("SwitchTargetRightKey_K", "$TrueDirectionalMovement_SwitchTargetRightKey_OptionText", TrueDirectionalMovement.GetSwitchTargetRightKey())
 

@@ -66,12 +66,16 @@ namespace Events
 
 				if (key == _switchTargetLeftKey) {
 					auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
-					directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Directions::kLeft);
+					if (directionalMovementHandler->HasTargetLocked() && !directionalMovementHandler->ShouldFaceCrosshair()) {
+						directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Directions::kLeft);
+					}
 				}
 
 				if (key == _switchTargetRightKey) {
 					auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
-					directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Directions::kRight);
+					if (directionalMovementHandler->HasTargetLocked() && !directionalMovementHandler->ShouldFaceCrosshair()){
+						directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Directions::kRight);
+					}
 				}
 			}
 
