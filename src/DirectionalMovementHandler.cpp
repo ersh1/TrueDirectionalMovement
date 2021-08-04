@@ -477,6 +477,11 @@ bool DirectionalMovementHandler::HasMovementInput() const
 	return _bHasMovementInput;
 }
 
+bool DirectionalMovementHandler::IsDodging() const
+{
+	return _bIsDodging;
+}
+
 bool DirectionalMovementHandler::IsPlayerAnimationDriven() const
 {
 	// workaround for 'IsNPC' issue

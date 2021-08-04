@@ -60,6 +60,8 @@ public:
 	bool GetFreeCameraEnabled() const;
 	bool HasMovementInput() const;
 
+	bool IsDodging() const;
+
 	bool IsPlayerAnimationDriven() const;
 
 	AttackState GetAttackState() const;

@@ -884,6 +884,7 @@ namespace Hooks
 			auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 			bool bHasMovementInput = playerControls->data.prevMoveVec.x != 0.f || playerControls->data.prevMoveVec.y != 0.f;
 			bool bIsAttacking = directionalMovementHandler->GetAttackState() != DirectionalMovementHandler::AttackState::kNone;
+			bool bIsDodging = directionalMovementHandler->IsDodging();
 			int iState;
 			a_this->GetGraphVariableInt("iState", iState);
 			bool bIsCasting = iState == 10;
@@ -895,7 +896,7 @@ namespace Hooks
 				bIsNotStrafing = bHasMovementInput;
 			}
 
-			bool bSpecific = bFreeCamTargetLocked ? bHasMovementInput && !bIsAttacking && !bIsCasting : bIsSprintingRunningOrBlocking && bIsPreviousMoveInputForward && bIsNotStrafing; // branch depending on the mode we're in
+			bool bSpecific = bFreeCamTargetLocked ? bHasMovementInput && !bIsAttacking && !bIsDodging && !bIsCasting : bIsSprintingRunningOrBlocking && bIsPreviousMoveInputForward && bIsNotStrafing; // branch depending on the mode we're in
 
 			if (bHasUnkBDD_SprintingFlag &&
 				!bUnk1 &&
@@ -985,12 +986,14 @@ namespace Hooks
 	// ridiculous, I know
 	RE::TESObjectREFR* RecursiveSearchForParent(RE::NiAVObject* a_object)
 	{
-		if (a_object->userData)
-		{
+		if (!a_object) {
+			return nullptr;
+		}
+
+		if (a_object->userData) {
 			return a_object->userData;
 		}
-		else if (a_object->parent)
-		{
+		else if (a_object->parent) {
 			return RecursiveSearchForParent(a_object->parent);
 		}
 		return nullptr;
@@ -1000,9 +1003,13 @@ namespace Hooks
 	{
 		_SetHeadtrackTarget4(a_this, a_target);
 
-		if (DirectionalMovementHandler::GetSingleton()->IsHeadtrackingEnabled() && a_target->IsPlayerRef())
+		if (DirectionalMovementHandler::GetSingleton()->IsHeadtrackingEnabled() && a_target && a_target->IsPlayerRef() && a_this->middleHigh)
 		{
-			auto refr = RecursiveSearchForParent(a_this->middleHigh->torsoNode);
+			RE::NiAVObject* object = a_this->middleHigh->torsoNode;
+			if (!object) {
+				object = a_this->middleHigh->headNode;
+			}
+			auto refr = RecursiveSearchForParent(object);
 			if (refr) {
 				auto actor = refr->As<RE::Actor>();
 				if (actor) {
