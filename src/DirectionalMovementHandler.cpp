@@ -449,6 +449,12 @@ bool DirectionalMovementHandler::IsIFPV()
 	return false;*/
 
 	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+
+	if (directionalMovementHandler->_bImprovedCameraLoaded)
+	{
+		return false;
+	}
+
 	return *g_fNearDistance != directionalMovementHandler->_defaultNearClip;
 }
 
@@ -1994,8 +2000,13 @@ void DirectionalMovementHandler::LoadIniSettings()
 	logger::info("...success");
 }
 
-void DirectionalMovementHandler::SaveDefaultNearClip()
+void DirectionalMovementHandler::InitIFPVCompatibility()
 {
+	auto hMod = GetModuleHandle(L"ImprovedCamera.dll");
+	if (hMod) {
+		_bImprovedCameraLoaded = true;
+		return;
+	}
 	if (_defaultNearClip == -1.f) {
 		_defaultNearClip = *g_fNearDistance;
 	}

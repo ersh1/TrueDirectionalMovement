@@ -203,7 +203,7 @@ public:
 
 	void LoadIniSettings();
 
-	void SaveDefaultNearClip();
+	void InitIFPVCompatibility();
 
 	static bool IsBehaviorPatchInstalled(RE::TESObjectREFR* a_ref);
 
@@ -307,6 +307,7 @@ private:
 	float _targetLockDistanceHysteresis = 1.05f;
 
 	float _defaultNearClip = -1.f;
+	bool _bImprovedCameraLoaded = false;
 
 	RE::SpellItem* _targetLockSpell = nullptr;
 	RE::TESGlobal* _directionalMovementGlobal = nullptr;

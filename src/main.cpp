@@ -109,7 +109,7 @@ void MessageHandler(SKSE::MessagingInterface::Message* a_msg)
 		Events::SinkEventHandlers();
 		Scaleform::Register();
 		DirectionalMovementHandler::GetSingleton()->LoadIniSettings();
-		DirectionalMovementHandler::GetSingleton()->SaveDefaultNearClip();
+		DirectionalMovementHandler::GetSingleton()->InitIFPVCompatibility();
 		break;
 	}
 }
