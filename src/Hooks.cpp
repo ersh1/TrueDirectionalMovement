@@ -1034,7 +1034,7 @@ namespace Hooks
 		bool bCanProcessControls = _CanProcessControls(a_this, a_eventPtr);
 
 		// process camera movement during locked controls
-		if (!bCanProcessControls) {
+		if (!bCanProcessControls && !RE::UI::GetSingleton()->GameIsPaused()) {
 			for (RE::InputEvent* inputEvent = *a_eventPtr; inputEvent != nullptr; inputEvent = inputEvent->next) {
 				if (inputEvent->eventType == RE::INPUT_EVENT_TYPE::kMouseMove) {
 					RE::MouseMoveEvent* mouseMoveEvent = static_cast<RE::MouseMoveEvent*>(inputEvent);

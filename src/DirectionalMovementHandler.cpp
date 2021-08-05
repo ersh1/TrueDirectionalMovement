@@ -605,7 +605,7 @@ void DirectionalMovementHandler::OverrideControllerBufferDepth(bool a_override)
 		}
 		*g_fControllerBufferDepth = _freecamControllerBufferDepth;
 	}
-	else {
+	else if (_defaultControllerBufferDepth > 0.f) {
 		*g_fControllerBufferDepth = _defaultControllerBufferDepth;
 	}
 }
@@ -1248,7 +1248,9 @@ void DirectionalMovementHandler::RefreshDialogueHeadtrackTimer()
 
 void DirectionalMovementHandler::UpdateAIProcessRotationSpeed(RE::Actor* a_actor)
 {
-	a_actor->currentProcess->middleHigh->rotationSpeed.z = _desiredAIProcessRotationSpeed;
+	if (a_actor && a_actor->currentProcess && a_actor->currentProcess->middleHigh) {
+		a_actor->currentProcess->middleHigh->rotationSpeed.z = _desiredAIProcessRotationSpeed;
+	}
 	SetDesiredAIProcessRotationSpeed(0.f);
 }
 
