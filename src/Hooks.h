@@ -343,5 +343,22 @@ namespace Hooks
 		static inline REL::Relocation<decltype(Update)> _Update;
 	};
 
+	class MainUpdateHook
+	{
+	public:
+		static void Hook()
+		{
+			REL::Relocation<uintptr_t> hook{ REL::ID(35551) };  // 5AF3D0, main loop
+
+			auto& trampoline = SKSE::GetTrampoline();
+			_Update = trampoline.write_call<5>(hook.address() + 0x11F, Update);
+		}
+
+	private:
+		static void Update(RE::Main* a_this, float a2);
+		static inline REL::Relocation<decltype(Update)> _Update;
+		
+	};
+
 	void Install();
 }

@@ -35,6 +35,8 @@ void DirectionalMovementHandler::Update()
 	UpdateFacingState();
 	UpdateDirectionalMovement();
 
+	UpdateDodgingState();
+
 	if (_bAiming) {
 		ShowCrosshair();
 	} else if (_bTargetLock) {
@@ -42,9 +44,6 @@ void DirectionalMovementHandler::Update()
 	}
 	
 	if (IsFreeCamera()) {
-		if (_directionalMovementGlobal){
-			_directionalMovementGlobal->value = 1;
-		}
 		if (_target) {
 			SetDesiredAngleToTarget(RE::PlayerCharacter::GetSingleton(), _target);
 			LookAtTarget(_target);
@@ -80,11 +79,6 @@ void DirectionalMovementHandler::Update()
 		UpdateRotation();
 	} else {
 		UpdateRotationLockedCam();
-
-		if (_directionalMovementGlobal) {
-			_directionalMovementGlobal->value = 0;
-		}
-
 		if (_bHeadtracking) {
 			auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 			auto playerCamera = RE::PlayerCamera::GetSingleton();
@@ -116,8 +110,14 @@ void DirectionalMovementHandler::UpdateDirectionalMovement()
 			currentCameraState->id == RE::CameraState::kBleedout) &&
 		(_dialogueMode != kDisable || !RE::MenuTopicManager::GetSingleton()->speaker)) {
 		_bDirectionalMovement = true;
+		if (_directionalMovementGlobal) {
+			_directionalMovementGlobal->value = 1;
+		}
 	} else {
 		_bDirectionalMovement = false;
+		if (_directionalMovementGlobal) {
+			_directionalMovementGlobal->value = 0;
+		}
 		ResetDesiredAngle();
 	}
 
@@ -251,6 +251,21 @@ void DirectionalMovementHandler::UpdateFacingState()
 	_bShouldFaceTarget = false;
 }
 
+void DirectionalMovementHandler::UpdateDodgingState()
+{
+	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+
+	bool bWasDodging = _bIsDodging;
+	playerCharacter->GetGraphVariableBool("TDM_Dodge", _bIsDodging);
+
+	_bJustDodged = !bWasDodging && _bIsDodging;
+
+	if (_bShouldFaceCrosshair || (_bJustDodged && !playerCharacter->IsAnimationDriven()))
+	{
+		_faceCrosshairTimer = 0.f;
+	}
+}
+
 void DirectionalMovementHandler::ProgressTimers()
 {
 	if (_dialogueHeadtrackTimer > 0.f) {
@@ -298,7 +313,7 @@ void DirectionalMovementHandler::ShowCrosshair()
 	// Show crosshair if it has been hidden.
 	if (_bCrosshairIsHidden) {
 		bool bCanControlCrosshair = false;
-		// Check if we have control over crosshair from smoothcam
+		// Check if we have control over crosshair from SmoothCam
 		if (g_SmoothCam) {
 			auto pluginHandle = g_SmoothCam->GetCrosshairOwner();
 			if (pluginHandle == SKSE::GetPluginHandle()) {
@@ -378,9 +393,6 @@ bool DirectionalMovementHandler::ProcessInput(RE::NiPoint2& a_inputDirection, RE
 		a_playerControlsData->moveInputVec = a_inputDirection;
 		return true;
 	}
-
-	bool bIsDodging;
-	playerCharacter->GetGraphVariableBool("TDM_Dodge", bIsDodging);
 
 	if (HasTargetLocked() && _bIsDodging) {
 		// don't rotate when dodging in target lock
@@ -477,13 +489,9 @@ void DirectionalMovementHandler::UpdateRotation()
 
 	float angleDelta = NormalRelativeAngle(_desiredAngle - playerCharacter->data.angle.z);
 
-	bool bWasDodging = _bIsDodging;
-	playerCharacter->GetGraphVariableBool("TDM_Dodge", _bIsDodging);
+	bool bInstantRotation = _bShouldFaceCrosshair || (_bJustDodged && !playerCharacter->IsAnimationDriven());
 
-	bool bInstantRotation = _bShouldFaceCrosshair || (!bWasDodging && _bIsDodging && !playerCharacter->IsAnimationDriven());
-
-	if (!bInstantRotation)
-	{
+	if (!bInstantRotation) {
 		if (IsPlayerAnimationDriven() || _bIsDodging) {
 			ResetDesiredAngle();
 			return;
@@ -560,14 +568,17 @@ void DirectionalMovementHandler::UpdateRotation()
 		_yawDelta += angleDelta;
 	}
 
-	if (abs(angleDelta) < FLT_EPSILON)
-	{
+	if (abs(angleDelta) < FLT_EPSILON) {
 		ResetDesiredAngle();
 	}
 }
 
 void DirectionalMovementHandler::UpdateRotationLockedCam()
 {
+	if (_bAiming) {
+		return;
+	}
+
 	RE::NiPoint3 targetPos;
 	if (!GetTargetPos(_target, targetPos)) {
 		return;
@@ -1267,22 +1278,23 @@ RE::NiPoint3 DirectionalMovementHandler::GetCameraRotation()
 // probably bad math ahead
 void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 {
+	if (_bAiming) {
+		return;
+	}
+
 	RE::NiPoint3 targetPos;
-	if (!GetTargetPos(a_target, targetPos))
-	{
+	if (!GetTargetPos(a_target, targetPos)) {
 		return;
 	}
 
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	auto thirdPersonState = static_cast<RE::ThirdPersonState*>(RE::PlayerCamera::GetSingleton()->cameraStates[RE::CameraState::kThirdPerson].get());
-	if (!playerCharacter || !thirdPersonState) 
-	{
+	if (!playerCharacter || !thirdPersonState) {
 		return;
 	}
 
 	RE::NiPoint3 playerPos;
-	if (!GetTargetPos(playerCharacter->GetHandle(), playerPos))
-	{
+	if (!GetTargetPos(playerCharacter->GetHandle(), playerPos)) {
 		return;
 	}
 

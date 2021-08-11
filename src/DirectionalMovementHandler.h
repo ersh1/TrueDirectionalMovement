@@ -48,6 +48,7 @@ public:
 	void Update();
 	void UpdateDirectionalMovement();
 	void UpdateFacingState();
+	void UpdateDodgingState();
 	void ProgressTimers();
 
 	void HideCrosshair();
@@ -372,6 +373,7 @@ private:
 
 	bool _bHasMovementInput = false;
 	bool _bIsDodging = false;
+	bool _bJustDodged = false;
 	AttackState _attackState;
 
 	RE::ActorHandle _target;

@@ -92,6 +92,7 @@ namespace Hooks
 		HeadtrackingHook::Hook();
 		NukeSetIsNPCHook::Hook();
 		PlayerCameraHook::Hook();
+		MainUpdateHook::Hook();
 
 		logger::trace("...success");
 	}
@@ -344,7 +345,7 @@ namespace Hooks
 	{
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 
-		directionalMovementHandler->Update();
+		//directionalMovementHandler->Update();
 
 		if (directionalMovementHandler->IsFreeCamera())
 		{
@@ -871,9 +872,10 @@ namespace Hooks
 		auto actor = static_cast<RE::Actor*>(a_actorState);
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 		bool bIsAIDriven = actor->movementController && !actor->movementController->unk1C5;
-		if (directionalMovementHandler->IsFreeCamera() && !bIsAIDriven)
-		{
+		if (!bIsAIDriven) {
 			a_angle.z -= DirectionalMovementHandler::GetSingleton()->GetYawDelta();
+		} else {
+			directionalMovementHandler->ResetYawDelta();
 		}
 	}
 
@@ -1098,6 +1100,13 @@ namespace Hooks
 		_Update(a_this);
 
 		DirectionalMovementHandler::GetSingleton()->UpdatePlayerPitch();
+	}
+
+	void MainUpdateHook::Update(RE::Main* a_this, float a2)
+	{
+		_Update(a_this, a2);
+
+		DirectionalMovementHandler::GetSingleton()->Update();
 	}
 
 }

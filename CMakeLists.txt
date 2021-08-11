@@ -32,7 +32,7 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" CACHE STR
 
 project(
 	TrueDirectionalMovement
-	VERSION 1.1.3
+	VERSION 1.2.1
 	LANGUAGES CXX
 )
 
