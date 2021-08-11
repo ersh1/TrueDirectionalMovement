@@ -84,12 +84,9 @@ namespace Scaleform
 				return;
 			}
 
-			if (widgetHandler->_bHideVanillaTargetBar) {
-				auto hud = RE::UI::GetSingleton()->GetMenu("HUD Menu");
-				if (hud && hud->uiMovie)
-				{
-					hud->uiMovie->SetVariable("HUDMovieBaseInstance.EnemyHealth_mc._visible", bFalse);
-				}
+			if (widgetHandler->_bHideVanillaTargetBar && !_bVanillaTargetBarHidden) {
+				widgetHandler->HideVanillaTargetBar();
+				_bVanillaTargetBarHidden = true;
 			}
 
 			auto bossMenu = WidgetHandler::GetSingleton()->GetBossMenu();
@@ -340,11 +337,10 @@ namespace Scaleform
 		}
 
 		if (widgetHandler->_bHideVanillaTargetBar && widgetHandler->_bShowTargetBar) {
-			const RE::GFxValue boolean{ false };
-			auto hud = RE::UI::GetSingleton()->GetMenu("HUD Menu");
-			if (hud && hud->uiMovie)
+			if (!_bVanillaTargetBarHidden)
 			{
-				hud->uiMovie->SetVariable("HUDMovieBaseInstance.EnemyHealth_mc._visible", boolean);
+				widgetHandler->HideVanillaTargetBar();
+				_bVanillaTargetBarHidden = true;
 			}
 		}
 	}
@@ -373,12 +369,11 @@ namespace Scaleform
 		auto widgetHandler = WidgetHandler::GetSingleton();
 
 		if (widgetHandler->_bHideVanillaTargetBar && widgetHandler->_bShowTargetBar) {
-			const RE::GFxValue boolean{ true };
-			auto hud = RE::UI::GetSingleton()->GetMenu("HUD Menu");
-			if (hud && hud->uiMovie)
+			if (_bVanillaTargetBarHidden)
 			{
-				hud->uiMovie->SetVariable("HUDMovieBaseInstance.EnemyHealth_mc._visible", boolean);
-			}
+				widgetHandler->ShowVanillaTargetBar();
+				_bVanillaTargetBarHidden = false;
+			}			
 		}
 	}
 

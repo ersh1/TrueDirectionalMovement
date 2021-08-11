@@ -39,6 +39,7 @@ namespace Scaleform
 	void BossMenu::Update()
 	{
 		bool bAtLeastOneBoss = false;
+		auto widgetHandler = WidgetHandler::GetSingleton();
 
 		for (auto& bossBar : _bossBars)
 		{
@@ -59,8 +60,6 @@ namespace Scaleform
 			if (bossBar.hideTimer > 0.f) {
 				bossBar.hideTimer -= *g_deltaTime;
 			}
-
-			auto widgetHandler = WidgetHandler::GetSingleton();
 
 			float scale = 100.f * widgetHandler->_bossBarScale;
 
@@ -186,7 +185,37 @@ namespace Scaleform
 		}
 
 		if (!bAtLeastOneBoss) {
-			WidgetHandler::GetSingleton()->CloseBossMenu();
+			widgetHandler->CloseBossMenu();
+		} else {
+			if (widgetHandler->_bBossHideVanillaTargetBar) {
+				bool bFound = false;
+				auto enemyHealthTargetRef = widgetHandler->GetEnemyHealthTargetRef();
+				for (auto& bossBar : _bossBars)
+				{
+					if (bossBar.boss.native_handle() == enemyHealthTargetRef)
+					{
+						bFound = true;
+						break;
+					}
+				}
+
+				if (bFound) 
+				{
+					if (!_bVanillaTargetBarHidden)
+					{
+						widgetHandler->HideVanillaTargetBar();
+						_bVanillaTargetBarHidden = true;
+					}
+				} 
+				else 
+				{
+					if (_bVanillaTargetBarHidden) 
+					{
+						widgetHandler->ShowVanillaTargetBar();
+						_bVanillaTargetBarHidden = false;
+					}
+				}
+			}
 		}
 	}
 
@@ -403,6 +432,13 @@ namespace Scaleform
 		{
 			auto hud = RE::UI::GetSingleton()->GetMenu("HUD Menu");
 			hud.get()->uiMovie->SetVariable("HUDMovieBaseInstance.SubtitleTextHolder._y", _savedSubtitleY);
+		}
+
+		if (widgetHandler->_bBossHideVanillaTargetBar) {
+			if (_bVanillaTargetBarHidden) {
+				widgetHandler->ShowVanillaTargetBar();
+				_bVanillaTargetBarHidden = false;
+			}
 		}
 		
 		_occupiedBarSpots.clear();

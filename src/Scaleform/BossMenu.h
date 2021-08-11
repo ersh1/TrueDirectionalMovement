@@ -197,6 +197,8 @@ namespace Scaleform
 		bool _bSubtitleYSaved = false;
 		RE::GFxValue _savedSubtitleY;
 
+		bool _bVanillaTargetBarHidden = false;
+
 		static constexpr std::string_view FILE_NAME{ "TrueDirectionalMovement/TDM_Boss" };
 		static constexpr std::string_view MENU_NAME{ "BossMenu" };
 		static constexpr std::int8_t SORT_PRIORITY{ 0 };

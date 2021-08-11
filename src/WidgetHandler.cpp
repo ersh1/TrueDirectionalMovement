@@ -43,6 +43,48 @@ void WidgetHandler::OpenBossMenu()
 	}
 }
 
+void WidgetHandler::UpdateVanillaTargetBarState()
+{
+	bool bVisible;
+	if (_hideVanillaTargetBar > 0) {
+		bVisible = false;
+	} else {
+		bVisible = true;
+	}
+
+	auto hud = RE::UI::GetSingleton()->GetMenu("HUD Menu");
+	if (hud && hud->uiMovie) {
+		hud->uiMovie->SetVariable("HUDMovieBaseInstance.EnemyHealth_mc._visible", bVisible);
+	}
+}
+
+void WidgetHandler::HideVanillaTargetBar()
+{
+	_hideVanillaTargetBar++;
+	UpdateVanillaTargetBarState();
+}
+
+void WidgetHandler::ShowVanillaTargetBar()
+{
+	if (_hideVanillaTargetBar > 0)
+	{
+		_hideVanillaTargetBar--;
+	}
+	UpdateVanillaTargetBarState();
+}
+
+RE::RefHandle WidgetHandler::GetEnemyHealthTargetRef() const
+{
+	Locker locker(_lock);
+	return _enemyHealthTargetRef;
+}
+
+void WidgetHandler::SetEnemyHealthTargetRef(RE::RefHandle a_refHandle)
+{
+	Locker locker(_lock);
+	_enemyHealthTargetRef = a_refHandle;
+}
+
 void WidgetHandler::SetTarget(RE::ActorHandle a_target)
 {
 	if (a_target)
@@ -501,6 +543,20 @@ void WidgetHandler::SetShowBossHealthPhantom(bool a_show)
 	RefreshBossMenu();
 }
 
+bool WidgetHandler::GetBossHideVanillaTargetBar() const
+{
+	Locker locker(_lock);
+	return _bBossHideVanillaTargetBar;
+}
+
+void WidgetHandler::SetBossHideVanillaTargetBar(bool a_hide)
+{
+	Locker locker(_lock);
+	_bBossHideVanillaTargetBar = a_hide;
+
+	RefreshBossMenu();
+}
+
 float WidgetHandler::GetBossHealthPhantomDuration() const
 {
 	Locker locker(_lock);
@@ -750,6 +806,10 @@ bool WidgetHandler::Save(const SKSE::SerializationInterface* a_intfc, std::uint3
 		return false;
 	}
 
+	if (!a_intfc->WriteRecordData(_bBossHideVanillaTargetBar)) {
+		return false;
+	}
+
 	if (!a_intfc->WriteRecordData(_bossHealthPhantomDuration)) {
 		return false;
 	}
@@ -893,6 +953,10 @@ bool WidgetHandler::Load(const SKSE::SerializationInterface* a_intfc)
 		return false;
 	}
 
+	if (!a_intfc->ReadRecordData(_bBossHideVanillaTargetBar)) {
+		return false;
+	}
+
 	if (!a_intfc->ReadRecordData(_bossHealthPhantomDuration)) {
 		return false;
 	}
@@ -963,6 +1027,7 @@ void WidgetHandler::Clear()
 	_bossLevelThreshold = DF_BOSSLEVELTHRESHOLD;
 	_bShowBossDamage = DF_SHOWBOSSDAMAGE;
 	_bShowBossHealthPhantom = DF_SHOWBOSSHEALTHPHANTOM;
+	_bBossHideVanillaTargetBar = DF_BOSSHIDEVANILLATARGETBAR;
 	_bossHealthPhantomDuration = DF_BOSSHEALTHPHANTOMDURATION;
 	_bossDamageDuration = DF_BOSSDAMAGEDURATION;
 	_bossBarScale = DF_BOSSBARSCALE;
@@ -1007,6 +1072,7 @@ WidgetHandler::WidgetHandler() :
 	_bossLevelThreshold(DF_BOSSLEVELTHRESHOLD),
 	_bShowBossDamage(DF_SHOWBOSSDAMAGE),
 	_bShowBossHealthPhantom(DF_SHOWBOSSHEALTHPHANTOM),
+	_bBossHideVanillaTargetBar(DF_BOSSHIDEVANILLATARGETBAR),
 	_bossHealthPhantomDuration(DF_BOSSHEALTHPHANTOMDURATION),
 	_bossDamageDuration(DF_BOSSDAMAGEDURATION),
 	_bossBarScale(DF_BOSSBARSCALE),

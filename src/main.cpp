@@ -2,13 +2,14 @@
 #include "Events.h"
 #include "DirectionalMovementHandler.h"
 #include "Papyrus.h"
+#include "SmoothCamAPI.h"
 #include "ViewHandler.h"
 #include "WidgetHandler.h"
 #include "Scaleform/Scaleform.h"
 
 enum : std::uint32_t
 {
-	kSerializationVersion = 1,
+	kSerializationVersion = 2,
 
 	kTrueDirectionalMovement = 'TDMV',
 	kDirectionalMovementHandler = 'DMVH',
@@ -68,21 +69,18 @@ void LoadCallback(SKSE::SerializationInterface* a_intfc)
 
 		switch (type) {
 		case kInputEventHandler:
-			logger::error("Reading type {}!", DecodeTypeCode(type).c_str());
 			if (!inputEventHandler->Load(a_intfc)) {
 				inputEventHandler->Clear();
 				logger::error("Failed to load InputEventHandler!");
 			}
 			break;
 		case kDirectionalMovementHandler:
-			logger::error("Reading type {}!", DecodeTypeCode(type).c_str());
 			if (!directionalMovementHandler->Load(a_intfc)) {
 				directionalMovementHandler->Clear();
 				logger::error("Failed to load DirectionalMovementHandler!");
 			}
 			break;
 		case kTargetLock:
-			logger::error("Reading type {}!", DecodeTypeCode(type).c_str());
 			if (!widgetHandler->Load(a_intfc)) {
 				widgetHandler->Clear();
 				logger::error("Failed to load TargetLock!");
@@ -109,7 +107,26 @@ void MessageHandler(SKSE::MessagingInterface::Message* a_msg)
 		Events::SinkEventHandlers();
 		Scaleform::Register();
 		DirectionalMovementHandler::GetSingleton()->LoadIniSettings();
-		DirectionalMovementHandler::GetSingleton()->InitIFPVCompatibility();
+		DirectionalMovementHandler::GetSingleton()->InitCameraModsCompatibility();
+		break;
+	case SKSE::MessagingInterface::kPostLoad:
+		if (!SmoothCamAPI::RegisterInterfaceLoaderCallback(
+				SKSE::GetMessagingInterface(),
+				[](void* interfaceInstance, SmoothCamAPI::InterfaceVersion interfaceVersion) {
+					if (interfaceVersion == SmoothCamAPI::InterfaceVersion::V1) {
+						DirectionalMovementHandler::GetSingleton()->g_SmoothCam = reinterpret_cast<SmoothCamAPI::IVSmoothCam1*>(interfaceInstance);
+						logger::info("Obtained SmoothCamAPI");
+					} else
+						logger::error("Unable to acquire requested SmoothCamAPI interface version");
+				}))
+			logger::warn("SmoothCamAPI::RegisterInterfaceLoaderCallback reported an error");
+		break;
+
+	case SKSE::MessagingInterface::kPostPostLoad:
+		if (!SmoothCamAPI::RequestInterface(
+				SKSE::GetMessagingInterface(),
+				SmoothCamAPI::InterfaceVersion::V1))
+			logger::warn("SmoothCamAPI::RequestInterface reported an error");
 		break;
 	}
 }

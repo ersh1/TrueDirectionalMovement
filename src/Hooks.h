@@ -172,7 +172,7 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> ProjectileVtbl{ REL::ID(264058) };			// 167C888
+			REL::Relocation<std::uintptr_t> ProjectileVtbl{ REL::ID(264058) };				// 167C888
 			REL::Relocation<std::uintptr_t> ArrowProjectileVtbl{ REL::ID(263776) };			// 1676318
 			REL::Relocation<std::uintptr_t> MissileProjectileVtbl{ REL::ID(263942) };		// 167AE78
 			_GetLinearVelocity = ProjectileVtbl.write_vfunc(0x86, GetLinearVelocity);
@@ -191,7 +191,7 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> PlayerCharacterVtbl{ RE::Offset::PlayerCharacter::Vtbl };  // 1663F78
+			REL::Relocation<std::uintptr_t> PlayerCharacterVtbl{ RE::Offset::PlayerCharacter::Vtbl };				// 1665E0
 			_ProcessTracking = PlayerCharacterVtbl.write_vfunc(0x122, ProcessTracking);
 			REL::Relocation<std::uintptr_t> PlayerCharacter_IAnimationGraphManagerHolderVtbl{ REL::ID(261918) };	// 1663F78
 			_ProcessEvent = PlayerCharacter_IAnimationGraphManagerHolderVtbl.write_vfunc(0x1, ProcessEvent);
@@ -314,17 +314,33 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			//REL::Relocation<uintptr_t> hook{ REL::ID(static_cast<std::uint64_t>(55694)) };  // 996FD0, papyrus wrapper
-			REL::Relocation<uintptr_t> hook{ REL::ID(static_cast<std::uint64_t>(32141)) };  // 4F06E0
+			REL::Relocation<uintptr_t> hook{ REL::ID(55694) };  // 996FD0, papyrus wrapper
+			//REL::Relocation<uintptr_t> hook{ REL::ID(32141) };  // 4F06E0
 
 			auto& trampoline = SKSE::GetTrampoline();
-			//_SetBool = trampoline.write_call<5>(hook.address() + 0x4C, SetBool);
-			_SetBool = trampoline.write_call<5>(hook.address() + 0xE, SetBool);
+			_SetBool = trampoline.write_call<5>(hook.address() + 0x4C, SetBool);
+			//_SetBool = trampoline.write_call<5>(hook.address() + 0xE, SetBool);
 		}
 
 	private:
-		static void SetBool(RE::IAnimationGraphManagerHolder* a_this, RE::BSFixedString* a_variableName, bool* a_value);
+		static void SetBool(RE::IAnimationGraphManagerHolder* a_this, RE::BSFixedString* a_variableName, bool a_value);
 		static inline REL::Relocation<decltype(SetBool)> _SetBool;
+	};
+
+	class PlayerCameraHook // to fix Improved Camera breaking player pitch during target lock
+	{
+	public:
+		static void Hook()
+		{
+			REL::Relocation<std::uintptr_t> hook{ REL::ID(49852) };  // 84AB90
+
+			auto& trampoline = SKSE::GetTrampoline();
+			_Update = trampoline.write_call<5>(hook.address() + 0x1A6, Update);
+		}
+
+	private:
+		static void Update(RE::TESCamera* a_this);
+		static inline REL::Relocation<decltype(Update)> _Update;
 	};
 
 	void Install();

@@ -76,6 +76,13 @@ public:
 	void CloseBossMenu();
 	void OpenBossMenu();
 
+	void UpdateVanillaTargetBarState();
+	void HideVanillaTargetBar();
+	void ShowVanillaTargetBar();
+
+	RE::RefHandle GetEnemyHealthTargetRef() const;
+	void SetEnemyHealthTargetRef(RE::RefHandle a_refHandle);
+
 	void SetTarget(RE::ActorHandle a_target);
 	void SetSoftTarget(RE::ActorHandle a_softTarget);
 
@@ -131,6 +138,8 @@ public:
 	void SetShowBossDamage(bool a_show);
 	bool GetShowBossHealthPhantom() const;
 	void SetShowBossHealthPhantom(bool a_show);
+	bool GetBossHideVanillaTargetBar() const;
+	void SetBossHideVanillaTargetBar(bool a_hide);
 	float GetBossHealthPhantomDuration() const;
 	void SetBossHealthPhantomDuration(float a_duration);
 	float GetBossDamageDuration() const;
@@ -213,8 +222,10 @@ private:
 	mutable Lock _lock;
 	std::vector<TargetLockTasklet> _targetLockMenuTaskQueue;
 	std::vector<BossTasklet> _bossMenuTaskQueue;
+	uint8_t _hideVanillaTargetBar = 0;
 	bool _refreshTargetLockMenu{ false };
 	bool _refreshBossMenu{ false };
+	RE::RefHandle _enemyHealthTargetRef;
 
 	static constexpr bool DF_SHOWRETICLE = true;
 	static constexpr ReticleStyle DF_RETICLESTYLE = ReticleStyle::kDefault;
@@ -241,6 +252,7 @@ private:
 	static constexpr uint16_t DF_BOSSLEVELTHRESHOLD = 10;
 	static constexpr bool DF_SHOWBOSSDAMAGE = true;
 	static constexpr bool DF_SHOWBOSSHEALTHPHANTOM = true;
+	static constexpr bool DF_BOSSHIDEVANILLATARGETBAR = true;
 	static constexpr float DF_BOSSHEALTHPHANTOMDURATION = 0.75f;
 	static constexpr float DF_BOSSDAMAGEDURATION = 2.f;
 	static constexpr float DF_BOSSBARSCALE = 1.f;
@@ -277,6 +289,7 @@ private:
 	uint16_t _bossLevelThreshold = 10;
 	bool _bShowBossDamage = true;
 	bool _bShowBossHealthPhantom = true;
+	bool _bBossHideVanillaTargetBar = true;
 	float _bossHealthPhantomDuration = 0.75f;
 	float _bossDamageDuration = 2.f;
 	float _bossBarScale = 1.f;

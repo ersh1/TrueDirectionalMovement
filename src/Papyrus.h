@@ -5,8 +5,10 @@ namespace Papyrus
 	class TrueDirectionalMovement
 	{
 	public:
-		static bool GetFreeCamera(RE::StaticFunctionTag*);
-		static void SetFreeCamera(RE::StaticFunctionTag*, bool a_enable);
+		static bool GetDirectionalMovementSheathed(RE::StaticFunctionTag*);
+		static void SetDirectionalMovementSheathed(RE::StaticFunctionTag*, bool a_enable);
+		static bool GetDirectionalMovementDrawn(RE::StaticFunctionTag*);
+		static void SetDirectionalMovementDrawn(RE::StaticFunctionTag*, bool a_enable);
 		static uint32_t GetDialogueMode(RE::StaticFunctionTag*);
 		static void SetDialogueMode(RE::StaticFunctionTag*, uint32_t a_mode);
 		static bool GetHeadtracking(RE::StaticFunctionTag*);
@@ -19,8 +21,12 @@ namespace Papyrus
 		static void SetCameraHeadtrackingStrength(RE::StaticFunctionTag*, float a_strength);
 		static bool GetStopCameraHeadtrackingBehindPlayer(RE::StaticFunctionTag*);
 		static void SetStopCameraHeadtrackingBehindPlayer(RE::StaticFunctionTag*, bool a_enable);
+		static bool GetFaceCrosshairWhileAttacking(RE::StaticFunctionTag*);
+		static void SetFaceCrosshairWhileAttacking(RE::StaticFunctionTag*, bool a_enable);
 		static bool GetFaceCrosshairWhileBlocking(RE::StaticFunctionTag*);
 		static void SetFaceCrosshairWhileBlocking(RE::StaticFunctionTag*, bool a_enable);
+		static bool GetFaceCrosshairDuringAutoMove(RE::StaticFunctionTag*);
+		static void SetFaceCrosshairDuringAutoMove(RE::StaticFunctionTag*, bool a_enable);
 		static float GetRunningRotationSpeedMult(RE::StaticFunctionTag*);
 		static void SetRunningRotationSpeedMult(RE::StaticFunctionTag*, float a_mult);
 		static float GetSprintingRotationSpeedMult(RE::StaticFunctionTag*);
@@ -33,8 +39,6 @@ namespace Papyrus
 		static void SetAttackEndRotationSpeedMult(RE::StaticFunctionTag*, float a_mult);
 		static float GetAirRotationSpeedMult(RE::StaticFunctionTag*);
 		static void SetAirRotationSpeedMult(RE::StaticFunctionTag*, float a_mult);
-		static bool GetFaceCrosshairInstantly(RE::StaticFunctionTag*);
-		static void SetFaceCrosshairInstantly(RE::StaticFunctionTag*, bool a_enable);
 		static bool GetDisableAttackRotationMultipliersForTransformations(RE::StaticFunctionTag*);
 		static void SetDisableAttackRotationMultipliersForTransformations(RE::StaticFunctionTag*, bool a_enable);
 		static bool GetStopOnDirectionChange(RE::StaticFunctionTag*);
@@ -52,6 +56,8 @@ namespace Papyrus
 		static void SetTargetLockUseMouse(RE::StaticFunctionTag*, bool a_enable);
 		static bool GetTargetLockUseScrollWheel(RE::StaticFunctionTag*);
 		static void SetTargetLockUseScrollWheel(RE::StaticFunctionTag*, bool a_enable);
+		static bool GetTargetLockUseRightThumbstick(RE::StaticFunctionTag*);
+		static void SetTargetLockUseRightThumbstick(RE::StaticFunctionTag*, bool a_enable);
 		static uint32_t GetTargetLockArrowAimType(RE::StaticFunctionTag*);
 		static void SetTargetLockArrowAimType(RE::StaticFunctionTag*, uint32_t a_type);
 		static uint32_t GetTargetLockMissileAimType(RE::StaticFunctionTag*);
@@ -62,6 +68,8 @@ namespace Papyrus
 		static void SetTargetLockTestLOS(RE::StaticFunctionTag*, bool a_enable);
 		static bool GetTargetLockHostileActorsOnly(RE::StaticFunctionTag*);
 		static void SetTargetLockHostileActorsOnly(RE::StaticFunctionTag*, bool a_enable);
+		static bool GetTargetLockHideCrosshair(RE::StaticFunctionTag*);
+		static void SetTargetLockHideCrosshair(RE::StaticFunctionTag*, bool a_hide);
 
 		static bool GetWidgetShowReticle(RE::StaticFunctionTag*);
 		static void SetWidgetShowReticle(RE::StaticFunctionTag*, bool a_show);
@@ -78,11 +86,11 @@ namespace Papyrus
 		static uint32_t GetWidgetTargetLevelThreshold(RE::StaticFunctionTag*);
 		static void SetWidgetTargetLevelThreshold(RE::StaticFunctionTag*, uint32_t a_threshold);
 		static bool GetWidgetShowDamage(RE::StaticFunctionTag*);
-		static void SetWidgetShowDamage(RE::StaticFunctionTag*, bool a_hide);
+		static void SetWidgetShowDamage(RE::StaticFunctionTag*, bool a_show);
 		static bool GetWidgetShowHealthPhantom(RE::StaticFunctionTag*);
 		static void SetWidgetShowHealthPhantom(RE::StaticFunctionTag*, bool a_show);
 		static bool GetWidgetHideVanillaTargetBar(RE::StaticFunctionTag*);
-		static void SetWidgetHideVanillaTargetBar(RE::StaticFunctionTag*, bool a_show);
+		static void SetWidgetHideVanillaTargetBar(RE::StaticFunctionTag*, bool a_hide);
 		static float GetWidgetHealthPhantomDuration(RE::StaticFunctionTag*);
 		static void SetWidgetHealthPhantomDuration(RE::StaticFunctionTag*, float a_duration);
 		static float GetWidgetDamageDuration(RE::StaticFunctionTag*);
@@ -112,6 +120,8 @@ namespace Papyrus
 		static void SetShowBossDamage(RE::StaticFunctionTag*, bool a_show);
 		static bool GetShowBossHealthPhantom(RE::StaticFunctionTag*);
 		static void SetShowBossHealthPhantom(RE::StaticFunctionTag*, bool a_show);
+		static bool GetBossHideVanillaTargetBar(RE::StaticFunctionTag*);
+		static void SetBossHideVanillaTargetBar(RE::StaticFunctionTag*, bool a_hide);
 		static float GetBossHealthPhantomDuration(RE::StaticFunctionTag*);
 		static void SetBossHealthPhantomDuration(RE::StaticFunctionTag*, float a_duration);
 		static float GetBossDamageDuration(RE::StaticFunctionTag*);

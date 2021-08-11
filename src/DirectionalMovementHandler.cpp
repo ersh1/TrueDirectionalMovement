@@ -3,6 +3,9 @@
 #include "Offsets.h"
 #include "Utils.h"
 #include "WidgetHandler.h"
+#include <Psapi.h>
+#include <DbgHelp.h>
+#pragma comment(lib, "dbghelp.lib")
 
 constexpr auto werewolfFormID = 0xCDD84;
 constexpr auto vampireLordFormID = 0x200283A;
@@ -28,19 +31,25 @@ void DirectionalMovementHandler::Update()
 	UpdateTargetLock();
 
 	UpdateTweeningState();
+
+	UpdateFacingState();
+	UpdateDirectionalMovement();
+
+	if (_bAiming) {
+		ShowCrosshair();
+	} else if (_bTargetLock) {
+		HideCrosshair();
+	}
 	
 	if (IsFreeCamera()) {
-		bool bShouldFaceCrosshair = ShouldFaceCrosshair();
 		if (_directionalMovementGlobal){
 			_directionalMovementGlobal->value = 1;
 		}
-		if (bShouldFaceCrosshair || _target) {
+		if (_target) {
 			SetDesiredAngleToTarget(RE::PlayerCharacter::GetSingleton(), _target);
+			LookAtTarget(_target);
 			if (_directionalMovementGlobal) {
 				_directionalMovementGlobal->value = 0;
-			}
-			if (!bShouldFaceCrosshair && _target) {
-				LookAtTarget(_target);
 			}
 		}
 
@@ -90,6 +99,158 @@ void DirectionalMovementHandler::Update()
 	}
 }
 
+void DirectionalMovementHandler::UpdateDirectionalMovement()
+{
+	bool bIsAIDriven = false;
+	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+	if (playerCharacter) {
+		bIsAIDriven = playerCharacter->movementController && !playerCharacter->movementController->unk1C5;
+	}
+
+	bool bFreeCamera = GetFreeCameraEnabled();
+
+	RE::TESCameraState* currentCameraState = RE::PlayerCamera::GetSingleton()->currentState.get();
+	if (bFreeCamera && currentCameraState && !bIsAIDriven && !_bShouldFaceCrosshair &&
+		((currentCameraState->id == RE::CameraStates::kThirdPerson && !IsIFPV() && !IsImprovedCamera()) ||
+			currentCameraState->id == RE::CameraStates::kTween ||
+			currentCameraState->id == RE::CameraState::kBleedout) &&
+		(_dialogueMode != kDisable || !RE::MenuTopicManager::GetSingleton()->speaker)) {
+		_bDirectionalMovement = true;
+	} else {
+		_bDirectionalMovement = false;
+		ResetDesiredAngle();
+	}
+
+	OverrideControllerBufferDepth(_bDirectionalMovement);
+}
+
+void DirectionalMovementHandler::UpdateFacingState()
+{
+	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+
+	if (_faceCrosshairTimer > 0.f) {
+		_bShouldFaceCrosshair = true;
+		_bShouldFaceTarget = true;
+		return;
+	}
+
+	_bAiming = false;
+
+	if (!playerCharacter) {
+		return;
+	}
+
+	if (_bFaceCrosshairDuringAutoMove && RE::PlayerControls::GetSingleton()->data.autoMove) {
+		_bShouldFaceCrosshair = true;
+		_bShouldFaceTarget = true;
+		return;
+	}
+
+	// workaround for an issue with AGO, I don't like this but it works
+	static RE::ATTACK_STATE_ENUM currentAttackState;
+	auto previousState = currentAttackState;
+	RE::ATTACK_STATE_ENUM playerAttackState = playerCharacter->GetAttackState();
+	if (playerAttackState != RE::ATTACK_STATE_ENUM::kBowAttached) {
+		currentAttackState = playerAttackState;
+	}
+
+	if (_bFaceCrosshairWhileAttacking && playerAttackState > RE::ATTACK_STATE_ENUM::kNone && !HasTargetLocked()) {
+		_bShouldFaceCrosshair = true;
+		_faceCrosshairTimer = faceCrosshairDuration;
+		_bShouldFaceTarget = true;
+		return;
+	}
+
+	if (_bFaceCrosshairWhileBlocking && (playerCharacter->IsBlocking() || playerAttackState == RE::ATTACK_STATE_ENUM::kBash) && !HasTargetLocked()) {
+		_bShouldFaceCrosshair = true;
+		_faceCrosshairTimer = faceCrosshairDuration;
+		_bShouldFaceTarget = true;
+		return;
+	}
+
+	// face crosshair if we're using a staff. Thanks NickNak for the iState writeup!
+	int iState = 0;
+	playerCharacter->GetGraphVariableInt("iState", iState);
+
+	auto rightHand = playerCharacter->GetEquippedObject(false);
+	if (rightHand) {
+		auto rightWeapon = rightHand->As<RE::TESObjectWEAP>();
+		if (rightWeapon && rightWeapon->IsBow()) {
+			bool bAGOWorkaround = playerAttackState != RE::ATTACK_STATE_ENUM::kBowAttached || (previousState != RE::ATTACK_STATE_ENUM::kNone && previousState != RE::ATTACK_STATE_ENUM::kBowReleased);
+			if ((playerAttackState >= RE::ATTACK_STATE_ENUM::kBowDraw && bAGOWorkaround && playerAttackState <= RE::ATTACK_STATE_ENUM::kBowReleased)) {
+				_bAiming = !HasTargetLocked() || _targetLockArrowAimType == kFreeAim;
+				_bShouldFaceCrosshair = _bAiming;
+				if (_bShouldFaceCrosshair) {
+					_faceCrosshairTimer = faceCrosshairDuration;
+				}
+				_bShouldFaceTarget = true;
+				return;
+			}
+		} else if (rightWeapon && rightWeapon->IsCrossbow()) {
+			if ((playerAttackState >= RE::ATTACK_STATE_ENUM::kBowDrawn && playerAttackState <= RE::ATTACK_STATE_ENUM::kBowReleased)) {
+				_bAiming = !HasTargetLocked() || _targetLockArrowAimType == kFreeAim;
+				_bShouldFaceCrosshair = _bAiming;
+				if (_bShouldFaceCrosshair) {
+					_faceCrosshairTimer = faceCrosshairDuration;
+				}
+				_bShouldFaceTarget = true;
+				return;
+			}
+		} else if (rightWeapon && rightWeapon->IsStaff()) {
+			if (iState == 10) {
+				_bAiming = !HasTargetLocked() || _targetLockMissileAimType == kFreeAim;
+				_bShouldFaceCrosshair = _bAiming;
+				if (_bShouldFaceCrosshair) {
+					_faceCrosshairTimer = faceCrosshairDuration;
+				}
+				_bShouldFaceTarget = true;
+				return;
+			}
+		}
+
+		auto rightSpell = rightHand->As<RE::SpellItem>();
+		if (rightSpell && (playerCharacter->IsCasting(rightSpell) && rightSpell->GetDelivery() != RE::MagicSystem::Delivery::kSelf)) {
+			_bAiming = !HasTargetLocked() || _targetLockMissileAimType == kFreeAim;
+			_bShouldFaceCrosshair = _bAiming;
+			if (_bShouldFaceCrosshair) {
+				_faceCrosshairTimer = faceCrosshairDuration;
+			}
+			_bShouldFaceTarget = true;
+			return;
+		}
+	}
+
+	auto leftHand = playerCharacter->GetEquippedObject(true);
+	if (leftHand) {
+		auto leftWeapon = leftHand->As<RE::TESObjectWEAP>();
+		if (leftWeapon && leftWeapon->IsStaff()) {
+			if (iState == 10) {
+				_bAiming = !HasTargetLocked() || _targetLockMissileAimType == kFreeAim;
+				_bShouldFaceCrosshair = _bAiming;
+				if (_bShouldFaceCrosshair) {
+					_faceCrosshairTimer = faceCrosshairDuration;
+				}
+				_bShouldFaceTarget = true;
+				return;
+			}
+		}
+
+		auto leftSpell = leftHand->As<RE::SpellItem>();
+		if (leftSpell && (playerCharacter->IsCasting(leftSpell) && leftSpell->GetDelivery() != RE::MagicSystem::Delivery::kSelf)) {
+			_bAiming = !HasTargetLocked() || _targetLockMissileAimType == kFreeAim;
+			_bShouldFaceCrosshair = _bAiming;
+			if (_bShouldFaceCrosshair) {
+				_faceCrosshairTimer = faceCrosshairDuration;
+			}
+			_bShouldFaceTarget = true;
+			return;
+		}
+	}
+
+	_bShouldFaceCrosshair = false;
+	_bShouldFaceTarget = false;
+}
+
 void DirectionalMovementHandler::ProgressTimers()
 {
 	if (_dialogueHeadtrackTimer > 0.f) {
@@ -100,6 +261,67 @@ void DirectionalMovementHandler::ProgressTimers()
 	}
 	if (_lastLOSTimer > 0.f) {	
 		_lastLOSTimer -= *g_deltaTime;
+	}
+	if (_faceCrosshairTimer > 0.f) {
+		_faceCrosshairTimer -= *g_deltaTime;
+	}
+}
+
+void DirectionalMovementHandler::HideCrosshair()
+{
+	// Hide crosshair if the option is on.
+	if (_bTargetLockHideCrosshair) {
+		// Request control over crosshair from SmoothCam.
+		bool bCanControlCrosshair = false;
+		if (g_SmoothCam) {
+			auto result = g_SmoothCam->RequestCrosshairControl(SKSE::GetPluginHandle(), true);
+			if (result == SmoothCamAPI::APIResult::OK || result == SmoothCamAPI::APIResult::AlreadyGiven) {
+				bCanControlCrosshair = true;
+			}
+		} else {
+			bCanControlCrosshair = true;
+		}
+
+		if (bCanControlCrosshair) {
+			auto hud = RE::UI::GetSingleton()->GetMenu("HUD Menu");
+			if (hud && hud->uiMovie) {
+				const RE::GFxValue bFalse{ false };
+				hud->uiMovie->SetVariable("HUDMovieBaseInstance.Crosshair._visible", bFalse);
+				_bCrosshairIsHidden = true;
+			}
+		}
+	}
+}
+
+void DirectionalMovementHandler::ShowCrosshair()
+{
+	// Show crosshair if it has been hidden.
+	if (_bCrosshairIsHidden) {
+		bool bCanControlCrosshair = false;
+		// Check if we have control over crosshair from smoothcam
+		if (g_SmoothCam) {
+			auto pluginHandle = g_SmoothCam->GetCrosshairOwner();
+			if (pluginHandle == SKSE::GetPluginHandle()) {
+				bCanControlCrosshair = true;
+			}
+		} else {
+			bCanControlCrosshair = true;
+		}
+
+		if (bCanControlCrosshair) {
+			auto hud = RE::UI::GetSingleton()->GetMenu("HUD Menu");
+			if (hud && hud->uiMovie) {
+				const RE::GFxValue bTrue{ true };
+				hud->uiMovie->SetVariable("HUDMovieBaseInstance.Crosshair._visible", bTrue);
+			}
+
+			// Release control over crosshair to SmoothCam.
+			if (g_SmoothCam) {
+				g_SmoothCam->ReleaseCrosshairControl(SKSE::GetPluginHandle());
+			}
+		}
+
+		_bCrosshairIsHidden = false;
 	}
 }
 
@@ -129,7 +351,7 @@ bool DirectionalMovementHandler::ProcessInput(RE::NiPoint2& a_inputDirection, RE
 		return false;
 	}
 
-	if (ShouldFaceCrosshair()) {
+	if (_bShouldFaceCrosshair) {
 		ResetDesiredAngle();
 		return false;  // let the hook do the rotation
 	}
@@ -200,10 +422,7 @@ void DirectionalMovementHandler::SetDesiredAngleToTarget(RE::PlayerCharacter* a_
 		return;
 	}
 
-	bool bShouldFaceCrosshair = false;
-	bool bShouldFaceTarget = ShouldFaceTarget(bShouldFaceCrosshair);
-
-	if (bShouldFaceCrosshair) {
+	if (_bShouldFaceCrosshair) {
 		float currentCharacterRot = a_playerCharacter->data.angle.z;
 		float currentCameraRotOffset = thirdPersonState->freeRotation.x;
 
@@ -236,7 +455,7 @@ void DirectionalMovementHandler::SetDesiredAngleToTarget(RE::PlayerCharacter* a_
 
 		float angleDelta = GetAngle(currentCharacterDirection, directionToTarget);
 
-		if (_bHeadtracking && HasTargetLocked() && !bShouldFaceTarget && !_bHasMovementInput && _attackState == kNone && !RE::PlayerCharacter::GetSingleton()->IsBlocking() && abs(angleDelta) < PI4) {
+		if (_bHeadtracking && HasTargetLocked() && !_bShouldFaceTarget && !_bHasMovementInput && _attackState == kNone && !RE::PlayerCharacter::GetSingleton()->IsBlocking() && abs(angleDelta) < PI4) {
 			return;
 		}
 
@@ -261,7 +480,7 @@ void DirectionalMovementHandler::UpdateRotation()
 	bool bWasDodging = _bIsDodging;
 	playerCharacter->GetGraphVariableBool("TDM_Dodge", _bIsDodging);
 
-	bool bInstantRotation = ShouldFaceCrosshair() && _bFaceCrosshairInstantly || (!bWasDodging && _bIsDodging && !playerCharacter->IsAnimationDriven());
+	bool bInstantRotation = _bShouldFaceCrosshair || (!bWasDodging && _bIsDodging && !playerCharacter->IsAnimationDriven());
 
 	if (!bInstantRotation)
 	{
@@ -397,11 +616,9 @@ void DirectionalMovementHandler::UpdateRotationLockedCam()
 void DirectionalMovementHandler::UpdateTweeningState()
 {
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
-	if (playerCharacter)
-	{
+	if (playerCharacter) {
 		auto movementController = playerCharacter->movementController;
-		if (movementController && movementController->unk0F8)
-		{
+		if (movementController && movementController->unk0F8) {
 			uintptr_t tweenerArbiterPtr = movementController->unk0F8 - 0x20;
 
 			bool bWasTweening = _bIsTweening;
@@ -414,68 +631,38 @@ void DirectionalMovementHandler::UpdateTweeningState()
 	}
 }
 
-bool DirectionalMovementHandler::IsIFPV()
+bool DirectionalMovementHandler::IsIFPV() const
 {
-	/*auto playerCharacter = RE::PlayerCharacter::GetSingleton();
-	auto playerCamera = RE::PlayerCamera::GetSingleton();
-	
-	if (playerCharacter && playerCamera && playerCamera->cameraRoot)
-	{
-		auto root = playerCharacter->Get3D();
-		if (root)
-		{
-			auto head = root->GetObjectByName("NPCEyeBone");
-			if (!head)
-			{
-				head = root->GetObjectByName("NPC Head [Head]");
-			}
-
-			if (head)
-			{
-				RE::NiPoint3& cameraPos = playerCamera->cameraRoot->world.translate;
-				RE::NiPoint3& headPos = head->world.translate;
-
-				auto distance = cameraPos.GetDistance(headPos);
-
-				if (distance > 150) {
-					return false;
-				} else {
-					return true;
-				}
-			}
-		}
-	}
-
-	return false;*/
-
-	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
-
-	if (directionalMovementHandler->_bImprovedCameraLoaded)
-	{
-		return false;
-	}
-
-	return *g_fNearDistance != directionalMovementHandler->_defaultNearClip;
-}
-
-bool DirectionalMovementHandler::IsFreeCamera() const
-{
-	RE::TESCameraState* currentCameraState = RE::PlayerCamera::GetSingleton()->currentState.get();
-	if (currentCameraState && 
-		((currentCameraState->id == RE::CameraStates::kThirdPerson && !IsIFPV()) || 
-			currentCameraState->id == RE::CameraStates::kTween ||
-			currentCameraState->id == RE::CameraState::kFurniture ||
-			currentCameraState->id == RE::CameraState::kBleedout) && 
-		(_dialogueMode != kDisable || !RE::MenuTopicManager::GetSingleton()->speaker)) {
-		return _bFreeCamera;
+	if (_IFPV_IsFirstPerson) {
+		return _IFPV_IsFirstPerson->value;
 	}
 
 	return false;
 }
 
+bool DirectionalMovementHandler::IsImprovedCamera() const
+{
+	if (_ImprovedCamera_IsThirdPerson) {
+		return *_ImprovedCamera_IsThirdPerson;
+	}
+
+	return false;
+}
+
+bool DirectionalMovementHandler::IsFreeCamera() const
+{
+	return _bDirectionalMovement;
+}
+
 bool DirectionalMovementHandler::GetFreeCameraEnabled() const
 {
-	return _bFreeCamera;
+	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+	if (playerCharacter)
+	{
+		return playerCharacter->IsWeaponDrawn() ? _bDirectionalMovementDrawn : _bDirectionalMovementSheathed;
+	}
+
+	return false;
 }
 
 bool DirectionalMovementHandler::HasMovementInput() const
@@ -546,7 +733,7 @@ void DirectionalMovementHandler::ToggleTargetLock(bool bEnable)
 			SetTarget(actor);	
 
 			// Set graph variable
-			playerCharacter->SetGraphVariableBool("tdmTargetLock", true);
+			playerCharacter->SetGraphVariableBool("TDM_TargetLock", true);
 
 			// Add spell so DAR can detect target lock
 			if (_targetLockSpell) {
@@ -566,12 +753,14 @@ void DirectionalMovementHandler::ToggleTargetLock(bool bEnable)
 		SetTarget(RE::ActorHandle());
 
 		// Set graph variable
-		playerCharacter->SetGraphVariableBool("tdmTargetLock", true);
+		playerCharacter->SetGraphVariableBool("TDM_TargetLock", true);
 
 		// Remove spell so DAR can detect target lock
 		if (_targetLockSpell) {
 			playerCharacter->RemoveSpell(_targetLockSpell);
 		}
+
+		ShowCrosshair();
 
 		_bTargetLock = false;
 
@@ -1013,12 +1202,24 @@ void DirectionalMovementHandler::SetHeadtrackTarget(RE::TESObjectREFR* a_target)
 void DirectionalMovementHandler::UpdateCameraHeadtracking()
 {
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
-	auto thirdPersonState = static_cast<RE::ThirdPersonState*>(RE::PlayerCamera::GetSingleton()->cameraStates[RE::CameraState::kThirdPerson].get());
-	if (!playerCharacter || !thirdPersonState) {
+	auto playerCamera = RE::PlayerCamera::GetSingleton();
+
+	if (!playerCharacter || !playerCamera || !playerCamera->currentState) {
 		return;
 	}
 
-	float cameraYawOffset = NormalRelativeAngle(thirdPersonState->freeRotation.x);
+	RE::ThirdPersonState* currentState = nullptr;
+
+	if (playerCamera->currentState->id == RE::CameraState::kThirdPerson || playerCamera->currentState->id == RE::CameraState::kMount)
+	{
+		currentState = static_cast<RE::ThirdPersonState*>(playerCamera->currentState.get());
+	}
+
+	if (!currentState) {
+		return;
+	}
+
+	float cameraYawOffset = NormalRelativeAngle(currentState->freeRotation.x);
 	if (_bStopCameraHeadtrackingBehindPlayer && !(cameraYawOffset < TWOTHIRDS_PI && cameraYawOffset > -TWOTHIRDS_PI)) {
 		return;
 	}
@@ -1026,7 +1227,7 @@ void DirectionalMovementHandler::UpdateCameraHeadtracking()
 	cameraYawOffset *= _cameraHeadtrackingStrength;
 	
 	float yaw = NormalRelativeAngle(playerCharacter->data.angle.z + cameraYawOffset - PI2);
-	float pitch = NormalRelativeAngle(playerCharacter->data.angle.x + thirdPersonState->freeRotation.y);
+	float pitch = NormalRelativeAngle(playerCharacter->data.angle.x);
 
 	pitch *= _cameraHeadtrackingStrength;
 
@@ -1135,90 +1336,25 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	// pitch
 	RE::NiPoint3 playerAngle = ToOrientationRotation(playerDirectionToTarget);
 	RE::NiPoint3 cameraAngle = ToOrientationRotation(cameraDirectionToTarget);
-	float desiredPlayerPitch = -playerAngle.x;
+	_desiredPlayerPitch = -playerAngle.x;
 	cameraAngle.x *= ((PI - fabs(cameraAngle.x)) / PI);
-	float desiredCameraAngle = desiredPlayerPitch + cameraAngle.x;
+	float desiredCameraAngle = _desiredPlayerPitch + cameraAngle.x;
 
-	playerCharacter->data.angle.x = desiredPlayerPitch;															// player pitch
-	float cameraPitchOffset = desiredPlayerPitch - currentCharacterPitch;
+	playerCharacter->data.angle.x = _desiredPlayerPitch;															// player pitch
+	_bUpdatePlayerPitch = true;
+	float cameraPitchOffset = _desiredPlayerPitch - currentCharacterPitch;
 	thirdPersonState->freeRotation.y += cameraPitchOffset;
 	thirdPersonState->freeRotation.y = InterpAngleTo(thirdPersonState->freeRotation.y, desiredCameraAngle, *g_deltaTime, _targetLockPitchAdjustSpeed);
 }
 
-bool DirectionalMovementHandler::ShouldFaceTarget(bool& out_bFaceCrosshair) const
+bool DirectionalMovementHandler::ShouldFaceTarget() const
 {
-	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
-
-	// workaround for an issue with AGO, I don't like this but it works
-	static RE::ATTACK_STATE_ENUM currentAttackState;
-	auto previousState = currentAttackState;
-	RE::ATTACK_STATE_ENUM playerAttackState = playerCharacter->GetAttackState();
-	if (playerAttackState != RE::ATTACK_STATE_ENUM::kBowAttached) {
-		currentAttackState = playerAttackState;
-	}
-
-	if (_bFaceCrosshairWhileBlocking && (playerCharacter->IsBlocking() || playerAttackState == RE::ATTACK_STATE_ENUM::kBash) && !HasTargetLocked()) {
-		out_bFaceCrosshair = true;
-		return true;
-	}
-
-	// face crosshair if we're using a staff. Thanks NickNak for the iState writeup!
-	int iState = 0;
-	playerCharacter->GetGraphVariableInt("iState", iState);
-
-	auto rightHand = playerCharacter->GetEquippedObject(false);
-	if (rightHand) {
-		auto rightWeapon = rightHand->As<RE::TESObjectWEAP>();
-		if (rightWeapon && rightWeapon->IsBow()) {
-			bool bAGOWorkaround = playerAttackState != RE::ATTACK_STATE_ENUM::kBowAttached || (previousState != RE::ATTACK_STATE_ENUM::kNone && previousState != RE::ATTACK_STATE_ENUM::kBowReleased);
-			if ((playerAttackState >= RE::ATTACK_STATE_ENUM::kBowDraw && bAGOWorkaround && playerAttackState <= RE::ATTACK_STATE_ENUM::kBowReleased)) {
-				out_bFaceCrosshair = !HasTargetLocked() || _targetLockArrowAimType == kFreeAim;
-				return true;
-			}
-		} else if (rightWeapon && rightWeapon->IsCrossbow()) {
-			if ((playerAttackState >= RE::ATTACK_STATE_ENUM::kBowDrawn && playerAttackState <= RE::ATTACK_STATE_ENUM::kBowReleased)) {
-				out_bFaceCrosshair = !HasTargetLocked() || _targetLockArrowAimType == kFreeAim;
-				return true;
-			}
-		} else if (rightWeapon && rightWeapon->IsStaff()) {
-			if (iState == 10) {
-				out_bFaceCrosshair = !HasTargetLocked() || _targetLockMissileAimType == kFreeAim;
-				return true;
-			}
-		}
-
-		auto rightSpell = rightHand->As<RE::SpellItem>();
-		if (rightSpell && (playerCharacter->IsCasting(rightSpell) && rightSpell->GetDelivery() != RE::MagicSystem::Delivery::kSelf)) {
-			out_bFaceCrosshair = !HasTargetLocked() || _targetLockMissileAimType == kFreeAim;
-			return true;
-		}
-	}
-
-	auto leftHand = playerCharacter->GetEquippedObject(true);
-	if (leftHand) {
-		auto leftWeapon = leftHand->As<RE::TESObjectWEAP>();
-		if (leftWeapon && leftWeapon->IsStaff()) {
-			if (iState == 10) {
-				out_bFaceCrosshair = !HasTargetLocked() || _targetLockMissileAimType == kFreeAim;
-				return true;
-			}
-		}
-
-		auto leftSpell = leftHand->As<RE::SpellItem>();
-		if (leftSpell && (playerCharacter->IsCasting(leftSpell) && leftSpell->GetDelivery() != RE::MagicSystem::Delivery::kSelf)) {
-			out_bFaceCrosshair = !HasTargetLocked() || _targetLockMissileAimType == kFreeAim;
-			return true;
-		}
-	}
-
-	return false;
+	return _bShouldFaceTarget;
 }
 
 bool DirectionalMovementHandler::ShouldFaceCrosshair() const
-{	
-	bool bReturn = false;
-	ShouldFaceTarget(bReturn);
-	return bReturn;
+{
+	return _bShouldFaceCrosshair;
 }
 
 bool DirectionalMovementHandler::HasTargetLocked() const
@@ -1259,20 +1395,28 @@ void DirectionalMovementHandler::SetDesiredAIProcessRotationSpeed(float a_rotati
 	_desiredAIProcessRotationSpeed = a_rotationSpeed;
 }
 
-bool DirectionalMovementHandler::GetFreeCamera() const
+bool DirectionalMovementHandler::GetDirectionalMovementSheathed() const
 {
 	Locker locker(_lock);
-	return _bFreeCamera;
+	return _bDirectionalMovementSheathed;
 }
 
-void DirectionalMovementHandler::SetFreeCamera(bool a_enable)
+void DirectionalMovementHandler::SetDirectionalMovementSheathed(bool a_enable)
 {
 	Locker locker(_lock);
-	_bFreeCamera = a_enable;
-	OverrideControllerBufferDepth(a_enable);
-	if (!a_enable) {
-		ResetDesiredAngle();
-	}
+	_bDirectionalMovementSheathed = a_enable;
+}
+
+bool DirectionalMovementHandler::GetDirectionalMovementDrawn() const
+{
+	Locker locker(_lock);
+	return _bDirectionalMovementDrawn;
+}
+
+void DirectionalMovementHandler::SetDirectionalMovementDrawn(bool a_enable)
+{
+	Locker locker(_lock);
+	_bDirectionalMovementDrawn = a_enable;
 }
 
 DirectionalMovementHandler::DialogueMode DirectionalMovementHandler::GetDialogueMode()
@@ -1356,6 +1500,18 @@ void DirectionalMovementHandler::SetStopCameraHeadtrackingBehindPlayer(bool a_en
 	_bStopCameraHeadtrackingBehindPlayer = a_enable;
 }
 
+bool DirectionalMovementHandler::GetFaceCrosshairWhileAttacking() const
+{
+	Locker locker(_lock);
+	return _bFaceCrosshairWhileAttacking;
+}
+
+void DirectionalMovementHandler::SetFaceCrosshairWhileAttacking(bool a_enable)
+{
+	Locker locker(_lock);
+	_bFaceCrosshairWhileAttacking = a_enable;
+}
+
 bool DirectionalMovementHandler::GetFaceCrosshairWhileBlocking() const
 {
 	Locker locker(_lock);
@@ -1366,6 +1522,18 @@ void DirectionalMovementHandler::SetFaceCrosshairWhileBlocking(bool a_enable)
 {
 	Locker locker(_lock);
 	_bFaceCrosshairWhileBlocking = a_enable;
+}
+
+bool DirectionalMovementHandler::GetFaceCrosshairDuringAutoMove() const
+{
+	Locker locker(_lock);
+	return _bFaceCrosshairDuringAutoMove;
+}
+
+void DirectionalMovementHandler::SetFaceCrosshairDuringAutoMove(bool a_enable)
+{
+	Locker locker(_lock);
+	_bFaceCrosshairDuringAutoMove = a_enable;
 }
 
 float DirectionalMovementHandler::GetRunningRotationSpeedMult() const
@@ -1438,18 +1606,6 @@ void DirectionalMovementHandler::SetAirRotationSpeedMult(float a_mult)
 {
 	Locker locker(_lock);
 	_airRotationSpeedMult = a_mult;
-}
-
-bool DirectionalMovementHandler::GetFaceCrosshairInstantly() const
-{
-	Locker locker(_lock);
-	return _bFaceCrosshairInstantly;
-}
-
-void DirectionalMovementHandler::SetFaceCrosshairInstantly(bool a_enable)
-{
-	Locker locker(_lock);
-	_bFaceCrosshairInstantly = a_enable;
 }
 
 bool DirectionalMovementHandler::GetDisableAttackRotationMultipliersForTransformations() const
@@ -1548,6 +1704,18 @@ void DirectionalMovementHandler::SetTargetLockUseScrollWheel(bool a_enable)
 	_bTargetLockUseScrollWheel = a_enable;
 }
 
+bool DirectionalMovementHandler::GetTargetLockUseRightThumbstick() const
+{
+	Locker locker(_lock);
+	return _bTargetLockUseRightThumbstick;
+}
+
+void DirectionalMovementHandler::SetTargetLockUseRightThumbstick(bool a_enable)
+{
+	Locker locker(_lock);
+	_bTargetLockUseRightThumbstick = a_enable;
+}
+
 DirectionalMovementHandler::TargetLockProjectileAimType DirectionalMovementHandler::GetTargetLockArrowAimType()
 {
 	Locker locker(_lock);
@@ -1608,6 +1776,18 @@ void DirectionalMovementHandler::SetTargetLockHostileActorsOnly(bool a_enable)
 	_bTargetLockHostileActorsOnly = a_enable;
 }
 
+bool DirectionalMovementHandler::GetTargetLockHideCrosshair() const
+{
+	Locker locker(_lock);
+	return _bTargetLockHideCrosshair;
+}
+
+void DirectionalMovementHandler::SetTargetLockHideCrosshair(bool a_hide)
+{
+	Locker locker(_lock);
+	_bTargetLockHideCrosshair = a_hide;
+}
+
 bool DirectionalMovementHandler::Save(const SKSE::SerializationInterface* a_intfc, std::uint32_t a_typeCode, std::uint32_t a_version)
 {
 	Locker locker(_lock);
@@ -1616,7 +1796,11 @@ bool DirectionalMovementHandler::Save(const SKSE::SerializationInterface* a_intf
 		return false;
 	}
 
-	if (!a_intfc->WriteRecordData(_bFreeCamera)) {
+	if (!a_intfc->WriteRecordData(_bDirectionalMovementSheathed)) {
+		return false;
+	}
+
+	if (!a_intfc->WriteRecordData(_bDirectionalMovementDrawn)) {
 		return false;
 	}
 
@@ -1644,7 +1828,15 @@ bool DirectionalMovementHandler::Save(const SKSE::SerializationInterface* a_intf
 		return false;
 	}
 
+	if (!a_intfc->WriteRecordData(_bFaceCrosshairWhileAttacking)) {
+		return false;
+	}
+
 	if (!a_intfc->WriteRecordData(_bFaceCrosshairWhileBlocking)) {
+		return false;
+	}
+
+	if (!a_intfc->WriteRecordData(_bFaceCrosshairDuringAutoMove)) {
 		return false;
 	}
 
@@ -1669,10 +1861,6 @@ bool DirectionalMovementHandler::Save(const SKSE::SerializationInterface* a_intf
 	}
 
 	if (!a_intfc->WriteRecordData(_airRotationSpeedMult)) {
-		return false;
-	}
-
-	if (!a_intfc->WriteRecordData(_bFaceCrosshairInstantly)) {
 		return false;
 	}
 
@@ -1708,6 +1896,10 @@ bool DirectionalMovementHandler::Save(const SKSE::SerializationInterface* a_intf
 		return false;
 	}
 
+	if (!a_intfc->WriteRecordData(_bTargetLockUseRightThumbstick)) {
+		return false;
+	}
+
 	if (!a_intfc->WriteRecordData(_targetLockArrowAimType)) {
 		return false;
 	}
@@ -1728,6 +1920,10 @@ bool DirectionalMovementHandler::Save(const SKSE::SerializationInterface* a_intf
 		return false;
 	}
 
+	if (!a_intfc->WriteRecordData(_bTargetLockHideCrosshair)) {
+		return false;
+	}
+
 	return true;
 }
 
@@ -1735,7 +1931,11 @@ bool DirectionalMovementHandler::Load(const SKSE::SerializationInterface* a_intf
 {
 	Locker locker(_lock);
 
-	if (!a_intfc->ReadRecordData(_bFreeCamera)) {
+	if (!a_intfc->ReadRecordData(_bDirectionalMovementSheathed)) {
+		return false;
+	}
+
+	if (!a_intfc->ReadRecordData(_bDirectionalMovementDrawn)) {
 		return false;
 	}
 
@@ -1763,7 +1963,15 @@ bool DirectionalMovementHandler::Load(const SKSE::SerializationInterface* a_intf
 		return false;
 	}
 
+	if (!a_intfc->ReadRecordData(_bFaceCrosshairWhileAttacking)) {
+		return false;
+	}
+
 	if (!a_intfc->ReadRecordData(_bFaceCrosshairWhileBlocking)) {
+		return false;
+	}
+
+	if (!a_intfc->ReadRecordData(_bFaceCrosshairDuringAutoMove)) {
 		return false;
 	}
 
@@ -1788,10 +1996,6 @@ bool DirectionalMovementHandler::Load(const SKSE::SerializationInterface* a_intf
 	}
 
 	if (!a_intfc->ReadRecordData(_airRotationSpeedMult)) {
-		return false;
-	}
-
-	if (!a_intfc->ReadRecordData(_bFaceCrosshairInstantly)) {
 		return false;
 	}
 
@@ -1827,6 +2031,10 @@ bool DirectionalMovementHandler::Load(const SKSE::SerializationInterface* a_intf
 		return false;
 	}
 
+	if (!a_intfc->ReadRecordData(_bTargetLockUseRightThumbstick)) {
+		return false;
+	}
+
 	if (!a_intfc->ReadRecordData(_targetLockArrowAimType)) {
 		return false;
 	}
@@ -1847,27 +2055,33 @@ bool DirectionalMovementHandler::Load(const SKSE::SerializationInterface* a_intf
 		return false;
 	}
 
+	if (!a_intfc->ReadRecordData(_bTargetLockHideCrosshair)) {
+		return false;
+	}
+
 	return true;
 }
 
 void DirectionalMovementHandler::Clear()
 {
 	Locker locker(_lock);
-	_bFreeCamera = DF_FREECAMERA;
+	_bDirectionalMovementSheathed = DF_DIRECTIONALMOVEMENTSHEATHED;
+	_bDirectionalMovementDrawn = DF_DIRECTIONALMOVEMENTDRAWN;
 	_dialogueMode = DF_DIALOGUEMODE;
 	_bHeadtracking = DF_HEADTRACKING;
 	_dialogueHeadtrackingDuration = DF_DIALOGUEHEADTRACKINGDURATION;
 	_bCameraHeadtracking = DF_CAMERAHEADTRACKING;
 	_cameraHeadtrackingStrength = DF_CAMERAHEADTRACKINGSTRENGTH;
 	_bStopCameraHeadtrackingBehindPlayer = DF_STOPCAMERAHEADTRACKINGBEHINDPLAYER;
+	_bFaceCrosshairWhileAttacking = DF_FACECROSSHAIRWHILEATTACKING;
 	_bFaceCrosshairWhileBlocking = DF_FACECROSSHAIRWHILEBLOCKING;
+	_bFaceCrosshairDuringAutoMove = DF_FACECROSSHAIRDURINGAUTOMOVE;
 	_runningRotationSpeedMult = DF_RUNNINGROTATIONSPEEDMULT;
 	_sprintingRotationSpeedMult = DF_SPRINTINGROTATIONSPEEDMULT;
 	_attackStartRotationSpeedMult = DF_ATTACKSTARTROTATIONSPEEDMULT;
 	_attackMidRotationSpeedMult = DF_ATTACKMIDROTATIONSPEEDMULT;
 	_attackEndRotationSpeedMult = DF_ATTACKENDROTATIONSPEEDMULT;
 	_airRotationSpeedMult = DF_AIRROTATIONSPEEDMULT;
-	_bFaceCrosshairInstantly = DF_FACECROSSHAIRINSTANTLY;
 	_bDisableAttackRotationMultipliersForTransformations = DF_DISABLEATTACKROTATIONMULTIPLIERSFORTRANSFORMATIONS;
 	_bStopOnDirectionChange = DF_STOPONDIRECTIONCHANGE;
 	_targetLockDistance = DF_TARGETLOCKDISTANCE;
@@ -1876,16 +2090,17 @@ void DirectionalMovementHandler::Clear()
 	_targetLockPitchOffsetStrength = DF_TARGETLOCKPITCHOFFSETSTRENGTH;
 	_bTargetLockUseMouse = DF_TARGETLOCKUSEMOUSE;
 	_bTargetLockUseScrollWheel = DF_TARGETLOCKUSESCROLLWHEEL;
+	_bTargetLockUseRightThumbstick = DF_TARGETLOCKUSERIGHTTHUMBSTICK;
 	_targetLockArrowAimType = DF_TARGETLOCKARROWAIMTYPE;
 	_targetLockMissileAimType = DF_TARGETLOCKMISSILEAIMTYPE;
 	_bAutoTargetNextOnDeath = DF_AUTOTARGETNEXTONDEATH;
 	_bTargetLockTestLOS = DF_TARGETLOCKTESTLOS;
 	_bTargetLockHostileActorsOnly = DF_TARGETLOCKHOSTILEACTORSONLY;
+	_bTargetLockHideCrosshair = DF_TARGETLOCKHIDECROSSHAIR;
 }
 
 void DirectionalMovementHandler::Initialize()
 {
-	OverrideControllerBufferDepth(_bFreeCamera);
 	auto dataHandler = RE::TESDataHandler::GetSingleton();
 	if (dataHandler) {
 		_targetLockSpell = dataHandler->LookupForm<RE::SpellItem>(0x805, "TrueDirectionalMovement.esp");
@@ -1904,6 +2119,7 @@ void DirectionalMovementHandler::OnLoad()
 	_softTarget = RE::ActorHandle();
 	_dialogueSpeaker = RE::ObjectRefHandle();
 	_bossTargets.clear();
+	_playerIsNPC = false;
 }
 
 void DirectionalMovementHandler::LoadIniSettings()
@@ -2002,15 +2218,70 @@ void DirectionalMovementHandler::LoadIniSettings()
 	logger::info("...success");
 }
 
-void DirectionalMovementHandler::InitIFPVCompatibility()
+
+// From SmoothCam
+namespace ICSignatures
 {
+	constexpr const DWORD SizeOfImage = 0x00054000;
+	constexpr const DWORD Signature = 0x00004550;
+	constexpr const DWORD AddressOfEntryPoint = 0x0001b0a4;
+	constexpr const DWORD TimeDateStamp = 0x5d3e15f0;
+	constexpr const DWORD FileVersion[4] = { 1, 0, 0, 4 };
+};
+
+void DirectionalMovementHandler::InitCameraModsCompatibility()
+{
+	auto dataHandler = RE::TESDataHandler::GetSingleton();
+	if (dataHandler) {
+		_IFPV_IsFirstPerson = dataHandler->LookupForm<RE::TESGlobal>(0x801, "IFPVDetector.esl");
+	}
+
+	// From SmoothCam - Improved Camera compatibility
 	auto hMod = GetModuleHandle(L"ImprovedCamera.dll");
 	if (hMod) {
-		_bImprovedCameraLoaded = true;
-		return;
-	}
-	if (_defaultNearClip == -1.f) {
-		_defaultNearClip = *g_fNearDistance;
+		MODULEINFO mi;
+		GetModuleInformation(GetCurrentProcess(), hMod, &mi, sizeof(mi));
+		if (mi.SizeOfImage != ICSignatures::SizeOfImage)
+		{
+			return;
+		}
+
+		const auto ntHeader = ImageNtHeader(hMod);
+		if (ntHeader->Signature != ICSignatures::Signature || 
+			ntHeader->OptionalHeader.AddressOfEntryPoint != ICSignatures::AddressOfEntryPoint || 
+			ntHeader->FileHeader.TimeDateStamp != ICSignatures::TimeDateStamp)
+		{
+			return;
+		}
+
+		DWORD dwHandle;
+		auto sz = GetFileVersionInfoSize(L"ImprovedCamera.dll", &dwHandle);
+		if (sz != 0) {
+			LPSTR verData = (LPSTR)malloc(sizeof(char) * sz);
+
+			if (GetFileVersionInfo(L"ImprovedCamera.dll", dwHandle, sz, verData)) {
+				LPBYTE lpBuffer = NULL;
+				UINT size = 0;
+				if (VerQueryValue(verData, L"\\", reinterpret_cast<void**>(&lpBuffer), &size) && size) {
+					VS_FIXEDFILEINFO* verInfo = reinterpret_cast<VS_FIXEDFILEINFO*>(lpBuffer);
+					if (verInfo->dwSignature == 0xfeef04bd) {
+						auto v0 = (verInfo->dwFileVersionMS >> 16) & 0xffff;
+						auto v1 = (verInfo->dwFileVersionMS >> 0) & 0xffff;
+						auto v2 = (verInfo->dwFileVersionLS >> 16) & 0xffff;
+						auto v3 = (verInfo->dwFileVersionLS >> 0) & 0xffff;
+
+						// Now check for our match
+						if (v0 == ICSignatures::FileVersion[0] && v1 == ICSignatures::FileVersion[1] &&
+							v2 == ICSignatures::FileVersion[2] && v3 == ICSignatures::FileVersion[3])
+						{
+							_ImprovedCamera_IsThirdPerson = reinterpret_cast<bool*>(reinterpret_cast<uintptr_t>(hMod) + 0x4d510);
+						}		
+					}
+				}
+			}
+
+			free(verData);
+		}
 	}
 }
 
@@ -2025,23 +2296,51 @@ bool DirectionalMovementHandler::IsBehaviorPatchInstalled(RE::TESObjectREFR* a_r
 	return a_ref->GetGraphVariableBool("tdmDummy", bOut);
 }
 
+bool DirectionalMovementHandler::GetPlayerIsNPC() const
+{
+	return _playerIsNPC;
+}
+
+void DirectionalMovementHandler::SetPlayerIsNPC(bool a_enable)
+{
+	_playerIsNPC = a_enable;
+}
+
+void DirectionalMovementHandler::UpdatePlayerPitch()
+{
+	if (_bUpdatePlayerPitch)
+	{
+		_bUpdatePlayerPitch = false;
+		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+		auto thirdPersonState = static_cast<RE::ThirdPersonState*>(RE::PlayerCamera::GetSingleton()->cameraStates[RE::CameraState::kThirdPerson].get());
+		if (playerCharacter && thirdPersonState)
+		{
+			float pitchDelta = playerCharacter->data.angle.x - _desiredPlayerPitch;
+			playerCharacter->data.angle.x -= pitchDelta;
+			thirdPersonState->freeRotation.y -= pitchDelta;
+		}
+	}
+}
+
 DirectionalMovementHandler::DirectionalMovementHandler() :
 	_lock(),
-	_bFreeCamera(DF_FREECAMERA),
+	_bDirectionalMovementSheathed(DF_DIRECTIONALMOVEMENTSHEATHED),
+	_bDirectionalMovementDrawn(DF_DIRECTIONALMOVEMENTDRAWN),
 	_dialogueMode(DF_DIALOGUEMODE),
 	_bHeadtracking(DF_HEADTRACKING),
 	_dialogueHeadtrackingDuration(DF_DIALOGUEHEADTRACKINGDURATION),
 	_bCameraHeadtracking(DF_CAMERAHEADTRACKING),
 	_cameraHeadtrackingStrength(DF_CAMERAHEADTRACKINGSTRENGTH),
 	_bStopCameraHeadtrackingBehindPlayer(DF_STOPCAMERAHEADTRACKINGBEHINDPLAYER),
+	_bFaceCrosshairWhileAttacking(DF_FACECROSSHAIRWHILEATTACKING),
 	_bFaceCrosshairWhileBlocking(DF_FACECROSSHAIRWHILEBLOCKING),
+	_bFaceCrosshairDuringAutoMove(DF_FACECROSSHAIRDURINGAUTOMOVE),
 	_runningRotationSpeedMult(DF_RUNNINGROTATIONSPEEDMULT),
 	_sprintingRotationSpeedMult(DF_SPRINTINGROTATIONSPEEDMULT),
 	_attackStartRotationSpeedMult(DF_ATTACKSTARTROTATIONSPEEDMULT),
 	_attackMidRotationSpeedMult(DF_ATTACKMIDROTATIONSPEEDMULT),
 	_attackEndRotationSpeedMult(DF_ATTACKENDROTATIONSPEEDMULT),
 	_airRotationSpeedMult(DF_AIRROTATIONSPEEDMULT),
-	_bFaceCrosshairInstantly(DF_FACECROSSHAIRINSTANTLY),
 	_bDisableAttackRotationMultipliersForTransformations(DF_DISABLEATTACKROTATIONMULTIPLIERSFORTRANSFORMATIONS),
 	_bStopOnDirectionChange(DF_STOPONDIRECTIONCHANGE),
 	_targetLockDistance(DF_TARGETLOCKDISTANCE),
@@ -2050,9 +2349,11 @@ DirectionalMovementHandler::DirectionalMovementHandler() :
 	_targetLockPitchOffsetStrength(DF_TARGETLOCKPITCHOFFSETSTRENGTH),
 	_bTargetLockUseMouse(DF_TARGETLOCKUSEMOUSE),
 	_bTargetLockUseScrollWheel(DF_TARGETLOCKUSESCROLLWHEEL),
+	_bTargetLockUseRightThumbstick(DF_TARGETLOCKUSERIGHTTHUMBSTICK),
 	_targetLockArrowAimType(DF_TARGETLOCKARROWAIMTYPE),
 	_targetLockMissileAimType(DF_TARGETLOCKMISSILEAIMTYPE),
 	_bAutoTargetNextOnDeath(DF_AUTOTARGETNEXTONDEATH),
 	_bTargetLockTestLOS(DF_TARGETLOCKTESTLOS),
-	_bTargetLockHostileActorsOnly(DF_TARGETLOCKHOSTILEACTORSONLY)
+	_bTargetLockHostileActorsOnly(DF_TARGETLOCKHOSTILEACTORSONLY),
+	_bTargetLockHideCrosshair(DF_TARGETLOCKHIDECROSSHAIR)
 {}

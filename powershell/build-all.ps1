@@ -1,6 +1,6 @@
 # USER DEFINED
 $sse = "E:\Steam\steamapps\common\Skyrim Special Edition"
-$outDir = "D:\Skyrim Mod Organizer\mods\True Directional Movement"
+$outDir = "D:\Skyrim Mod Organizer\mods\True Directional Movement - Modernized Third Person Gameplay"
 
 
 # GRAB DIRECTORIES

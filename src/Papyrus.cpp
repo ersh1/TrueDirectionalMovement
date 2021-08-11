@@ -6,16 +6,28 @@
 
 namespace Papyrus
 {
-	bool TrueDirectionalMovement::GetFreeCamera(RE::StaticFunctionTag*)
+	bool TrueDirectionalMovement::GetDirectionalMovementSheathed(RE::StaticFunctionTag*)
 	{
 		auto movementHandler = DirectionalMovementHandler::GetSingleton();
-		return movementHandler->GetFreeCamera();
+		return movementHandler->GetDirectionalMovementSheathed();
 	}
 
-	void TrueDirectionalMovement::SetFreeCamera(RE::StaticFunctionTag*, bool a_enable)
+	void TrueDirectionalMovement::SetDirectionalMovementSheathed(RE::StaticFunctionTag*, bool a_enable)
 	{
 		auto movementHandler = DirectionalMovementHandler::GetSingleton();
-		movementHandler->SetFreeCamera(a_enable);
+		movementHandler->SetDirectionalMovementSheathed(a_enable);
+	}
+
+	bool TrueDirectionalMovement::GetDirectionalMovementDrawn(RE::StaticFunctionTag*)
+	{
+		auto movementHandler = DirectionalMovementHandler::GetSingleton();
+		return movementHandler->GetDirectionalMovementDrawn();
+	}
+
+	void TrueDirectionalMovement::SetDirectionalMovementDrawn(RE::StaticFunctionTag*, bool a_enable)
+	{
+		auto movementHandler = DirectionalMovementHandler::GetSingleton();
+		movementHandler->SetDirectionalMovementDrawn(a_enable);
 	}
 
 	uint32_t TrueDirectionalMovement::GetDialogueMode(RE::StaticFunctionTag*)
@@ -90,6 +102,18 @@ namespace Papyrus
 		movementHandler->SetStopCameraHeadtrackingBehindPlayer(a_enable);
 	}
 
+	bool TrueDirectionalMovement::GetFaceCrosshairWhileAttacking(RE::StaticFunctionTag*)
+	{
+		auto movementHandler = DirectionalMovementHandler::GetSingleton();
+		return movementHandler->GetFaceCrosshairWhileAttacking();
+	}
+
+	void TrueDirectionalMovement::SetFaceCrosshairWhileAttacking(RE::StaticFunctionTag*, bool a_enable)
+	{
+		auto movementHandler = DirectionalMovementHandler::GetSingleton();
+		movementHandler->SetFaceCrosshairWhileAttacking(a_enable);
+	}
+
 	bool TrueDirectionalMovement::GetFaceCrosshairWhileBlocking(RE::StaticFunctionTag*)
 	{
 		auto movementHandler = DirectionalMovementHandler::GetSingleton();
@@ -100,6 +124,18 @@ namespace Papyrus
 	{
 		auto movementHandler = DirectionalMovementHandler::GetSingleton();
 		movementHandler->SetFaceCrosshairWhileBlocking(a_enable);
+	}
+
+	bool TrueDirectionalMovement::GetFaceCrosshairDuringAutoMove(RE::StaticFunctionTag*)
+	{
+		auto movementHandler = DirectionalMovementHandler::GetSingleton();
+		return movementHandler->GetFaceCrosshairDuringAutoMove();
+	}
+
+	void TrueDirectionalMovement::SetFaceCrosshairDuringAutoMove(RE::StaticFunctionTag*, bool a_enable)
+	{
+		auto movementHandler = DirectionalMovementHandler::GetSingleton();
+		movementHandler->SetFaceCrosshairDuringAutoMove(a_enable);
 	}
 
 	float TrueDirectionalMovement::GetRunningRotationSpeedMult(RE::StaticFunctionTag*)
@@ -172,18 +208,6 @@ namespace Papyrus
 	{
 		auto movementHandler = DirectionalMovementHandler::GetSingleton();
 		movementHandler->SetAirRotationSpeedMult(a_mult);
-	}
-
-	bool TrueDirectionalMovement::GetFaceCrosshairInstantly(RE::StaticFunctionTag*)
-	{
-		auto movementHandler = DirectionalMovementHandler::GetSingleton();
-		return movementHandler->GetFaceCrosshairInstantly();
-	}
-
-	void TrueDirectionalMovement::SetFaceCrosshairInstantly(RE::StaticFunctionTag*, bool a_enable)
-	{
-		auto movementHandler = DirectionalMovementHandler::GetSingleton();
-		movementHandler->SetFaceCrosshairInstantly(a_enable);
 	}
 
 	bool TrueDirectionalMovement::GetDisableAttackRotationMultipliersForTransformations(RE::StaticFunctionTag*)
@@ -282,6 +306,18 @@ namespace Papyrus
 		movementHandler->SetTargetLockUseScrollWheel(a_enable);
 	}
 
+	bool TrueDirectionalMovement::GetTargetLockUseRightThumbstick(RE::StaticFunctionTag*)
+	{
+		auto movementHandler = DirectionalMovementHandler::GetSingleton();
+		return movementHandler->GetTargetLockUseRightThumbstick();
+	}
+
+	void TrueDirectionalMovement::SetTargetLockUseRightThumbstick(RE::StaticFunctionTag*, bool a_enable)
+	{
+		auto movementHandler = DirectionalMovementHandler::GetSingleton();
+		movementHandler->SetTargetLockUseRightThumbstick(a_enable);
+	}
+
 	uint32_t TrueDirectionalMovement::GetTargetLockArrowAimType(RE::StaticFunctionTag*)
 	{
 		auto movementHandler = DirectionalMovementHandler::GetSingleton();
@@ -340,6 +376,18 @@ namespace Papyrus
 	{
 		auto movementHandler = DirectionalMovementHandler::GetSingleton();
 		movementHandler->SetTargetLockHostileActorsOnly(a_enable);
+	}
+
+	bool TrueDirectionalMovement::GetTargetLockHideCrosshair(RE::StaticFunctionTag*)
+	{
+		auto movementHandler = DirectionalMovementHandler::GetSingleton();
+		return movementHandler->GetTargetLockHideCrosshair();
+	}
+
+	void TrueDirectionalMovement::SetTargetLockHideCrosshair(RE::StaticFunctionTag*, bool a_hide)
+	{
+		auto movementHandler = DirectionalMovementHandler::GetSingleton();
+		movementHandler->SetTargetLockHideCrosshair(a_hide);
 	}
 
 	bool TrueDirectionalMovement::GetWidgetShowReticle(RE::StaticFunctionTag*)
@@ -630,6 +678,18 @@ namespace Papyrus
 		widgetHandler->SetShowBossHealthPhantom(a_show);
 	}
 
+	bool TrueDirectionalMovement::GetBossHideVanillaTargetBar(RE::StaticFunctionTag*)
+	{
+		auto widgetHandler = WidgetHandler::GetSingleton();
+		return widgetHandler->GetBossHideVanillaTargetBar();
+	}
+
+	void TrueDirectionalMovement::SetBossHideVanillaTargetBar(RE::StaticFunctionTag*, bool a_hide)
+	{
+		auto widgetHandler = WidgetHandler::GetSingleton();
+		widgetHandler->SetBossHideVanillaTargetBar(a_hide);
+	}
+
 	float TrueDirectionalMovement::GetBossHealthPhantomDuration(RE::StaticFunctionTag*)
 	{
 		auto widgetHandler = WidgetHandler::GetSingleton();
@@ -788,8 +848,10 @@ namespace Papyrus
 
 	bool TrueDirectionalMovement::Register(RE::BSScript::IVirtualMachine* a_vm)
 	{
-		a_vm->RegisterFunction("GetFreeCamera", "TrueDirectionalMovement", GetFreeCamera);
-		a_vm->RegisterFunction("SetFreeCamera", "TrueDirectionalMovement", SetFreeCamera);
+		a_vm->RegisterFunction("GetDirectionalMovementSheathed", "TrueDirectionalMovement", GetDirectionalMovementSheathed);
+		a_vm->RegisterFunction("SetDirectionalMovementSheathed", "TrueDirectionalMovement", SetDirectionalMovementSheathed);
+		a_vm->RegisterFunction("GetDirectionalMovementDrawn", "TrueDirectionalMovement", GetDirectionalMovementDrawn);
+		a_vm->RegisterFunction("SetDirectionalMovementDrawn", "TrueDirectionalMovement", SetDirectionalMovementDrawn);
 		a_vm->RegisterFunction("GetDialogueMode", "TrueDirectionalMovement", GetDialogueMode);
 		a_vm->RegisterFunction("SetDialogueMode", "TrueDirectionalMovement", SetDialogueMode);
 		a_vm->RegisterFunction("GetHeadtracking", "TrueDirectionalMovement", GetHeadtracking);
@@ -802,8 +864,12 @@ namespace Papyrus
 		a_vm->RegisterFunction("SetCameraHeadtrackingStrength", "TrueDirectionalMovement", SetCameraHeadtrackingStrength);
 		a_vm->RegisterFunction("GetStopCameraHeadtrackingBehindPlayer", "TrueDirectionalMovement", GetStopCameraHeadtrackingBehindPlayer);
 		a_vm->RegisterFunction("SetStopCameraHeadtrackingBehindPlayer", "TrueDirectionalMovement", SetStopCameraHeadtrackingBehindPlayer);
+		a_vm->RegisterFunction("GetFaceCrosshairWhileAttacking", "TrueDirectionalMovement", GetFaceCrosshairWhileAttacking);
+		a_vm->RegisterFunction("SetFaceCrosshairWhileAttacking", "TrueDirectionalMovement", SetFaceCrosshairWhileAttacking);
 		a_vm->RegisterFunction("GetFaceCrosshairWhileBlocking", "TrueDirectionalMovement", GetFaceCrosshairWhileBlocking);
 		a_vm->RegisterFunction("SetFaceCrosshairWhileBlocking", "TrueDirectionalMovement", SetFaceCrosshairWhileBlocking);
+		a_vm->RegisterFunction("GetFaceCrosshairDuringAutoMove", "TrueDirectionalMovement", GetFaceCrosshairDuringAutoMove);
+		a_vm->RegisterFunction("SetFaceCrosshairDuringAutoMove", "TrueDirectionalMovement", SetFaceCrosshairDuringAutoMove);
 		a_vm->RegisterFunction("GetRunningRotationSpeedMult", "TrueDirectionalMovement", GetRunningRotationSpeedMult);
 		a_vm->RegisterFunction("SetRunningRotationSpeedMult", "TrueDirectionalMovement", SetRunningRotationSpeedMult);
 		a_vm->RegisterFunction("GetSprintingRotationSpeedMult", "TrueDirectionalMovement", GetSprintingRotationSpeedMult);
@@ -816,8 +882,6 @@ namespace Papyrus
 		a_vm->RegisterFunction("SetAttackEndRotationSpeedMult", "TrueDirectionalMovement", SetAttackEndRotationSpeedMult);
 		a_vm->RegisterFunction("GetAirRotationSpeedMult", "TrueDirectionalMovement", GetAirRotationSpeedMult);
 		a_vm->RegisterFunction("SetAirRotationSpeedMult", "TrueDirectionalMovement", SetAirRotationSpeedMult);
-		a_vm->RegisterFunction("GetFaceCrosshairInstantly", "TrueDirectionalMovement", GetFaceCrosshairInstantly);
-		a_vm->RegisterFunction("SetFaceCrosshairInstantly", "TrueDirectionalMovement", SetFaceCrosshairInstantly);
 		a_vm->RegisterFunction("GetDisableAttackRotationMultipliersForTransformations", "TrueDirectionalMovement", GetDisableAttackRotationMultipliersForTransformations);
 		a_vm->RegisterFunction("SetDisableAttackRotationMultipliersForTransformations", "TrueDirectionalMovement", SetDisableAttackRotationMultipliersForTransformations);
 		a_vm->RegisterFunction("GetStopOnDirectionChange", "TrueDirectionalMovement", GetStopOnDirectionChange);
@@ -834,6 +898,8 @@ namespace Papyrus
 		a_vm->RegisterFunction("SetTargetLockUseMouse", "TrueDirectionalMovement", SetTargetLockUseMouse);
 		a_vm->RegisterFunction("GetTargetLockUseScrollWheel", "TrueDirectionalMovement", GetTargetLockUseScrollWheel);
 		a_vm->RegisterFunction("SetTargetLockUseScrollWheel", "TrueDirectionalMovement", SetTargetLockUseScrollWheel);
+		a_vm->RegisterFunction("GetTargetLockUseRightThumbstick", "TrueDirectionalMovement", GetTargetLockUseRightThumbstick);
+		a_vm->RegisterFunction("SetTargetLockUseRightThumbstick", "TrueDirectionalMovement", SetTargetLockUseRightThumbstick);
 		a_vm->RegisterFunction("GetTargetLockArrowAimType", "TrueDirectionalMovement", GetTargetLockArrowAimType);
 		a_vm->RegisterFunction("SetTargetLockArrowAimType", "TrueDirectionalMovement", SetTargetLockArrowAimType);
 		a_vm->RegisterFunction("GetTargetLockMissileAimType", "TrueDirectionalMovement", GetTargetLockMissileAimType);
@@ -844,6 +910,8 @@ namespace Papyrus
 		a_vm->RegisterFunction("SetTargetLockTestLOS", "TrueDirectionalMovement", SetTargetLockTestLOS);
 		a_vm->RegisterFunction("GetTargetLockHostileActorsOnly", "TrueDirectionalMovement", GetTargetLockHostileActorsOnly);
 		a_vm->RegisterFunction("SetTargetLockHostileActorsOnly", "TrueDirectionalMovement", SetTargetLockHostileActorsOnly);
+		a_vm->RegisterFunction("GetTargetLockHideCrosshair", "TrueDirectionalMovement", GetTargetLockHideCrosshair);
+		a_vm->RegisterFunction("SetTargetLockHideCrosshair", "TrueDirectionalMovement", SetTargetLockHideCrosshair);
 
 		a_vm->RegisterFunction("GetWidgetShowReticle", "TrueDirectionalMovement", GetWidgetShowReticle);
 		a_vm->RegisterFunction("SetWidgetShowReticle", "TrueDirectionalMovement", SetWidgetShowReticle);
@@ -894,6 +962,8 @@ namespace Papyrus
 		a_vm->RegisterFunction("SetShowBossDamage", "TrueDirectionalMovement", SetShowBossDamage);
 		a_vm->RegisterFunction("GetShowBossHealthPhantom", "TrueDirectionalMovement", GetShowBossHealthPhantom);
 		a_vm->RegisterFunction("SetShowBossHealthPhantom", "TrueDirectionalMovement", SetShowBossHealthPhantom);
+		a_vm->RegisterFunction("GetBossHideVanillaTargetBar", "TrueDirectionalMovement", GetBossHideVanillaTargetBar);
+		a_vm->RegisterFunction("SetBossHideVanillaTargetBar", "TrueDirectionalMovement", SetBossHideVanillaTargetBar);
 		a_vm->RegisterFunction("GetBossHealthPhantomDuration", "TrueDirectionalMovement", GetBossHealthPhantomDuration);
 		a_vm->RegisterFunction("SetBossHealthPhantomDuration", "TrueDirectionalMovement", SetBossHealthPhantomDuration);
 		a_vm->RegisterFunction("GetBossDamageDuration", "TrueDirectionalMovement", GetBossDamageDuration);

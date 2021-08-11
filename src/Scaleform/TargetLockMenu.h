@@ -127,6 +127,7 @@ namespace Scaleform
 		float _healthPercent = -1.f;
 		float _prevTargetHealth = -1.f;
 		float _damage = 0.f;
+		bool _bVanillaTargetBarHidden = false;
 
 		static constexpr std::string_view FILE_NAME{ "TrueDirectionalMovement/TDM_TargetLock" };
 		static constexpr std::string_view MENU_NAME{ "TargetLockMenu" };

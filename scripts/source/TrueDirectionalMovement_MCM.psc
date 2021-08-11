@@ -93,9 +93,12 @@ Event OnPageReset(String a_page)
 		SetCursorFillMode(TOP_TO_BOTTOM)
 
 		AddHeaderOption("$TrueDirectionalMovement_GeneralSettings_HeaderText")
-		AddToggleOptionST("DirectionalMovement_S", "$TrueDirectionalMovement_DirectionalMovement_OptionText", TrueDirectionalMovement.GetFreeCamera())
+		AddToggleOptionST("DirectionalMovementSheathed_S", "$TrueDirectionalMovement_DirectionalMovementSheathed_OptionText", TrueDirectionalMovement.GetDirectionalMovementSheathed())
+		AddToggleOptionST("DirectionalMovementDrawn_S", "$TrueDirectionalMovement_DirectionalMovementDrawn_OptionText", TrueDirectionalMovement.GetDirectionalMovementDrawn())
 		AddMenuOptionST("DialogueMode_S", "$TrueDirectionalMovement_DialogueMode_OptionText", _dialogueModeNames[TrueDirectionalMovement.GetDialogueMode()], _directionalMovementFlags)
+		AddToggleOptionST("FaceCrosshairWhileAttacking_S", "$TrueDirectionalMovement_FaceCrosshairWhileAttacking_OptionText", TrueDirectionalMovement.GetFaceCrosshairWhileAttacking(), _directionalMovementFlags)
 		AddToggleOptionST("FaceCrosshairWhileBlocking_S", "$TrueDirectionalMovement_FaceCrosshairWhileBlocking_OptionText", TrueDirectionalMovement.GetFaceCrosshairWhileBlocking(), _directionalMovementFlags)
+		AddToggleOptionST("FaceCrosshairDuringAutoMove_S", "$TrueDirectionalMovement_FaceCrosshairDuringAutoMove_OptionText", TrueDirectionalMovement.GetFaceCrosshairDuringAutoMove(), _directionalMovementFlags)
 		AddToggleOptionST("StopOnDirectionChange_S", "$TrueDirectionalMovement_StopOnDirectionChange_OptionText", TrueDirectionalMovement.GetStopOnDirectionChange(), _directionalMovementFlags)
 
 		AddHeaderOption("$TrueDirectionalMovement_Headtracking_HeaderText")
@@ -113,7 +116,6 @@ Event OnPageReset(String a_page)
 		AddSliderOptionST("AttackMidRotationSpeedMult_S", "$TrueDirectionalMovement_AttackMidRotationSpeedMult_OptionText", TrueDirectionalMovement.GetAttackMidRotationSpeedMult(), "{2}", _directionalMovementFlags)
 		AddSliderOptionST("AttackEndRotationSpeedMult_S", "$TrueDirectionalMovement_AttackEndRotationSpeedMult_OptionText", TrueDirectionalMovement.GetAttackEndRotationSpeedMult(), "{2}", _directionalMovementFlags)
 		AddSliderOptionST("AirRotationSpeedMult_S", "$TrueDirectionalMovement_AirRotationSpeedMult_OptionText", TrueDirectionalMovement.GetAirRotationSpeedMult(), "{2}", _directionalMovementFlags)
-		AddToggleOptionST("FaceCrosshairInstantly_S", "$TrueDirectionalMovement_FaceCrosshairInstantly_OptionText", TrueDirectionalMovement.GetFaceCrosshairInstantly(), _directionalMovementFlags)
 		AddToggleOptionST("DisableAttackRotationMultipliersForTransformations_S", "$TrueDirectionalMovement_DisableAttackRotationMultipliersForTransformations_OptionText", TrueDirectionalMovement.GetDisableAttackRotationMultipliersForTransformations(), _directionalMovementFlags)
 
 		UpdateDirectionalMovementFlags()
@@ -127,6 +129,7 @@ Event OnPageReset(String a_page)
 		AddToggleOptionST("AutoTargetNextOnDeath_S", "$TrueDirectionalMovement_AutoTargetNextOnDeath_OptionText", TrueDirectionalMovement.GetAutoTargetNextOnDeath())
 		AddToggleOptionST("TargetLockTestLOS_S", "$TrueDirectionalMovement_TargetLockTestLOS_OptionText", TrueDirectionalMovement.GetTargetLockTestLOS())
 		AddToggleOptionST("TargetLockHostileActorsOnly_S", "$TrueDirectionalMovement_TargetLockHostileActorsOnly_OptionText", TrueDirectionalMovement.GetTargetLockHostileActorsOnly())
+		AddToggleOptionST("TargetLockHideCrosshair_S", "$TrueDirectionalMovement_TargetLockHideCrosshair_OptionText", TrueDirectionalMovement.GetTargetLockHideCrosshair())
 
 		AddHeaderOption("$TrueDirectionalMovement_CameraSettings_HeaderText")
 		AddSliderOptionST("TargetLockDistance_S", "$TrueDirectionalMovement_TargetLockDistance_OptionText", TrueDirectionalMovement.GetTargetLockDistance())
@@ -143,6 +146,7 @@ Event OnPageReset(String a_page)
 		AddKeyMapOptionST("TargetLockKey_K", "$TrueDirectionalMovement_TargetLockKey_OptionText", TrueDirectionalMovement.GetTargetLockKey())
 		AddToggleOptionST("TargetLockUseMouse_S", "$TrueDirectionalMovement_TargetLockUseMouse_OptionText", TrueDirectionalMovement.GetTargetLockUseMouse())
 		AddToggleOptionST("TargetLockUseScrollWheel_S", "$TrueDirectionalMovement_TargetLockUseScrollWheel_OptionText", TrueDirectionalMovement.GetTargetLockUseScrollWheel())
+		AddToggleOptionST("TargetLockUseRightThumbstick_S", "$TrueDirectionalMovement_TargetLockUseRightThumbstick_OptionText", TrueDirectionalMovement.GetTargetLockUseRightThumbstick())
 
 		AddHeaderOption("$TrueDirectionalMovement_OptionalControls_HeaderText")
 		AddKeyMapOptionST("SwitchTargetLeftKey_K", "$TrueDirectionalMovement_SwitchTargetLeftKey_OptionText", TrueDirectionalMovement.GetSwitchTargetLeftKey())
@@ -190,6 +194,7 @@ Event OnPageReset(String a_page)
 		AddToggleOptionST("ShowBossBar_S", "$TrueDirectionalMovement_ShowBossBar_OptionText", TrueDirectionalMovement.GetShowBossBar())
 		AddToggleOptionST("ShowBossDamage_S", "$TrueDirectionalMovement_ShowBossDamage_OptionText", TrueDirectionalMovement.GetShowBossDamage(), _bossBarFlags)
 		AddToggleOptionST("ShowBossHealthPhantom_S", "$TrueDirectionalMovement_ShowBossHealthPhantom_OptionText", TrueDirectionalMovement.GetShowBossHealthPhantom(), _bossBarFlags)
+		AddToggleOptionST("BossHideVanillaTargetBar_S", "$TrueDirectionalMovement_BossHideVanillaTargetBar_OptionText", TrueDirectionalMovement.GetBossHideVanillaTargetBar(), _bossBarFlags)
 
 		AddHeaderOption("$TrueDirectionalMovement_WidgetSettings_HeaderText")
 		AddMenuOptionST("BossNameAlignment_S", "$TrueDirectionalMovement_BossNameAlignment_OptionText", _nameAlignmentNames[TrueDirectionalMovement.GetBossNameAlignment()], _bossBarFlags)
@@ -216,13 +221,15 @@ EndEvent
 
 
 Function UpdateDirectionalMovementFlags()
-	If (TrueDirectionalMovement.GetFreeCamera())
+	If (TrueDirectionalMovement.GetDirectionalMovementSheathed() || TrueDirectionalMovement.GetDirectionalMovementDrawn())
 		_directionalMovementFlags = OPTION_FLAG_NONE
 	Else
 		_directionalMovementFlags = OPTION_FLAG_DISABLED
 	EndIf
 	SetOptionFlagsST(_directionalMovementFlags, true, "DialogueMode_S")
+	SetOptionFlagsST(_directionalMovementFlags, true, "FaceCrosshairWhileAttacking_S")
 	SetOptionFlagsST(_directionalMovementFlags, true, "FaceCrosshairWhileBlocking_S")
+	SetOptionFlagsST(_directionalMovementFlags, true, "FaceCrosshairDuringAutoMove_S")
 	SetOptionFlagsST(_directionalMovementFlags, true, "RunningRotationSpeedMult_S")
 	SetOptionFlagsST(_directionalMovementFlags, true, "SprintingRotationSpeedMult_S")
 	SetOptionFlagsST(_directionalMovementFlags, true, "AttackStartRotationSpeedMult_S")
@@ -230,26 +237,44 @@ Function UpdateDirectionalMovementFlags()
 	SetOptionFlagsST(_directionalMovementFlags, true, "AttackEndRotationSpeedMult_S")
 	SetOptionFlagsST(_directionalMovementFlags, true, "AirRotationSpeedMult_S")
 	SetOptionFlagsST(_directionalMovementFlags, true, "DisableAttackRotationMultipliersForTransformations_S")
-	SetOptionFlagsST(_directionalMovementFlags, true, "FaceCrosshairInstantly_S")
 	SetOptionFlagsST(_directionalMovementFlags, true, "StopOnDirectionChange_S")
 EndFunction
 
 
-State DirectionalMovement_S
+State DirectionalMovementSheathed_S
 	Event OnSelectST()
-		TrueDirectionalMovement.SetFreeCamera(!TrueDirectionalMovement.GetFreeCamera())
+		TrueDirectionalMovement.SetDirectionalMovementSheathed(!TrueDirectionalMovement.GetDirectionalMovementSheathed())
 		UpdateDirectionalMovementFlags()		
-		SetToggleOptionValueST(TrueDirectionalMovement.GetFreeCamera())
+		SetToggleOptionValueST(TrueDirectionalMovement.GetDirectionalMovementSheathed())
 	EndEvent
 
 	Event OnDefaultST()
-		TrueDirectionalMovement.SetFreeCamera(true)
+		TrueDirectionalMovement.SetDirectionalMovementSheathed(true)
 		UpdateDirectionalMovementFlags()	
 		SetToggleOptionValueST(true)
 	EndEvent
 
 	Event OnHighlightST()
-		SetInfoText("$TrueDirectionalMovement_DirectionalMovement_InfoText")
+		SetInfoText("$TrueDirectionalMovement_DirectionalMovementSheathed_InfoText")
+	EndEvent
+EndState
+
+
+State DirectionalMovementDrawn_S
+	Event OnSelectST()
+		TrueDirectionalMovement.SetDirectionalMovementDrawn(!TrueDirectionalMovement.GetDirectionalMovementDrawn())
+		UpdateDirectionalMovementFlags()		
+		SetToggleOptionValueST(TrueDirectionalMovement.GetDirectionalMovementDrawn())
+	EndEvent
+
+	Event OnDefaultST()
+		TrueDirectionalMovement.SetDirectionalMovementDrawn(true)
+		UpdateDirectionalMovementFlags()	
+		SetToggleOptionValueST(true)
+	EndEvent
+
+	Event OnHighlightST()
+		SetInfoText("$TrueDirectionalMovement_DirectionalMovementDrawn_InfoText")
 	EndEvent
 EndState
 
@@ -277,6 +302,24 @@ State DialogueMode_S
 EndState
 
 
+State FaceCrosshairWhileAttacking_S
+	Event OnSelectST()
+		TrueDirectionalMovement.SetFaceCrosshairWhileAttacking(!TrueDirectionalMovement.GetFaceCrosshairWhileAttacking())
+		SetToggleOptionValueST(TrueDirectionalMovement.GetFaceCrosshairWhileAttacking())
+	EndEvent
+
+	Event OnDefaultST()
+		TrueDirectionalMovement.SetFaceCrosshairWhileAttacking(true)
+		UpdateDirectionalMovementFlags()	
+		SetToggleOptionValueST(true)
+	EndEvent
+
+	Event OnHighlightST()
+		SetInfoText("$TrueDirectionalMovement_FaceCrosshairWhileAttacking_InfoText")
+	EndEvent
+EndState
+
+
 State FaceCrosshairWhileBlocking_S
 	Event OnSelectST()
 		TrueDirectionalMovement.SetFaceCrosshairWhileBlocking(!TrueDirectionalMovement.GetFaceCrosshairWhileBlocking())
@@ -291,6 +334,24 @@ State FaceCrosshairWhileBlocking_S
 
 	Event OnHighlightST()
 		SetInfoText("$TrueDirectionalMovement_FaceCrosshairWhileBlocking_InfoText")
+	EndEvent
+EndState
+
+
+State FaceCrosshairDuringAutoMove_S
+	Event OnSelectST()
+		TrueDirectionalMovement.SetFaceCrosshairDuringAutoMove(!TrueDirectionalMovement.GetFaceCrosshairDuringAutoMove())
+		SetToggleOptionValueST(TrueDirectionalMovement.GetFaceCrosshairDuringAutoMove())
+	EndEvent
+
+	Event OnDefaultST()
+		TrueDirectionalMovement.SetFaceCrosshairDuringAutoMove(true)
+		UpdateDirectionalMovementFlags()	
+		SetToggleOptionValueST(true)
+	EndEvent
+
+	Event OnHighlightST()
+		SetInfoText("$TrueDirectionalMovement_FaceCrosshairDuringAutoMove_InfoText")
 	EndEvent
 EndState
 
@@ -606,23 +667,6 @@ State StopOnDirectionChange_S
 EndState
 
 
-State FaceCrosshairInstantly_S
-	Event OnSelectST()
-		TrueDirectionalMovement.SetFaceCrosshairInstantly(!TrueDirectionalMovement.GetFaceCrosshairInstantly())
-		SetToggleOptionValueST(TrueDirectionalMovement.GetFaceCrosshairInstantly())
-	EndEvent
-
-	Event OnDefaultST()
-		TrueDirectionalMovement.SetFaceCrosshairInstantly(true)
-		SetToggleOptionValueST(true)
-	EndEvent
-
-	Event OnHighlightST()
-		SetInfoText("$TrueDirectionalMovement_FaceCrosshairInstantly_InfoText")
-	EndEvent
-EndState
-
-
 State TargetLockDistance_S
 	Event OnSliderOpenST()
 		SetSliderDialogStartValue(TrueDirectionalMovement.GetTargetLockDistance())
@@ -753,6 +797,23 @@ State TargetLockUseScrollWheel_S
 EndState
 
 
+State TargetLockUseRightThumbstick_S
+	Event OnSelectST()
+		TrueDirectionalMovement.SetTargetLockUseRightThumbstick(!TrueDirectionalMovement.GetTargetLockUseRightThumbstick())
+		SetToggleOptionValueST(TrueDirectionalMovement.GetTargetLockUseRightThumbstick())
+	EndEvent
+
+	Event OnDefaultST()
+		TrueDirectionalMovement.SetTargetLockUseRightThumbstick(true)
+		SetToggleOptionValueST(true)
+	EndEvent
+
+	Event OnHighlightST()
+		SetInfoText("$TrueDirectionalMovement_TargetLockUseRightThumbstick_InfoText")
+	EndEvent
+EndState
+
+
 State AutoTargetNextOnDeath_S
 	Event OnSelectST()
 		TrueDirectionalMovement.SetAutoTargetNextOnDeath(!TrueDirectionalMovement.GetAutoTargetNextOnDeath())
@@ -800,6 +861,23 @@ State TargetLockHostileActorsOnly_S
 
 	Event OnHighlightST()
 		SetInfoText("$TrueDirectionalMovement_TargetLockHostileActorsOnly_InfoText")
+	EndEvent
+EndState
+
+
+State TargetLockHideCrosshair_S
+	Event OnSelectST()
+		TrueDirectionalMovement.SetTargetLockHideCrosshair(!TrueDirectionalMovement.GetTargetLockHideCrosshair())
+		SetToggleOptionValueST(TrueDirectionalMovement.GetTargetLockHideCrosshair())
+	EndEvent
+
+	Event OnDefaultST()
+		TrueDirectionalMovement.SetTargetLockHideCrosshair(true)
+		SetToggleOptionValueST(true)
+	EndEvent
+
+	Event OnHighlightST()
+		SetInfoText("$TrueDirectionalMovement_TargetLockHideCrosshair_InfoText")
 	EndEvent
 EndState
 
@@ -1380,6 +1458,7 @@ Function UpdateBossBarFlags()
 	SetOptionFlagsST(_bossLevelFlags, true, "BossLevelThreshold_S")
 	SetOptionFlagsST(_bossBarFlags, true, "ShowBossDamage_S")
 	SetOptionFlagsST(_bossBarFlags, true, "ShowBossHealthPhantom_S")
+	SetOptionFlagsST(_bossBarFlags, true, "BossHideVanillaTargetBar_S")
 	SetOptionFlagsST(_bossHealthPhantomFlags, true, "BossHealthPhantomDuration_S")
 	SetOptionFlagsST(_bossDamageFlags, true, "BossDamageDuration_S")
 	SetOptionFlagsST(_bossBarFlags, true, "BossBarScale_S")
@@ -1548,6 +1627,23 @@ State ShowBossHealthPhantom_S
 
 	Event OnHighlightST()
 		SetInfoText("$TrueDirectionalMovement_ShowBossHealthPhantom_InfoText")
+	EndEvent
+EndState
+
+
+State BossHideVanillaTargetBar_S
+	Event OnSelectST()
+		TrueDirectionalMovement.SetBossHideVanillaTargetBar(!TrueDirectionalMovement.GetBossHideVanillaTargetBar())
+		SetToggleOptionValueST(TrueDirectionalMovement.GetBossHideVanillaTargetBar())
+	EndEvent
+
+	Event OnDefaultST()
+		TrueDirectionalMovement.SetBossHideVanillaTargetBar(true)
+		SetToggleOptionValueST(true)
+	EndEvent
+
+	Event OnHighlightST()
+		SetInfoText("$TrueDirectionalMovement_BossHideVanillaTargetBar_InfoText")
 	EndEvent
 EndState
 

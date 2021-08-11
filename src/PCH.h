@@ -5,6 +5,8 @@
 
 //#include <xbyak/xbyak.h>
 
+#define SMOOTHCAM_API_COMMONLIB
+
 #pragma warning(push)
 #include <SimpleIni.h>
 #ifdef NDEBUG

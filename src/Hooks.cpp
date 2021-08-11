@@ -91,6 +91,7 @@ namespace Hooks
 		EnemyHealthHook::Hook();
 		HeadtrackingHook::Hook();
 		NukeSetIsNPCHook::Hook();
+		PlayerCameraHook::Hook();
 
 		logger::trace("...success");
 	}
@@ -172,6 +173,11 @@ namespace Hooks
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 		if (a_event && a_event->IsRight() && directionalMovementHandler->HasTargetLocked() && !directionalMovementHandler->ShouldFaceCrosshair()) 
 		{
+			if (!directionalMovementHandler->GetTargetLockUseRightThumbstick())
+			{
+				return;  // ensure lock camera movement during lockon
+			}
+
 			float absX = fabs(a_event->xValue);
 			float absY = fabs(a_event->yValue);
 
@@ -207,7 +213,7 @@ namespace Hooks
 	void LookHook::ProcessMouseMove(RE::LookHandler* a_this, RE::MouseMoveEvent* a_event, RE::PlayerControlsData* a_data)
 	{
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
-		if (a_event && directionalMovementHandler->HasTargetLocked() && !directionalMovementHandler->ShouldFaceCrosshair()) 
+		if (a_event && directionalMovementHandler->HasTargetLocked() && !directionalMovementHandler->ShouldFaceCrosshair())
 		{
 			if (!directionalMovementHandler->GetTargetLockUseMouse())
 			{
@@ -258,7 +264,10 @@ namespace Hooks
 			if (playerCharacter) {
 				// turn character towards where the camera was looking in third person state before entering first person state
 				if (savedCamera.rotationType == SaveCamera::RotationType::kThirdPerson) {
-					playerCharacter->SetRotationZ(savedCamera.ConsumeX());
+					auto x = savedCamera.ConsumeX();
+					if (playerCharacter->actorState1.sitSleepState != RE::SIT_SLEEP_STATE::kIsSleeping) {  // don't do this while sleeping
+						playerCharacter->SetRotationZ(x);
+					}
 				}
 				savedCamera.bZoomSaved = false;
 
@@ -333,69 +342,62 @@ namespace Hooks
 
 	void ThirdPersonStateHook::SetFreeRotationMode(RE::ThirdPersonState* a_this, bool a_weaponSheathed)
 	{
-		if (DirectionalMovementHandler::IsIFPV())
-		{
-			_SetFreeRotationMode(a_this, a_weaponSheathed);
-			DirectionalMovementHandler::GetSingleton()->Update();
-			return;
-		}
-
-		RE::Actor* cameraTarget = nullptr;
-		cameraTarget = static_cast<RE::PlayerCamera*>(a_this->camera)->cameraTarget.get().get();
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 
-		bool bIsFreeCamera = directionalMovementHandler->IsFreeCamera();
-		bool bHasTargetLocked = directionalMovementHandler->HasTargetLocked();
+		directionalMovementHandler->Update();
 
-		if (cameraTarget)
+		if (directionalMovementHandler->IsFreeCamera())
 		{
-			if (bIsFreeCamera || (a_weaponSheathed && (Actor_sub_140634590(cameraTarget) || Actor_sub_140608C60(cameraTarget) == 0.0)) || RE::PlayerControls::GetSingleton()->data.fovSlideMode || a_this->toggleAnimCam)
-			{
-				a_this->freeRotationEnabled = 1;
-				directionalMovementHandler->UpdateAIProcessRotationSpeed(cameraTarget); // because the game is skipping the original call while in freecam
-			}
-			else
-			{
-				cameraTarget->SetRotationZ(cameraTarget->data.angle.z + a_this->freeRotation.x);
-				a_this->freeRotation.x = 0;
-				a_this->freeRotationEnabled = 0;
-			}
+			RE::Actor* cameraTarget = nullptr;
+			cameraTarget = static_cast<RE::PlayerCamera*>(a_this->camera)->cameraTarget.get().get();
 
-			if (!bHasTargetLocked)
-			{
-				float pitchDelta = -a_this->freeRotation.y;
+			bool bHasTargetLocked = directionalMovementHandler->HasTargetLocked();
 
-				// swimming pitch fix and swim up/down buttons handling
-				if (bIsFreeCamera && cameraTarget->IsSwimming()) 
-				{
-					float mult = 1.f;
-					float currentPitch = cameraTarget->data.angle.x;
-					float desiredPitch = 0;
+			if (cameraTarget) {
+				a_this->freeRotationEnabled = true;
+				directionalMovementHandler->UpdateAIProcessRotationSpeed(cameraTarget);  // because the game is skipping the original call while in freecam
 
-					if (directionalMovementHandler->_pressedDirections.any(DirectionalMovementHandler::Directions::kUp) || directionalMovementHandler->_pressedDirections.any(DirectionalMovementHandler::Directions::kDown)) {
-						if (directionalMovementHandler->_pressedDirections.any(DirectionalMovementHandler::Directions::kUp)) {
-							desiredPitch += directionalMovementHandler->HasMovementInput() ? -PI / 4 : -PI / 2;
+				if (!bHasTargetLocked) {
+					float pitchDelta = -a_this->freeRotation.y;
+
+					// swimming pitch fix and swim up/down buttons handling
+					if (cameraTarget->IsSwimming()) {
+						float mult = 1.f;
+						float currentPitch = cameraTarget->data.angle.x;
+						float desiredPitch = 0;
+
+						if (directionalMovementHandler->_pressedDirections.any(DirectionalMovementHandler::Directions::kUp) || directionalMovementHandler->_pressedDirections.any(DirectionalMovementHandler::Directions::kDown)) {
+							if (directionalMovementHandler->_pressedDirections.any(DirectionalMovementHandler::Directions::kUp)) {
+								desiredPitch += directionalMovementHandler->HasMovementInput() ? -PI / 4 : -PI / 2;
+							}
+							if (directionalMovementHandler->_pressedDirections.any(DirectionalMovementHandler::Directions::kDown)) {
+								desiredPitch += directionalMovementHandler->HasMovementInput() ? PI / 4 : PI / 2;
+							}
+							auto playerControls = RE::PlayerControls::GetSingleton();
+							playerControls->data.moveInputVec = RE::NiPoint2(0.f, 1.f);
+						} else {
+							mult = cos(fabs(a_this->freeRotation.x));
+							desiredPitch = (currentPitch - a_this->freeRotation.y) * mult;
 						}
-						if (directionalMovementHandler->_pressedDirections.any(DirectionalMovementHandler::Directions::kDown)) {
-							desiredPitch += directionalMovementHandler->HasMovementInput() ? PI / 4 : PI / 2;
-						}
-						auto playerControls = RE::PlayerControls::GetSingleton();
-						playerControls->data.moveInputVec = RE::NiPoint2(0.f, 1.f);
-					} else {
-						mult = cos(fabs(a_this->freeRotation.x));
-						desiredPitch = (currentPitch - a_this->freeRotation.y) * mult;
+
+						pitchDelta = desiredPitch - currentPitch;
 					}
 
-					pitchDelta = desiredPitch - currentPitch;
+					bool bMoving = cameraTarget->actorState1.movingBack ||
+					               cameraTarget->actorState1.movingForward ||
+					               cameraTarget->actorState1.movingRight ||
+					               cameraTarget->actorState1.movingLeft;
+
+					if (bMoving || !a_weaponSheathed) {
+						//cameraTarget->SetRotationX(cameraTarget->data.angle.x + pitchDelta);
+						cameraTarget->data.angle.x += pitchDelta;
+						a_this->freeRotation.y += pitchDelta;
+					}
 				}
-
-				//cameraTarget->SetRotationX(cameraTarget->data.angle.x + pitchDelta);
-				cameraTarget->data.angle.x += pitchDelta;
-				a_this->freeRotation.y += pitchDelta;
 			}
-		}
-
-		directionalMovementHandler->Update();
+		} else {
+			_SetFreeRotationMode(a_this, a_weaponSheathed);
+		}		
 	}
 
 	void ThirdPersonStateHook::ProcessButton(RE::ThirdPersonState* a_this, RE::ButtonEvent* a_event, RE::PlayerControlsData* a_data)
@@ -428,8 +430,9 @@ namespace Hooks
 			horse = static_cast<RE::Actor*>(a_this->horseRefHandle.get().get());
 
 			if (savedCamera.rotationType != SaveCamera::RotationType::kNone) {
+				auto rotationType = savedCamera.rotationType;
 				RE::NiPoint2 rot = savedCamera.ConsumeXY();
-				if (savedCamera.rotationType == SaveCamera::RotationType::kThirdPerson) {
+				if (rotationType == SaveCamera::RotationType::kThirdPerson) {
 					playerCharacter->data.angle.x = -rot.y;
 				}
 				
@@ -671,7 +674,7 @@ namespace Hooks
 			a_this->SetGraphVariableBool("IsNPC", false);
 		}
 
-		if (DirectionalMovementHandler::IsIFPV())
+		if (directionalMovementHandler->IsIFPV() || directionalMovementHandler->IsImprovedCamera())
 		{
 			a_this->actorState2.headTracking = false;
 			a_this->SetGraphVariableBool("IsNPC", false);
@@ -720,22 +723,42 @@ namespace Hooks
 				}
 			}
 		}
-		
+
+		RE::NiPoint3 targetPos;
+
+		// reset headtrack
+		if (bBehaviorPatchInstalled && a_this->currentProcess && a_this->currentProcess->high) {
+			targetPos = a_this->GetLookingAtLocation();
+			float yaw = NormalRelativeAngle(a_this->data.angle.z - PI2);
+			RE::NiPoint3 offset = -RotationToDirection(yaw, 0) * 500.f;
+			offset.x *= -1.f;
+			targetPos += offset;
+			a_this->currentProcess->high->headTrackTargetOffset = targetPos;
+			a_this->currentProcess->SetHeadtrackTarget(a_this, targetPos);
+		}
+
 		// run original function
 		_ProcessTracking(a_this, a_delta, a_obj3D);
 
-		if (bIsHeadtrackingEnabled && !bIsSprinting && !bIsBlocking && directionalMovementHandler->IsCameraHeadtrackingEnabled() && a_this->currentProcess)
-		{
+		// handle fake IsNPC
+		if (!bIsHeadtrackingEnabled && bBehaviorPatchInstalled && !DirectionalMovementHandler::GetSingleton()->GetPlayerIsNPC()) {
+			a_this->currentProcess->SetHeadtrackTarget(a_this, targetPos);
+		}
+
+		if (bIsHeadtrackingEnabled && !bIsSprinting && !bIsBlocking && directionalMovementHandler->IsCameraHeadtrackingEnabled() && a_this->currentProcess && a_this->boolBits.none(RE::Actor::BOOL_BITS::kHasSceneExtra)) {
 			// try camera headtracking
 			auto highProcess = a_this->currentProcess->high;
-			if (highProcess && a_this->actorState1.meleeAttackState == RE::ATTACK_STATE_ENUM::kNone && !highProcess->headTrack2 && !highProcess->headTrack3 && !highProcess->headTrack4 && !highProcess->headTrack5)
+			if (highProcess && 
+				a_this->actorState1.meleeAttackState == RE::ATTACK_STATE_ENUM::kNone &&
+				a_this->actorState1.sitSleepState != RE::SIT_SLEEP_STATE::kIsSleeping &&
+				!highProcess->headTrack2 && !highProcess->headTrack3 && !highProcess->headTrack4 && !highProcess->headTrack5)
 			{
-				// clear the 0 and 1 targets if they're set to self for whatever reason
+				// clear the 0 and 1 targets if they're set for whatever reason
 				auto selfHandle = a_this->GetHandle();
-				if (highProcess->headTrack0 && highProcess->headTrackTarget0 == selfHandle) {
+				if (highProcess->headTrack0) {
 					highProcess->SetHeadtrackTarget(0, nullptr);
 				}
-				if (highProcess->headTrack1 && highProcess->headTrackTarget1 == selfHandle) {
+				if (highProcess->headTrack1) {
 					highProcess->SetHeadtrackTarget(1, nullptr);
 				}
 
@@ -958,9 +981,11 @@ namespace Hooks
 	{
 		bool bReturn = _ProcessMessage(a_enemyHealth, a_hudData);
 
-		if (WidgetHandler::ShowSoftTargetBar()) {
-			RE::RefHandle* refHandle = (RE::RefHandle*)(a_enemyHealth + 0x28);
+		RE::RefHandle* refHandle = (RE::RefHandle*)(a_enemyHealth + 0x28);
 
+		WidgetHandler::GetSingleton()->SetEnemyHealthTargetRef(*refHandle);
+
+		if (WidgetHandler::ShowSoftTargetBar()) {
 			if (*refHandle) {
 				auto actorPtr = RE::Actor::LookupByHandle(*refHandle);
 				if (actorPtr) {
@@ -977,7 +1002,7 @@ namespace Hooks
 	void HeadtrackingHook::SetHeadtrackTarget0(RE::AIProcess* a_this, RE::Actor* a_target)
 	{	
 		// Skip for player so we don't get random headtracking targets
-		if (DirectionalMovementHandler::GetSingleton()->IsHeadtrackingEnabled() && a_this == RE::PlayerCharacter::GetSingleton()->currentProcess){
+		if (DirectionalMovementHandler::GetSingleton()->IsHeadtrackingEnabled() && a_this == RE::PlayerCharacter::GetSingleton()->currentProcess) {
 			return;
 		}
 		_SetHeadtrackTarget0(a_this, a_target);
@@ -1053,7 +1078,7 @@ namespace Hooks
 		return bCanProcessControls;
 	}
 
-	void NukeSetIsNPCHook::SetBool(RE::IAnimationGraphManagerHolder* a_this, RE::BSFixedString* a_variableName, bool* a_value)
+	void NukeSetIsNPCHook::SetBool(RE::IAnimationGraphManagerHolder* a_this, RE::BSFixedString* a_variableName, bool a_value)
 	{
 		if (a_variableName && a_variableName->c_str() == "IsNPC"sv)
 		{
@@ -1061,9 +1086,18 @@ namespace Hooks
 			auto formID = ref->formID;
 			if (formID == 0x14 && DirectionalMovementHandler::IsBehaviorPatchInstalled(ref)) // player
 			{
-				*a_value = false;
+				DirectionalMovementHandler::GetSingleton()->SetPlayerIsNPC(a_value);
+				a_value = false;
 			}
 		}
 		_SetBool(a_this, a_variableName, a_value);
 	}
+
+	void PlayerCameraHook::Update(RE::TESCamera* a_this)
+	{
+		_Update(a_this);
+
+		DirectionalMovementHandler::GetSingleton()->UpdatePlayerPitch();
+	}
+
 }

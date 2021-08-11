@@ -1,5 +1,6 @@
 #pragma once
 #include <unordered_set>
+#include "SmoothCamAPI.h"
 
 namespace std
 {
@@ -45,7 +46,12 @@ public:
 	static void ResetControls();
 
 	void Update();
+	void UpdateDirectionalMovement();
+	void UpdateFacingState();
 	void ProgressTimers();
+
+	void HideCrosshair();
+	void ShowCrosshair();
 
 	bool ProcessInput(RE::NiPoint2& a_inputDirection, RE::PlayerControlsData* a_playerControlsData);
 	void SetDesiredAngleToTarget(RE::PlayerCharacter* a_playerCharacter, RE::ActorHandle a_target);
@@ -55,7 +61,9 @@ public:
 	void UpdateAIProcessRotationSpeed(RE::Actor* a_actor);
 	void SetDesiredAIProcessRotationSpeed(float a_rotationSpeed);
 	
-	static bool IsIFPV();
+	bool IsIFPV() const;
+	bool IsImprovedCamera() const;
+
 	bool IsFreeCamera() const;
 	bool GetFreeCameraEnabled() const;
 	bool HasMovementInput() const;
@@ -127,7 +135,7 @@ public:
 
 	void LookAtTarget(RE::ActorHandle a_target);
 
-	bool ShouldFaceTarget(bool& out_bFaceCrosshair) const;
+	bool ShouldFaceTarget() const;
 	bool ShouldFaceCrosshair() const;
 
 	bool HasTargetLocked() const;
@@ -137,8 +145,10 @@ public:
 	float GetDialogueHeadtrackTimer() const;
 	void RefreshDialogueHeadtrackTimer();
 
-	bool GetFreeCamera() const;
-	void SetFreeCamera(bool a_enable);
+	bool GetDirectionalMovementSheathed() const;
+	void SetDirectionalMovementSheathed(bool a_enable);
+	bool GetDirectionalMovementDrawn() const;
+	void SetDirectionalMovementDrawn(bool a_enable);
 	DialogueMode GetDialogueMode();
 	void SetDialogueMode(DialogueMode a_mode);
 	bool GetHeadtracking() const;
@@ -151,8 +161,12 @@ public:
 	void SetCameraHeadtrackingStrength(float a_strength);
 	bool GetStopCameraHeadtrackingBehindPlayer() const;
 	void SetStopCameraHeadtrackingBehindPlayer(bool a_enable);
+	bool GetFaceCrosshairWhileAttacking() const;
+	void SetFaceCrosshairWhileAttacking(bool a_enable);
 	bool GetFaceCrosshairWhileBlocking() const;
 	void SetFaceCrosshairWhileBlocking(bool a_enable);
+	bool GetFaceCrosshairDuringAutoMove() const;
+	void SetFaceCrosshairDuringAutoMove(bool a_enable);
 	float GetRunningRotationSpeedMult() const;
 	void SetRunningRotationSpeedMult(float a_mult);
 	float GetSprintingRotationSpeedMult() const;
@@ -165,8 +179,6 @@ public:
 	void SetAttackEndRotationSpeedMult(float a_mult);
 	float GetAirRotationSpeedMult() const;
 	void SetAirRotationSpeedMult(float a_mult);
-	bool GetFaceCrosshairInstantly() const;
-	void SetFaceCrosshairInstantly(bool a_enable);
 	bool GetDisableAttackRotationMultipliersForTransformations() const;
 	void SetDisableAttackRotationMultipliersForTransformations(bool a_enable);
 	bool GetStopOnDirectionChange() const;
@@ -184,6 +196,8 @@ public:
 	void SetTargetLockUseMouse(bool a_enable);
 	bool GetTargetLockUseScrollWheel() const;
 	void SetTargetLockUseScrollWheel(bool a_enable);
+	bool GetTargetLockUseRightThumbstick() const;
+	void SetTargetLockUseRightThumbstick(bool a_enable);
 	TargetLockProjectileAimType GetTargetLockArrowAimType();
 	void SetTargetLockArrowAimType(TargetLockProjectileAimType a_type);
 	TargetLockProjectileAimType GetTargetLockMissileAimType();
@@ -194,6 +208,8 @@ public:
 	void SetTargetLockTestLOS(bool a_enable);
 	bool GetTargetLockHostileActorsOnly() const;
 	void SetTargetLockHostileActorsOnly(bool a_enable);
+	bool GetTargetLockHideCrosshair() const;
+	void SetTargetLockHideCrosshair(bool a_hide);
 
 	bool Save(const SKSE::SerializationInterface* a_intfc, std::uint32_t a_typeCode, std::uint32_t a_version);
 	bool Load(const SKSE::SerializationInterface* a_intfc);
@@ -203,9 +219,14 @@ public:
 
 	void LoadIniSettings();
 
-	void InitIFPVCompatibility();
+	void InitCameraModsCompatibility();
 
 	static bool IsBehaviorPatchInstalled(RE::TESObjectREFR* a_ref);
+
+	bool GetPlayerIsNPC() const;
+	void SetPlayerIsNPC(bool a_enable);
+
+	void UpdatePlayerPitch();
 
 	inline auto& GetBossRaces() const
 	{
@@ -227,6 +248,8 @@ public:
 		return _bossNPCBlacklist;
 	}
 
+	SmoothCamAPI::IVSmoothCam1* g_SmoothCam = nullptr;
+
 private:
 	using Lock = std::recursive_mutex;
 	using Locker = std::lock_guard<Lock>;
@@ -239,21 +262,23 @@ private:
 	DirectionalMovementHandler& operator=(const DirectionalMovementHandler&) = delete;
 	DirectionalMovementHandler& operator=(DirectionalMovementHandler&&) = delete;
 
-	static constexpr bool DF_FREECAMERA = true;
+	static constexpr bool DF_DIRECTIONALMOVEMENTSHEATHED = true;
+	static constexpr bool DF_DIRECTIONALMOVEMENTDRAWN = true;
 	static constexpr DialogueMode DF_DIALOGUEMODE = kFaceSpeaker;
 	static constexpr bool DF_HEADTRACKING = true;
 	static constexpr float DF_DIALOGUEHEADTRACKINGDURATION = 3.0f;
 	static constexpr bool DF_CAMERAHEADTRACKING = true;
 	static constexpr float DF_CAMERAHEADTRACKINGSTRENGTH = 0.5f;
 	static constexpr bool DF_STOPCAMERAHEADTRACKINGBEHINDPLAYER = true;
+	static constexpr bool DF_FACECROSSHAIRWHILEATTACKING = false;
 	static constexpr bool DF_FACECROSSHAIRWHILEBLOCKING = true;
+	static constexpr bool DF_FACECROSSHAIRDURINGAUTOMOVE = true;
 	static constexpr float DF_RUNNINGROTATIONSPEEDMULT = 1.5f;
 	static constexpr float DF_SPRINTINGROTATIONSPEEDMULT = 2.f;
 	static constexpr float DF_ATTACKSTARTROTATIONSPEEDMULT = 5.f;
 	static constexpr float DF_ATTACKMIDROTATIONSPEEDMULT = 1.f;
 	static constexpr float DF_ATTACKENDROTATIONSPEEDMULT = 0.f;
 	static constexpr float DF_AIRROTATIONSPEEDMULT = 0.5f;
-	static constexpr bool DF_FACECROSSHAIRINSTANTLY = true;
 	static constexpr bool DF_DISABLEATTACKROTATIONMULTIPLIERSFORTRANSFORMATIONS = true; 
 	static constexpr bool DF_STOPONDIRECTIONCHANGE = true;
 
@@ -263,15 +288,18 @@ private:
 	static constexpr float DF_TARGETLOCKPITCHOFFSETSTRENGTH = 0.25f;
 	static constexpr bool DF_TARGETLOCKUSEMOUSE = true;
 	static constexpr bool DF_TARGETLOCKUSESCROLLWHEEL = true;
+	static constexpr bool DF_TARGETLOCKUSERIGHTTHUMBSTICK = true;
 	static constexpr TargetLockProjectileAimType DF_TARGETLOCKARROWAIMTYPE = kPredict;
 	static constexpr TargetLockProjectileAimType DF_TARGETLOCKMISSILEAIMTYPE = kPredict;
 	static constexpr bool DF_AUTOTARGETNEXTONDEATH = true;
 	static constexpr bool DF_TARGETLOCKTESTLOS = true;
 	static constexpr bool DF_TARGETLOCKHOSTILEACTORSONLY = true;
+	static constexpr bool DF_TARGETLOCKHIDECROSSHAIR = true;
 
 	mutable Lock _lock;
 
-	bool _bFreeCamera = true;
+	bool _bDirectionalMovementSheathed = true;
+	bool _bDirectionalMovementDrawn = true;
 	DialogueMode _dialogueMode = kFaceSpeaker;
 	bool _bHeadtracking = true;
 	float _dialogueHeadtrackingDuration = 3.0f;
@@ -279,14 +307,15 @@ private:
 	float _cameraHeadtrackingStrength = 0.5f;
 	bool _bStopCameraHeadtrackingBehindPlayer = true;
 
+	bool _bFaceCrosshairWhileAttacking = false;
 	bool _bFaceCrosshairWhileBlocking = true;
+	bool _bFaceCrosshairDuringAutoMove = true;
 	float _runningRotationSpeedMult = 1.5f;
 	float _sprintingRotationSpeedMult = 2.f;
 	float _attackStartRotationSpeedMult = 5.f;
 	float _attackMidRotationSpeedMult = 1.f;
 	float _attackEndRotationSpeedMult = 0.f;
 	float _airRotationSpeedMult = 0.5f;
-	bool _bFaceCrosshairInstantly = true;
 	bool _bDisableAttackRotationMultipliersForTransformations = true;
 	bool _bStopOnDirectionChange = true;
 
@@ -296,23 +325,32 @@ private:
 	float _targetLockPitchOffsetStrength = 0.25f;
 	bool _bTargetLockUseMouse = true;
 	bool _bTargetLockUseScrollWheel = true;
+	bool _bTargetLockUseRightThumbstick = true;
 	TargetLockProjectileAimType _targetLockArrowAimType = kPredict;
 	TargetLockProjectileAimType _targetLockMissileAimType = kPredict;
 	bool _bAutoTargetNextOnDeath = true;
 	bool _bTargetLockTestLOS = true;
 	bool _bTargetLockHostileActorsOnly = true;
+	bool _bTargetLockHideCrosshair = true;
 		
 	float _freecamControllerBufferDepth = 0.02f;
 	float _defaultControllerBufferDepth = -1.f;
 	float _targetLockDistanceHysteresis = 1.05f;
 
-	float _defaultNearClip = -1.f;
-	bool _bImprovedCameraLoaded = false;
+	RE::TESGlobal* _IFPV_IsFirstPerson = nullptr;
+	bool* _ImprovedCamera_IsThirdPerson = nullptr;
 
 	RE::SpellItem* _targetLockSpell = nullptr;
 	RE::TESGlobal* _directionalMovementGlobal = nullptr;
 
 	float _desiredAngle = -1.f;
+
+	bool _bDirectionalMovement = false;
+	bool _bShouldFaceCrosshair = false;
+	bool _bShouldFaceTarget = false;
+
+	bool _bUpdatePlayerPitch = false;
+	float _desiredPlayerPitch;
 
 	bool _bIsTweening = false;
 	float _yawDelta = 0.f;
@@ -323,6 +361,14 @@ private:
 	float _lastTargetSwitchTimer = 0.f;
 	float _lastLOSTimer = 0.f;
 	float _dialogueHeadtrackTimer = 0.f;
+	float _faceCrosshairTimer = 0.f;
+
+	bool _bCrosshairIsHidden = false;
+	bool _bAiming = false;
+
+	static constexpr float faceCrosshairDuration = 0.2f;
+
+	bool _playerIsNPC = false;
 
 	bool _bHasMovementInput = false;
 	bool _bIsDodging = false;

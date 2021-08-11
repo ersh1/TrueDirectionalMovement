@@ -1,7 +1,10 @@
 ScriptName TrueDirectionalMovement
 
-Bool Function GetFreeCamera() Global Native
-Function SetFreeCamera(Bool a_enable) Global Native
+Bool Function GetDirectionalMovementSheathed() Global Native
+Function SetDirectionalMovementSheathed(Bool a_enable) Global Native
+
+Bool Function GetDirectionalMovementDrawn() Global Native
+Function SetDirectionalMovementDrawn(Bool a_enable) Global Native
 
 Int Function GetDialogueMode() Global Native
 Function SetDialogueMode(Int a_mode) Global Native
@@ -21,8 +24,14 @@ Function SetCameraHeadtrackingStrength(Float a_strength) Global Native
 Bool Function GetStopCameraHeadtrackingBehindPlayer() Global Native
 Function SetStopCameraHeadtrackingBehindPlayer(Bool a_enable) Global Native
 
+Bool Function GetFaceCrosshairWhileAttacking() Global Native
+Function SetFaceCrosshairWhileAttacking(Bool a_enable) Global Native
+
 Bool Function GetFaceCrosshairWhileBlocking() Global Native
 Function SetFaceCrosshairWhileBlocking(Bool a_enable) Global Native
+
+Bool Function GetFaceCrosshairDuringAutoMove() Global Native
+Function SetFaceCrosshairDuringAutoMove(Bool a_enable) Global Native
 
 Float Function GetRunningRotationSpeedMult() Global Native
 Function SetRunningRotationSpeedMult(Float a_mult) Global Native
@@ -69,6 +78,9 @@ Function SetTargetLockUseMouse(Bool a_enable) Global Native
 Bool Function GetTargetLockUseScrollWheel() Global Native
 Function SetTargetLockUseScrollWheel(Bool a_enable) Global Native
 
+Bool Function GetTargetLockUseRightThumbstick() Global Native
+Function SetTargetLockUseRightThumbstick(Bool a_enable) Global Native
+
 Bool Function GetAutoTargetNextOnDeath() Global Native
 Function SetAutoTargetNextOnDeath(Bool a_enable) Global Native
 
@@ -77,6 +89,9 @@ Function SetTargetLockTestLOS(Bool a_enable) Global Native
 
 Bool Function GetTargetLockHostileActorsOnly() Global Native
 Function SetTargetLockHostileActorsOnly(Bool a_enable) Global Native
+
+Bool Function GetTargetLockHideCrosshair() Global Native
+Function SetTargetLockHideCrosshair(Bool a_enable) Global Native
 
 Int Function GetTargetLockArrowAimType() Global Native
 Function SetTargetLockArrowAimType(Int a_type) Global Native
@@ -164,6 +179,9 @@ Function SetShowBossDamage(Bool a_enable) Global Native
 
 Bool Function GetShowBossHealthPhantom() Global Native
 Function SetShowBossHealthPhantom(Bool a_enable) Global Native
+
+Bool Function GetBossHideVanillaTargetBar() Global Native
+Function SetBossHideVanillaTargetBar(Bool a_enable) Global Native
 
 Float Function GetBossHealthPhantomDuration() Global Native
 Function SetBossHealthPhantomDuration(Float a_duration) Global Native
