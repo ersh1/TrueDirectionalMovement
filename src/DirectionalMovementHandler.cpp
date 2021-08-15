@@ -1056,12 +1056,13 @@ std::vector<RE::ActorHandle> DirectionalMovementHandler::FindCloseActor(float di
 
 RE::ActorHandle DirectionalMovementHandler::FindTarget(float a_distance)
 {
-	auto crosshairRef = Events::CrosshairRefManager::GetSingleton()->GetCachedRef();
-	if (crosshairRef)
+	if (auto crosshairRef = Events::CrosshairRefManager::GetSingleton()->GetCachedRef())
 	{
-		auto crosshairActor = RE::ActorPtr(crosshairRef.get()->As<RE::Actor>());
-		if (crosshairActor && crosshairActor != _target.get() && IsActorValidTarget(crosshairActor)) {
-			return crosshairActor->GetHandle();
+		if (auto crosshairRefPtr = crosshairRef.get()) {
+			auto crosshairActor = RE::ActorPtr(crosshairRefPtr->As<RE::Actor>());
+			if (crosshairActor && crosshairActor != _target.get() && IsActorValidTarget(crosshairActor)) {
+				return crosshairActor->GetHandle();
+			}
 		}
 	}
 	
