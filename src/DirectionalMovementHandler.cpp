@@ -503,6 +503,7 @@ void DirectionalMovementHandler::UpdateRotation()
 		// Get the current movement type
 		RE::BSTSmartPointer<RE::BSAnimationGraphManager> animationGraphManagerPtr;
 		playerCharacter->GetAnimationGraphManager(animationGraphManagerPtr);
+		if (!animationGraphManagerPtr) return;
 
 		RE::BSFixedString string;
 
