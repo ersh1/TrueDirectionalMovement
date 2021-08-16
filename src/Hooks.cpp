@@ -93,6 +93,7 @@ namespace Hooks
 		NukeSetIsNPCHook::Hook();
 		PlayerCameraHook::Hook();
 		MainUpdateHook::Hook();
+		HorseAimHook::Hook();
 
 		logger::trace("...success");
 	}
@@ -101,7 +102,8 @@ namespace Hooks
 	{
 		bool bHandled = false;
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
-		if (a_event && directionalMovementHandler->IsFreeCamera() && a_event->IsLeft())
+		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+		if (a_event && directionalMovementHandler->IsFreeCamera() && a_event->IsLeft() && playerCharacter && !playerCharacter->IsOnMount())
 		{
 			RE::NiPoint2 inputDirection(a_event->xValue, a_event->yValue);
 			bHandled = directionalMovementHandler->ProcessInput(inputDirection, a_data);
@@ -118,7 +120,8 @@ namespace Hooks
 		bool bHandled = false;
 		DirectionalMovementHandler* directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 		auto pressedDirections = &directionalMovementHandler->_pressedDirections;
-		if (a_event && directionalMovementHandler->IsFreeCamera())
+		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+		if (a_event && directionalMovementHandler->IsFreeCamera() && playerCharacter && !playerCharacter->IsOnMount())
 		{
 			auto userEvent = a_event->QUserEvent();
 			auto userEvents = RE::UserEvents::GetSingleton();
@@ -398,7 +401,7 @@ namespace Hooks
 			}
 		} else {
 			_SetFreeRotationMode(a_this, a_weaponSheathed);
-		}		
+		}
 	}
 
 	void ThirdPersonStateHook::ProcessButton(RE::ThirdPersonState* a_this, RE::ButtonEvent* a_event, RE::PlayerControlsData* a_data)
@@ -488,6 +491,38 @@ namespace Hooks
 		} else {
 			_UpdateRotation(a_this);
 		}
+	}
+
+	static float* g_fSomething = (float*)REL::ID(509846).address();  // 1DF3658
+	static float* g_fSomeKindOfSensitivity = (float*)REL::ID(509884).address();  // 1DF3820
+	static float* g_fSome2 = (float*)REL::ID(509862).address();                  // 1DF3718
+
+	void HorseCameraStateHook::HandleLookInput(RE::HorseCameraState* a_this, const RE::NiPoint2& a_input)
+	{
+		if (DirectionalMovementHandler::GetSingleton()->HasTargetLocked()) {
+			return;
+		}
+
+		_HandleLookInput(a_this, a_input);
+	}
+
+	void HorseCameraStateHook::ProcessButton(RE::HorseCameraState* a_this, RE::ButtonEvent* a_event, RE::PlayerControlsData* a_data)
+	{
+		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+		if (a_event && directionalMovementHandler->HasTargetLocked() && directionalMovementHandler->GetTargetLockUseScrollWheel()) {
+			auto userEvent = a_event->QUserEvent();
+			auto userEvents = RE::UserEvents::GetSingleton();
+
+			if (userEvent == userEvents->zoomIn) {
+				directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Directions::kLeft);
+				return;
+			} else if (userEvent == userEvents->zoomOut) {
+				directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Directions::kRight);
+				return;
+			}
+		}
+
+		_ProcessButton(a_this, a_event, a_data);
 	}
 
 	void TweenMenuCameraStateHook::OnEnterState(RE::TESCameraState* a_this)
@@ -663,6 +698,46 @@ namespace Hooks
 		_GetLinearVelocity(a_this, a_outVelocity);
 	}
 
+	void ProjectileHook::Func183(RE::Projectile* a_this)
+	{
+		_Func183(a_this);
+
+		// player only, 0x100000 == player
+		if (a_this->shooter.native_handle() == 0x100000) {
+			auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+			if (directionalMovementHandler->HasTargetLocked() || a_this->desiredTarget.native_handle() != 0) {
+				auto beamProjectile = skyrim_cast<RE::BeamProjectile*>(a_this);
+				auto target = directionalMovementHandler->GetTarget();
+				if (!beamProjectile || !target) {
+					return;
+				}
+				a_this->desiredTarget = target;
+
+				RE::NiPoint3 targetPos;
+
+				if (GetTargetPos(a_this->desiredTarget, targetPos))
+				{
+					RE::NiPoint3 direction = (targetPos - a_this->data.location);
+
+					// normalize direction
+					direction.Unitize();
+
+					// rotate
+					a_this->data.angle.x = atan2(-direction.z, std::sqrtf(direction.x * direction.x + direction.y * direction.y));
+					a_this->data.angle.z = atan2(direction.x, direction.y);
+
+					if (a_this->data.angle.z < 0.0) {
+						a_this->data.angle.z += PI;
+					}
+
+					if (direction.x < 0.0) {
+						a_this->data.angle.z += PI;
+					}
+				}
+			}
+		}
+	}
+
 	void PlayerCharacterHook::ProcessTracking(RE::Actor* a_this, float a_delta, RE::NiAVObject* a_obj3D)
 	{
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
@@ -688,6 +763,7 @@ namespace Hooks
 
 		if (bIsHeadtrackingEnabled && a_this->currentProcess) {
 			if (!bBehaviorPatchInstalled) {
+				a_this->actorState2.headTracking = true;
 				a_this->SetGraphVariableBool("IsNPC", true);
 			}
 			
@@ -728,7 +804,16 @@ namespace Hooks
 		RE::NiPoint3 targetPos;
 
 		// reset headtrack
-		if (bBehaviorPatchInstalled && a_this->currentProcess && a_this->currentProcess->high) {
+		if (a_this->currentProcess && a_this->currentProcess->high) {
+			// clear the 0 and 1 targets if they're set for whatever reason
+			auto selfHandle = a_this->GetHandle();
+			if (a_this->currentProcess->high->headTrack0) {
+				a_this->currentProcess->high->SetHeadtrackTarget(0, nullptr);
+			}
+			if (a_this->currentProcess->high->headTrack1) {
+				a_this->currentProcess->high->SetHeadtrackTarget(1, nullptr);
+			}
+
 			targetPos = a_this->GetLookingAtLocation();
 			float yaw = NormalRelativeAngle(a_this->data.angle.z - PI2);
 			RE::NiPoint3 offset = -RotationToDirection(yaw, 0) * 500.f;
@@ -754,19 +839,10 @@ namespace Hooks
 				a_this->actorState1.sitSleepState != RE::SIT_SLEEP_STATE::kIsSleeping &&
 				!highProcess->headTrack2 && !highProcess->headTrack3 && !highProcess->headTrack4 && !highProcess->headTrack5)
 			{
-				// clear the 0 and 1 targets if they're set for whatever reason
-				auto selfHandle = a_this->GetHandle();
-				if (highProcess->headTrack0) {
-					highProcess->SetHeadtrackTarget(0, nullptr);
-				}
-				if (highProcess->headTrack1) {
-					highProcess->SetHeadtrackTarget(1, nullptr);
-				}
-
 				if (!bBehaviorPatchInstalled) {
 					a_this->SetGraphVariableBool("IsNPC", true);
 				}
-					
+
 				directionalMovementHandler->UpdateCameraHeadtracking();
 			}
 		}
@@ -1005,6 +1081,7 @@ namespace Hooks
 	{	
 		// Skip for player so we don't get random headtracking targets
 		if (DirectionalMovementHandler::GetSingleton()->IsHeadtrackingEnabled() && a_this == RE::PlayerCharacter::GetSingleton()->currentProcess) {
+			_SetHeadtrackTarget0(a_this, nullptr);
 			return;
 		}
 		_SetHeadtrackTarget0(a_this, a_target);
@@ -1095,6 +1172,20 @@ namespace Hooks
 		_SetBool(a_this, a_variableName, a_value);
 	}
 
+	void NukeSetIsNPCHook::SetInt(RE::IAnimationGraphManagerHolder* a_this, RE::BSFixedString* a_variableName, int32_t a_value)
+	{
+		if (a_variableName && a_variableName->c_str() == "IsNPC"sv) {
+			auto ref = static_cast<RE::TESObjectREFR*>(a_this);
+			auto formID = ref->formID;
+			if (formID == 0x14 && DirectionalMovementHandler::IsBehaviorPatchInstalled(ref))  // player
+			{
+				DirectionalMovementHandler::GetSingleton()->SetPlayerIsNPC(a_value);
+				a_value = 0;
+			}
+		}
+		_SetInt(a_this, a_variableName, a_value);
+	}
+
 	void PlayerCameraHook::Update(RE::TESCamera* a_this)
 	{
 		_Update(a_this);
@@ -1109,4 +1200,41 @@ namespace Hooks
 		DirectionalMovementHandler::GetSingleton()->Update();
 	}
 
+	static float angleToTarget = 0.f;
+	float* HorseAimHook::GetHorseCameraFreeRotationYaw(RE::PlayerCamera* a_this)
+	{
+		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+		if (directionalMovementHandler->HasTargetLocked() && directionalMovementHandler->GetTarget())
+		{
+			auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+			auto target = directionalMovementHandler->GetTarget();
+			RE::NiPoint2 playerPos;
+			playerPos.x = playerCharacter->GetPositionX();
+			playerPos.y = playerCharacter->GetPositionY();
+			RE::NiPoint2 targetPos;
+			targetPos.x = target.get()->GetPositionX();
+			targetPos.y = target.get()->GetPositionY();
+
+			RE::NiPoint2 directionToTarget = RE::NiPoint2(-(targetPos.x - playerPos.x), targetPos.y - playerPos.y);
+			directionToTarget.Unitize();
+
+			RE::NiPoint2 forwardVector(0.f, 1.f);
+			RE::NiPoint2 currentCharacterDirection = Vec2Rotate(forwardVector, playerCharacter->data.angle.z);
+
+			angleToTarget = GetAngle(currentCharacterDirection, directionToTarget);
+
+			return &angleToTarget;
+		}
+		return _GetHorseCameraFreeRotationYaw(a_this);
+	}
+
+	void HorseAimHook::Func(RE::PlayerCamera* a_this)
+	{	
+		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+		if (DirectionalMovementHandler::GetSingleton()->HasTargetLocked() && playerCharacter && playerCharacter->IsOnMount()) {
+			return;
+		}
+
+		_Func(a_this);
+	}
 }

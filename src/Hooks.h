@@ -70,7 +70,7 @@ namespace Hooks
 			_OnExitState = ThirdPersonStateVtbl.write_vfunc(0x2, OnExitState);
 			_SetFreeRotationMode = ThirdPersonStateVtbl.write_vfunc(0xD, SetFreeRotationMode);
 			REL::Relocation<std::uintptr_t> PlayerInputHandlerVtbl{ REL::ID(256648) };
-			_ProcessButton = PlayerInputHandlerVtbl.write_vfunc(0x4, ProcessButton);			
+			_ProcessButton = PlayerInputHandlerVtbl.write_vfunc(0x4, ProcessButton);
 		}
 	private:		
 		static void OnEnterState(RE::ThirdPersonState* a_this);
@@ -93,16 +93,23 @@ namespace Hooks
 			_OnEnterState = HorseCameraStateVtbl.write_vfunc(0x1, OnEnterState);
 			_OnExitState = HorseCameraStateVtbl.write_vfunc(0x2, OnExitState);
 			_UpdateRotation = HorseCameraStateVtbl.write_vfunc(0xE, UpdateRotation);
+			_HandleLookInput = HorseCameraStateVtbl.write_vfunc(0xF, HandleLookInput);
+			REL::Relocation<std::uintptr_t> PlayerInputHandlerVtbl{ REL::ID(267750) };
+			_ProcessButton = PlayerInputHandlerVtbl.write_vfunc(0x4, ProcessButton);
 		}
 
 	private:
 		static void OnEnterState(RE::HorseCameraState* a_this);
 		static void OnExitState(RE::HorseCameraState* a_this);
 		static void UpdateRotation(RE::HorseCameraState* a_this);
+		static void HandleLookInput(RE::HorseCameraState* a_this, const RE::NiPoint2& a_input); 
+		static void ProcessButton(RE::HorseCameraState* a_this, RE::ButtonEvent* a_event, RE::PlayerControlsData* a_data);
 
 		static inline REL::Relocation<decltype(OnEnterState)> _OnEnterState;
 		static inline REL::Relocation<decltype(OnExitState)> _OnExitState;
 		static inline REL::Relocation<decltype(UpdateRotation)> _UpdateRotation;
+		static inline REL::Relocation<decltype(HandleLookInput)> _HandleLookInput;
+		static inline REL::Relocation<decltype(ProcessButton)> _ProcessButton;
 	};
 
 	class TweenMenuCameraStateHook
@@ -175,15 +182,24 @@ namespace Hooks
 			REL::Relocation<std::uintptr_t> ProjectileVtbl{ REL::ID(264058) };				// 167C888
 			REL::Relocation<std::uintptr_t> ArrowProjectileVtbl{ REL::ID(263776) };			// 1676318
 			REL::Relocation<std::uintptr_t> MissileProjectileVtbl{ REL::ID(263942) };		// 167AE78
+			REL::Relocation<std::uintptr_t> BeamProjectileVtbl{ REL::ID(263808) };          // 1677660
 			_GetLinearVelocity = ProjectileVtbl.write_vfunc(0x86, GetLinearVelocity);
 			ArrowProjectileVtbl.write_vfunc(0x86, GetLinearVelocity);
 			MissileProjectileVtbl.write_vfunc(0x86, GetLinearVelocity);
 
+			REL::Relocation<uintptr_t> hook{ REL::ID(static_cast<std::uint64_t>(43030)) };  // 754820
+			auto& trampoline = SKSE::GetTrampoline();
+			_Func183 = trampoline.write_call<5>(hook.address() + 0x304, Func183);
 		}
 	private:
 		static void GetLinearVelocity(RE::Projectile* a_this, RE::NiPoint3& a_outVelocity);
+		static void UpdateImpl(RE::Projectile* a_this);
+
+		static void Func183(RE::Projectile* a_this);
 
 		static inline REL::Relocation<decltype(GetLinearVelocity)> _GetLinearVelocity;
+
+		static inline REL::Relocation<decltype(Func183)> _Func183;
 	};
 
 	class PlayerCharacterHook
@@ -314,17 +330,22 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<uintptr_t> hook{ REL::ID(55694) };  // 996FD0, papyrus wrapper
+			REL::Relocation<uintptr_t> hook1{ REL::ID(55694) };  // 996FD0, bool papyrus wrapper
 			//REL::Relocation<uintptr_t> hook{ REL::ID(32141) };  // 4F06E0
+			REL::Relocation<uintptr_t> hook2{ REL::ID(55695) };  // 997090, int papyrus wrapper
 
 			auto& trampoline = SKSE::GetTrampoline();
-			_SetBool = trampoline.write_call<5>(hook.address() + 0x4C, SetBool);
+			_SetBool = trampoline.write_call<5>(hook1.address() + 0x4C, SetBool);
 			//_SetBool = trampoline.write_call<5>(hook.address() + 0xE, SetBool);
+			_SetInt = trampoline.write_call<5>(hook2.address() + 0x4B, SetInt);
 		}
 
 	private:
 		static void SetBool(RE::IAnimationGraphManagerHolder* a_this, RE::BSFixedString* a_variableName, bool a_value);
+		static void SetInt(RE::IAnimationGraphManagerHolder* a_this, RE::BSFixedString* a_variableName, int32_t a_value);
+
 		static inline REL::Relocation<decltype(SetBool)> _SetBool;
+		static inline REL::Relocation<decltype(SetInt)> _SetInt;
 	};
 
 	class PlayerCameraHook // to fix Improved Camera breaking player pitch during target lock
@@ -358,6 +379,28 @@ namespace Hooks
 		static void Update(RE::Main* a_this, float a2);
 		static inline REL::Relocation<decltype(Update)> _Update;
 		
+	};
+
+	class HorseAimHook
+	{
+	public:
+		static void Hook()
+		{
+			REL::Relocation<uintptr_t> hook1{ REL::ID(42496) };  // 72FAC0
+			REL::Relocation<uintptr_t> hook2{ REL::ID(49960) };  // 84F490
+
+			auto& trampoline = SKSE::GetTrampoline();
+			_GetHorseCameraFreeRotationYaw = trampoline.write_call<5>(hook1.address() + 0x17A, GetHorseCameraFreeRotationYaw);
+			_Func = trampoline.write_call<5>(hook2.address() + 0x45, Func);
+		}
+
+	private:
+		static float* GetHorseCameraFreeRotationYaw(RE::PlayerCamera* a_this);
+		static void Func(RE::PlayerCamera* a_this);
+		
+		static inline REL::Relocation<decltype(GetHorseCameraFreeRotationYaw)> _GetHorseCameraFreeRotationYaw;
+		static inline REL::Relocation<decltype(Func)> _Func;
+
 	};
 
 	void Install();

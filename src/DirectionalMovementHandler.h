@@ -367,7 +367,7 @@ private:
 	bool _bCrosshairIsHidden = false;
 	bool _bAiming = false;
 
-	static constexpr float faceCrosshairDuration = 0.2f;
+	static constexpr float faceCrosshairDuration = 0.4f;
 
 	bool _playerIsNPC = false;
 

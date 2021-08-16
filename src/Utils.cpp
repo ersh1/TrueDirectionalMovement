@@ -32,7 +32,9 @@ RE::NiPoint3 GetCameraPos()
 	auto playerCamera = RE::PlayerCamera::GetSingleton();
 	RE::NiPoint3 ret;
 
-	if (playerCamera->currentState == playerCamera->cameraStates[RE::CameraStates::kFirstPerson] || playerCamera->currentState == playerCamera->cameraStates[RE::CameraStates::kThirdPerson]) 
+	if (playerCamera->currentState == playerCamera->cameraStates[RE::CameraStates::kFirstPerson] || 
+		playerCamera->currentState == playerCamera->cameraStates[RE::CameraStates::kThirdPerson] ||
+		playerCamera->currentState == playerCamera->cameraStates[RE::CameraStates::kMount]) 
 	{
 		RE::NiNode* root = playerCamera->cameraRoot.get();
 		if (root) 

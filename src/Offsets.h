@@ -1,6 +1,7 @@
 #pragma once
 
 static float* g_deltaTime = (float*)REL::ID(523660).address();							// 2F6B948
+static float* g_deltaTimeRealTime = (float*)REL::ID(523661).address();                  // 2F6B94C
 static float* g_DurationOfApplicationRunTimeMS = (float*)REL::ID(523662).address();     // 2F6B950
 static float* g_fControllerBufferDepth = (float*)REL::ID(509447).address();				// 1DF1468
 static bool* g_bDampenPlayerControls = (bool*)REL::ID(509451).address();				// 1DF1498

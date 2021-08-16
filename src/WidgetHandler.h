@@ -163,6 +163,8 @@ public:
 
 	static bool ShowSoftTargetBar();
 
+	void Update();
+
 	bool Save(const SKSE::SerializationInterface* a_intfc, std::uint32_t a_typeCode, std::uint32_t a_version);
 	bool Load(const SKSE::SerializationInterface* a_intfc);
 	void Clear();

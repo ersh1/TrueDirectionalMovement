@@ -60,7 +60,7 @@ namespace Scaleform
 		static RE::stl::owner<RE::IMenu*> Creator() { return new TargetLockMenu(); }
 
 		// IMenu
-		void PostCreate() override { OnOpen(); }
+		//void PostCreate() override { OnOpen(); }
 
 		UIResult ProcessMessage(RE::UIMessage& a_message) override
 		{

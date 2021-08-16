@@ -183,7 +183,7 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 	logger::info("TrueDirectionalMovement loaded");
 
 	SKSE::Init(a_skse);
-	SKSE::AllocTrampoline(1 << 7);
+	SKSE::AllocTrampoline(1 << 8);
 
 	auto messaging = SKSE::GetMessagingInterface();
 	if (!messaging->RegisterListener("SKSE", MessageHandler)) {

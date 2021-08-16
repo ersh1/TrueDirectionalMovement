@@ -84,11 +84,11 @@ inline RE::NiPoint3 ToOrientationRotation(const RE::NiPoint3& a_vector)
 	// Pitch
 	ret.x = atan2(a_vector.z, std::sqrtf(a_vector.x * a_vector.x + a_vector.y * a_vector.y));
 
-	// Yaw
-	ret.y = atan2(a_vector.y, a_vector.x);
-
 	// Roll
-	ret.z = 0;
+	ret.y = 0;
+
+	// Yaw
+	ret.z = atan2(a_vector.y, a_vector.x);
 
 	return ret;
 }

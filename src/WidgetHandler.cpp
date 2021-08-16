@@ -702,6 +702,11 @@ bool WidgetHandler::ShowSoftTargetBar()
 	return GetSingleton()->_bShowSoftTargetBar;
 }
 
+void WidgetHandler::Update()
+{
+	UpdateVanillaTargetBarState();
+}
+
 bool WidgetHandler::Save(const SKSE::SerializationInterface* a_intfc, std::uint32_t a_typeCode, std::uint32_t a_version)
 {
 	Locker locker(_lock);
