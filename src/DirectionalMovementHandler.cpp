@@ -692,7 +692,7 @@ bool DirectionalMovementHandler::GetFreeCameraEnabled() const
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	if (playerCharacter)
 	{
-		return playerCharacter->IsWeaponDrawn() ? _bDirectionalMovementDrawn : _bDirectionalMovementSheathed;
+		return playerCharacter->GetWeaponState() == RE::WEAPON_STATE::kSheathed ? _bDirectionalMovementSheathed : _bDirectionalMovementDrawn;
 	}
 
 	return false;
