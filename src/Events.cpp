@@ -1,4 +1,5 @@
 #include "Events.h"
+#include "Settings.h"
 #include "DirectionalMovementHandler.h"
 #include "Offsets.h"
 
@@ -58,20 +59,20 @@ namespace Events
 					continue;
 				}
 
-				if (key == _targetLockKey) {
+				if (key == Settings::uTargetLockKey) {
 					auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 					directionalMovementHandler->ToggleTargetLock(!directionalMovementHandler->HasTargetLocked());
 					break;
 				}
 
-				if (key == _switchTargetLeftKey) {
+				if (key == Settings::uSwitchTargetLeftKey) {
 					auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 					if (directionalMovementHandler->HasTargetLocked() && !directionalMovementHandler->ShouldFaceCrosshair()) {
 						directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Directions::kLeft);
 					}
 				}
 
-				if (key == _switchTargetRightKey) {
+				if (key == Settings::uSwitchTargetRightKey) {
 					auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 					if (directionalMovementHandler->HasTargetLocked() && !directionalMovementHandler->ShouldFaceCrosshair()){
 						directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Directions::kRight);
@@ -101,99 +102,6 @@ namespace Events
 
 		return EventResult::kContinue;
 	}
-
-	bool InputEventHandler::Save(const SKSE::SerializationInterface* a_intfc, std::uint32_t a_typeCode, std::uint32_t a_version)
-	{
-		Locker locker(_lock);
-
-		if (!a_intfc->OpenRecord(a_typeCode, a_version)) {
-			return false;
-		}
-
-		if (!a_intfc->WriteRecordData(_targetLockKey)) {
-			return false;
-		}
-
-		if (!a_intfc->WriteRecordData(_switchTargetLeftKey)) {
-			return false;
-		}
-
-		if (!a_intfc->WriteRecordData(_switchTargetRightKey)) {
-			return false;
-		}
-
-		return true;
-	}
-
-	bool InputEventHandler::Load(const SKSE::SerializationInterface* a_intfc)
-	{
-		Locker locker(_lock);
-
-		if (!a_intfc->ReadRecordData(_targetLockKey)) {
-			return false;
-		}
-
-		if (!a_intfc->ReadRecordData(_switchTargetLeftKey)) {
-			return false;
-		}
-
-		if (!a_intfc->ReadRecordData(_switchTargetRightKey)) {
-			return false;
-		}
-
-		return true;
-	}
-
-	void InputEventHandler::Clear()
-	{
-		Locker locker(_lock);
-		_targetLockKey = kInvalid;
-		_switchTargetLeftKey = kInvalid;
-		_switchTargetRightKey = kInvalid;
-	}
-
-	std::uint32_t InputEventHandler::GetTargetLockKey() const
-	{
-		Locker locker(_lock);
-		return _targetLockKey;
-	}
-
-	void InputEventHandler::SetTargetLockKey(std::uint32_t a_key)
-	{
-		Locker locker(_lock);
-		_targetLockKey = a_key;
-	}
-
-	std::uint32_t InputEventHandler::GetSwitchTargetLeftKey() const
-	{
-		Locker locker(_lock);
-		return _switchTargetLeftKey;
-	}
-
-	void InputEventHandler::SetSwitchTargetLeftKey(std::uint32_t a_key)
-	{
-		Locker locker(_lock);
-		_switchTargetLeftKey = a_key;
-	}
-
-	std::uint32_t InputEventHandler::GetSwitchTargetRightKey() const
-	{
-		Locker locker(_lock);
-		return _switchTargetRightKey;
-	}
-
-	void InputEventHandler::SetSwitchTargetRightKey(std::uint32_t a_key)
-	{
-		Locker locker(_lock);
-		_switchTargetRightKey = a_key;
-	}
-
-	InputEventHandler::InputEventHandler() :
-		_lock(),
-		_targetLockKey(kInvalid),
-		_switchTargetLeftKey(kInvalid),
-		_switchTargetRightKey(kInvalid)
-	{}
 
 	std::uint32_t InputEventHandler::GetGamepadIndex(RE::BSWin32GamepadDevice::Key a_key)
 	{
@@ -350,7 +258,7 @@ namespace Events
 
 	EventResult EventHandler::ProcessEvent(const RE::TESCombatEvent* a_event, RE::BSTEventSource<RE::TESCombatEvent>*)
 	{
-		if (WidgetHandler::GetSingleton()->_bShowBossBar)
+		if (Settings::bShowBossBar)
 		{
 			using CombatState = RE::ACTOR_COMBAT_STATE;
 
@@ -379,14 +287,14 @@ namespace Events
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 		if (a_event && a_event->actorDying && directionalMovementHandler->GetTarget() == a_event->actorDying->GetHandle()) {
 			if (directionalMovementHandler->HasTargetLocked()) {
-				if (directionalMovementHandler->GetAutoTargetNextOnDeath()) {
+				if (Settings::bAutoTargetNextOnDeath) {
 					directionalMovementHandler->ToggleTargetLock(true);
 				} else {
 					directionalMovementHandler->ToggleTargetLock(false);
 				}
 			}
 			
-			if (WidgetHandler::GetSingleton()->_bShowBossBar) {
+			if (Settings::bShowBossBar) {
 				auto actor = a_event->actorDying->As<RE::Actor>();
 				if (actor) {
 					directionalMovementHandler->RemoveBoss(actor->GetHandle(), true);
@@ -405,14 +313,14 @@ namespace Events
 			if (actor && actor->IsEssential())
 			{
 				if (directionalMovementHandler->HasTargetLocked()) {
-					if (directionalMovementHandler->GetAutoTargetNextOnDeath()) {
+					if (Settings::bAutoTargetNextOnDeath) {
 						directionalMovementHandler->ToggleTargetLock(true);
 					} else {
 						directionalMovementHandler->ToggleTargetLock(false);
 					}
 				}
 
-				if (WidgetHandler::GetSingleton()->_bShowBossBar) {
+				if (Settings::bShowBossBar) {
 					directionalMovementHandler->RemoveBoss(actor->GetHandle(), true);
 				}
 			}
@@ -423,7 +331,7 @@ namespace Events
 
 	EventResult EventHandler::ProcessEvent(const RE::TESHitEvent* a_event, RE::BSTEventSource<RE::TESHitEvent>*)
 	{
-		if (WidgetHandler::GetSingleton()->_bShowBossBar) {
+		if (Settings::bShowBossBar) {
 			if (a_event && a_event->cause && a_event->target) {
 				auto causeActor = a_event->cause->As<RE::Actor>();
 				auto targetActor = a_event->target->As<RE::Actor>();

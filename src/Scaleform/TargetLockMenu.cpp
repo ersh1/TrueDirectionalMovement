@@ -1,6 +1,7 @@
 #include "Scaleform/TargetLockMenu.h"
 #include "Scaleform/BossMenu.h"
 
+#include "Settings.h"
 #include "Offsets.h"
 #include "Utils.h"
 #include "WidgetHandler.h"
@@ -47,12 +48,12 @@ namespace Scaleform
 			NewTarget(newTarget);
 		}
 
-		if (_currentTarget && GetTargetPos(_currentTarget, reticlePos))
+		if (_currentTarget && GetTargetPos(_currentTarget, reticlePos, Settings::uReticleAnchor == WidgetAnchor::kBody))
 		{
 			const RE::GFxValue bTrue{ true };
 			const RE::GFxValue bFalse{ false };
 
-			if (_target && WidgetHandler::GetSingleton()->_bShowReticle) {
+			if (_target && Settings::bShowReticle) {
 				uiMovie->SetVariable("_root.ReticleHolder._visible", bTrue);
 			} else {
 				uiMovie->SetVariable("_root.ReticleHolder._visible", bFalse);
@@ -70,21 +71,19 @@ namespace Scaleform
 			reticlePosY = rect.top + (rect.bottom - rect.top) * reticlePosY;
 			reticlePosX = rect.left + (rect.right - rect.left) * reticlePosX;
 
-			//float scale = min(((100.f - reticlePosZ * 100.f) * 10.f), 50.f);  //(1.0 - z_out) * 100;//min(((100 - z_out * 100) * 10), 50);
-
 			auto widgetHandler = WidgetHandler::GetSingleton();
-			float reticleScale = 100.f * widgetHandler->_reticleScale;
+			float reticleScale = 100.f * Settings::fReticleScale;
 
 			RE::GFxValue::DisplayInfo reticleHolderDisplayInfo;
 			reticleHolderDisplayInfo.SetPosition(reticlePosX, reticlePosY);
 			reticleHolderDisplayInfo.SetScale(reticleScale, reticleScale);
 			_reticleHolder.SetDisplayInfo(reticleHolderDisplayInfo);
 
-			if (!widgetHandler->_bShowTargetBar) {
+			if (!Settings::bShowTargetBar) {
 				return;
 			}
 
-			if (widgetHandler->_bHideVanillaTargetBar && !_bVanillaTargetBarHidden) {
+			if (Settings::bHideVanillaTargetBar && !_bVanillaTargetBarHidden) {
 				widgetHandler->HideVanillaTargetBar();
 				_bVanillaTargetBarHidden = true;
 			}
@@ -98,8 +97,9 @@ namespace Scaleform
 				uiMovie->SetVariable("_root.TargetBar._visible", bTrue);
 			}
 			
-			RE::NiPoint3 barPos = _currentTarget.get()->GetLookingAtLocation();
-			barPos.z += 30.f;
+			RE::NiPoint3 barPos;
+			GetTargetPos(_currentTarget, barPos, Settings::uTargetBarAnchor == WidgetAnchor::kBody);
+			barPos.z += Settings::fTargetBarZOffset;
 			float barPosX;
 			float barPosY;
 			float barPosZ;
@@ -110,7 +110,7 @@ namespace Scaleform
 			barPosY = rect.top + (rect.bottom - rect.top) * barPosY;
 			barPosX = rect.left + (rect.right - rect.left) * barPosX;
 
-			float barScale = 100.f * widgetHandler->_targetBarScale;
+			float barScale = 100.f * Settings::fTargetBarScale;
 
 			RE::GFxValue::DisplayInfo barDisplayInfo;
 			barDisplayInfo.SetPosition(barPosX, barPosY);
@@ -120,7 +120,7 @@ namespace Scaleform
 			if (!_bInitialized)
 			{
 				// fill target name
-				if (widgetHandler->_bShowTargetName) {
+				if (Settings::bShowTargetName) {
 					RE::GFxValue textField;
 					_targetBar.GetMember("TargetName", &textField);
 					if (textField.IsDisplayObject()) {
@@ -130,21 +130,21 @@ namespace Scaleform
 				}
 
 				// target level
-				if (widgetHandler->_targetLevelMode != WidgetHandler::TargetLockLevelMode::kDisable) {
+				if (Settings::uTargetLevelMode != TargetLockLevelMode::kDisable) {
 					uint16_t playerLevel = RE::PlayerCharacter::GetSingleton()->GetLevel();
 					uint16_t targetLevel = _currentTarget.get()->GetLevel();
 					uint32_t color;
 
-					if (playerLevel - targetLevel > widgetHandler->_targetLevelThreshold) {
-						color = widgetHandler->_targetLevelMode == WidgetHandler::TargetLockLevelMode::kOutline ? _weakerColorOutline : _weakerColor;
-					} else if (targetLevel - playerLevel > widgetHandler->_targetLevelThreshold) {
+					if (playerLevel - targetLevel > Settings::uTargetLevelThreshold) {
+						color = Settings::uTargetLevelMode == TargetLockLevelMode::kOutline ? _weakerColorOutline : _weakerColor;
+					} else if (targetLevel - playerLevel > Settings::uTargetLevelThreshold) {
 						color = _strongerColor;
 					} else {
 						color = _equalColor;
 					}
 
-					switch (widgetHandler->_targetLevelMode) {
-					case WidgetHandler::TargetLockLevelMode::kIcon:
+					switch (Settings::uTargetLevelMode) {
+					case TargetLockLevelMode::kIcon:
 						{
 							RE::GFxValue levelIcon;
 							_targetBar.GetMember("LevelIcon", &levelIcon);
@@ -155,7 +155,7 @@ namespace Scaleform
 							}
 							break;
 						}
-					case WidgetHandler::TargetLockLevelMode::kText:
+					case TargetLockLevelMode::kText:
 						{
 							RE::GFxValue textField;
 							_targetBar.GetMember("LevelText", &textField);
@@ -169,7 +169,7 @@ namespace Scaleform
 							}
 							break;
 						}
-					case WidgetHandler::TargetLockLevelMode::kOutline:
+					case TargetLockLevelMode::kOutline:
 						{
 							RE::GFxValue frameOutline;
 							_targetBar.GetMember("FrameOutline", &frameOutline);
@@ -206,7 +206,7 @@ namespace Scaleform
 				_targetBar.Invoke("setHealthPercent", nullptr, args, 1);
 				_healthPercent = currentHealthPercent;
 
-				_barUpdateTimer = widgetHandler->_damageDuration;
+				_barUpdateTimer = Settings::fDamageDuration;
 
 				_prevTargetHealth = currentHealth;
 			}
@@ -223,9 +223,9 @@ namespace Scaleform
 
 				if (!bHealing)
 				{
-					_barUpdateTimer = widgetHandler->_damageDuration;
+					_barUpdateTimer = Settings::fDamageDuration;
 
-					if (widgetHandler->_bShowDamage)
+					if (Settings::bShowDamage)
 					{
 						_damage += (_prevTargetHealth - currentHealth);
 						_prevTargetHealth = currentHealth;
@@ -258,17 +258,17 @@ namespace Scaleform
 		const RE::GFxValue bFalse{ false };
 
 		if (uiMovie) {
-			if (widgetHandler->_bShowReticle) {
+			if (Settings::bShowReticle) {
 				uiMovie->SetVariable("_root.ReticleHolder._visible", bTrue);
 
 				{
 					RE::GFxValue arg[1];
-					arg[0].SetNumber(static_cast<uint32_t>(widgetHandler->_reticleStyle));
+					arg[0].SetNumber(static_cast<uint32_t>(Settings::uReticleStyle));
 					_reticle.Invoke("setReticleType", nullptr, arg, 1);
 				}
 
 				{
-					float reticleAlpha = widgetHandler->_bUseHUDOpacityForReticle ? *g_fHUDOpacity : widgetHandler->_reticleOpacity;
+					float reticleAlpha = Settings::bUseHUDOpacityForReticle ? *g_fHUDOpacity : Settings::fReticleOpacity;
 					reticleAlpha *= 100.f;
 					RE::GFxValue arg[1];
 					arg[0].SetNumber(reticleAlpha);
@@ -278,45 +278,45 @@ namespace Scaleform
 				uiMovie->SetVariable("_root.ReticleHolder._visible", bFalse);
 			}
 
-			if (widgetHandler->_bShowTargetBar) {
+			if (Settings::bShowTargetBar) {
 				uiMovie->SetVariable("_root.TargetBar._visible", bTrue);
 
-				if (widgetHandler->_bShowTargetName) {
+				if (Settings::bShowTargetName) {
 					uiMovie->SetVariable("_root.TargetBar.TargetName._visible", bTrue);
 				} else {
 					uiMovie->SetVariable("_root.TargetBar.TargetName._visible", bFalse);
 				}
 
-				switch (widgetHandler->_targetLevelMode) {
-				case WidgetHandler::TargetLockLevelMode::kDisable:
+				switch (Settings::uTargetLevelMode) {
+				case TargetLockLevelMode::kDisable:
 					_targetBar.Invoke("levelDisplayNone");
 					break;
-				case WidgetHandler::TargetLockLevelMode::kIcon:
+				case TargetLockLevelMode::kIcon:
 					_targetBar.Invoke("levelDisplayIcon");
 					break;
-				case WidgetHandler::TargetLockLevelMode::kText:
+				case TargetLockLevelMode::kText:
 					_targetBar.Invoke("levelDisplayText");
 					break;
-				case WidgetHandler::TargetLockLevelMode::kOutline:
+				case TargetLockLevelMode::kOutline:
 					_targetBar.Invoke("levelDisplayOutline");
 					break;
 				}
 
 				{
-					float barAlpha = widgetHandler->_bUseHUDOpacityForTargetBar ? *g_fHUDOpacity : widgetHandler->_targetBarOpacity;
+					float barAlpha = Settings::bUseHUDOpacityForTargetBar ? *g_fHUDOpacity : Settings::fTargetBarOpacity;
 					barAlpha *= 100.f;
 					RE::GFxValue arg[1];
 					arg[0].SetNumber(barAlpha);
 					_targetBar.Invoke("setBarAlpha", nullptr, arg, 1);
 				}
 
-				if (widgetHandler->_bShowHealthPhantom) {
+				if (Settings::bShowHealthPhantom) {
 					RE::GFxValue arg[1];
 					arg[0].SetBoolean(true);
 					_targetBar.Invoke("phantomBarVisibility", nullptr, arg, 1);
 
 					RE::GFxValue durArg[1];
-					durArg[0].SetNumber(widgetHandler->_healthPhantomDuration);
+					durArg[0].SetNumber(Settings::fHealthPhantomDuration);
 					_targetBar.Invoke("setPhantomDuration", nullptr, durArg, 1);
 				} else {
 					RE::GFxValue arg[1];
@@ -324,7 +324,7 @@ namespace Scaleform
 					_targetBar.Invoke("phantomBarVisibility", nullptr, arg, 1);
 				}
 
-				if (!widgetHandler->_bShowDamage) {
+				if (!Settings::bShowDamage) {
 					_targetBar.Invoke("hideDamage");
 				}
 
@@ -336,7 +336,7 @@ namespace Scaleform
 			}
 		}
 
-		if (widgetHandler->_bHideVanillaTargetBar && widgetHandler->_bShowTargetBar) {
+		if (Settings::bHideVanillaTargetBar && Settings::bShowTargetBar) {
 			if (!_bVanillaTargetBarHidden)
 			{
 				widgetHandler->HideVanillaTargetBar();
@@ -368,7 +368,7 @@ namespace Scaleform
 
 		auto widgetHandler = WidgetHandler::GetSingleton();
 
-		if (widgetHandler->_bHideVanillaTargetBar && widgetHandler->_bShowTargetBar) {
+		if (Settings::bHideVanillaTargetBar && Settings::bShowTargetBar) {
 			if (_bVanillaTargetBarHidden)
 			{
 				widgetHandler->ShowVanillaTargetBar();

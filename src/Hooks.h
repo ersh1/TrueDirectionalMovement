@@ -183,22 +183,24 @@ namespace Hooks
 			REL::Relocation<std::uintptr_t> ArrowProjectileVtbl{ REL::ID(263776) };			// 1676318
 			REL::Relocation<std::uintptr_t> MissileProjectileVtbl{ REL::ID(263942) };		// 167AE78
 			REL::Relocation<std::uintptr_t> BeamProjectileVtbl{ REL::ID(263808) };          // 1677660
-			_GetLinearVelocity = ProjectileVtbl.write_vfunc(0x86, GetLinearVelocity);
-			ArrowProjectileVtbl.write_vfunc(0x86, GetLinearVelocity);
-			MissileProjectileVtbl.write_vfunc(0x86, GetLinearVelocity);
+			_GetLinearVelocityProjectile = ProjectileVtbl.write_vfunc(0x86, GetLinearVelocityProjectile);
+			_GetLinearVelocityArrow = ArrowProjectileVtbl.write_vfunc(0x86, GetLinearVelocityArrow);
+			_GetLinearVelocityMissile = MissileProjectileVtbl.write_vfunc(0x86, GetLinearVelocityMissile);
 
 			REL::Relocation<uintptr_t> hook{ REL::ID(static_cast<std::uint64_t>(43030)) };  // 754820
 			auto& trampoline = SKSE::GetTrampoline();
 			_Func183 = trampoline.write_call<5>(hook.address() + 0x304, Func183);
 		}
 	private:
-		static void GetLinearVelocity(RE::Projectile* a_this, RE::NiPoint3& a_outVelocity);
-		static void UpdateImpl(RE::Projectile* a_this);
-
+		static void ProjectileAimSupport(RE::Projectile* a_this);
+		static void GetLinearVelocityProjectile(RE::Projectile* a_this, RE::NiPoint3& a_outVelocity);
+		static void GetLinearVelocityArrow(RE::Projectile* a_this, RE::NiPoint3& a_outVelocity);
+		static void GetLinearVelocityMissile(RE::Projectile* a_this, RE::NiPoint3& a_outVelocity);
 		static void Func183(RE::Projectile* a_this);
 
-		static inline REL::Relocation<decltype(GetLinearVelocity)> _GetLinearVelocity;
-
+		static inline REL::Relocation<decltype(GetLinearVelocityProjectile)> _GetLinearVelocityProjectile;
+		static inline REL::Relocation<decltype(GetLinearVelocityArrow)> _GetLinearVelocityArrow;
+		static inline REL::Relocation<decltype(GetLinearVelocityMissile)> _GetLinearVelocityMissile;
 		static inline REL::Relocation<decltype(Func183)> _Func183;
 	};
 

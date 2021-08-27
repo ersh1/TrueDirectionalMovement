@@ -1,5 +1,6 @@
 #include "Scaleform/BossMenu.h"
 
+#include "Settings.h"
 #include "Offsets.h"
 #include "Utils.h"
 #include "WidgetHandler.h"
@@ -61,7 +62,7 @@ namespace Scaleform
 				bossBar.hideTimer -= *g_deltaTime;
 			}
 
-			float scale = 100.f * widgetHandler->_bossBarScale;
+			float scale = 100.f * Settings::fBossBarScale;
 
 			// find correct position
 			for (int i = 0; i < _occupiedBarSpots.size(); ++i) {
@@ -81,7 +82,7 @@ namespace Scaleform
 			}
 
 			RE::NiPoint2 position;
-			float multipleBarsOffsetY = bossBar.spotNumber * widgetHandler->_multipleBossBarsOffset;
+			float multipleBarsOffsetY = bossBar.spotNumber * Settings::fMultipleBossBarsOffset;
 
 			auto def = uiMovie->GetMovieDef();
 			if (def)
@@ -91,18 +92,18 @@ namespace Scaleform
 				multipleBarsOffsetY /= def->GetHeight();
 			}
 
-			if (widgetHandler->_multipleBossBarsStackUpwards) {
+			if (Settings::bMultipleBossBarsStackUpwards) {
 				multipleBarsOffsetY *= -1;
 			}
-			position.x *= widgetHandler->_bossBarX;
-			position.y *= widgetHandler->_bossBarY + multipleBarsOffsetY;
+			position.x *= Settings::fBossBarX;
+			position.y *= Settings::fBossBarY + multipleBarsOffsetY;
 			
 			RE::GFxValue::DisplayInfo bossBarDisplayInfo;
 			bossBarDisplayInfo.SetPosition(position.x, position.y);
 			bossBarDisplayInfo.SetScale(scale, scale);
 			bossBar.bar.SetDisplayInfo(bossBarDisplayInfo);
 
-			if (widgetHandler->_bossBarOffsetSubtitles)
+			if (Settings::bBossBarOffsetSubtitles)
 			{
 				auto hud = RE::UI::GetSingleton()->GetMenu("HUD Menu");
 				hud.get()->uiMovie->SetVariable("HUDMovieBaseInstance.SubtitleTextHolder._y", _savedSubtitleY.GetNumber() - GetSubtitleOffset());
@@ -118,21 +119,21 @@ namespace Scaleform
 				}
 
 				// target level
-				if (widgetHandler->_bossLevelMode != WidgetHandler::BossLevelMode::kDisable) {
+				if (Settings::uBossLevelMode != BossLevelMode::kDisable) {
 					uint16_t playerLevel = RE::PlayerCharacter::GetSingleton()->GetLevel();
 					uint16_t targetLevel = bossBar.boss.get()->GetLevel();
 					uint32_t color;
 
-					if (playerLevel - targetLevel > widgetHandler->_bossLevelThreshold) {
+					if (playerLevel - targetLevel > Settings::uBossLevelThreshold) {
 						color = _weakerColor;
-					} else if (targetLevel - playerLevel > widgetHandler->_bossLevelThreshold) {
+					} else if (targetLevel - playerLevel > Settings::uBossLevelThreshold) {
 						color = _strongerColor;
 					} else {
 						color = _equalColor;
 					}
 
-					switch (widgetHandler->_bossLevelMode) {
-					case WidgetHandler::BossLevelMode::kIcon:
+					switch (Settings::uBossLevelMode) {
+					case BossLevelMode::kIcon:
 						{
 							RE::GFxValue levelIcon;
 							bossBar.bar.GetMember("LevelIcon", &levelIcon);
@@ -143,7 +144,7 @@ namespace Scaleform
 							}
 							break;
 						}
-					case WidgetHandler::BossLevelMode::kText:
+					case BossLevelMode::kText:
 						{
 							RE::GFxValue levelTextField;
 							bossBar.bar.GetMember("LevelText", &levelTextField);
@@ -187,7 +188,7 @@ namespace Scaleform
 		if (!bAtLeastOneBoss) {
 			widgetHandler->CloseBossMenu();
 		} else {
-			if (widgetHandler->_bBossHideVanillaTargetBar) {
+			if (Settings::bBossHideVanillaTargetBar) {
 				bool bFound = false;
 				auto enemyHealthTargetRef = widgetHandler->GetEnemyHealthTargetRef();
 				for (auto& bossBar : _bossBars)
@@ -221,32 +222,30 @@ namespace Scaleform
 
 	void BossMenu::RefreshUI()
 	{
-		auto widgetHandler = WidgetHandler::GetSingleton();
-
 		const RE::GFxValue bTrue{ true };
 		const RE::GFxValue bFalse{ false };
 
 		if (uiMovie) {
 			for (auto& bossBar : _bossBars) {
-				switch (widgetHandler->_bossLevelMode) {
-				case WidgetHandler::BossLevelMode::kDisable:
+				switch (Settings::uBossLevelMode) {
+				case BossLevelMode::kDisable:
 					bossBar.bar.Invoke("levelDisplayNone");
 					break;
-				case WidgetHandler::BossLevelMode::kIcon:
+				case BossLevelMode::kIcon:
 					bossBar.bar.Invoke("levelDisplayIcon");
 					break;
-				case WidgetHandler::BossLevelMode::kText:
+				case BossLevelMode::kText:
 					bossBar.bar.Invoke("levelDisplayText");
 					break;
 				}
 
-				if (widgetHandler->_bShowBossHealthPhantom) {
+				if (Settings::bShowBossHealthPhantom) {
 					RE::GFxValue arg[1];
 					arg[0].SetBoolean(true);
 					bossBar.bar.Invoke("phantomBarVisibility", nullptr, arg, 1);
 
 					RE::GFxValue durArg[1];
-					durArg[0].SetNumber(widgetHandler->_bossHealthPhantomDuration);
+					durArg[0].SetNumber(Settings::fBossHealthPhantomDuration);
 					bossBar.bar.Invoke("setPhantomDuration", nullptr, durArg, 1);
 				} else {
 					RE::GFxValue arg[1];
@@ -254,26 +253,26 @@ namespace Scaleform
 					bossBar.bar.Invoke("phantomBarVisibility", nullptr, arg, 1);
 				}
 
-				if (!widgetHandler->_bShowDamage) {
+				if (!Settings::bShowDamage) {
 					bossBar.bar.Invoke("hideDamage");
 				}
 
-				switch (widgetHandler->_bossNameAlignment) {
-				case WidgetHandler::TextAlignment::kCenter:
+				switch (Settings::uBossNameAlignment) {
+				case TextAlignment::kCenter:
 					{
 						RE::GFxValue arg[1];
 						arg[0].SetString("center");
 						bossBar.bar.Invoke("bossNameAlignment", nullptr, arg, 1);
 						break;
 					}
-				case WidgetHandler::TextAlignment::kLeft:
+				case TextAlignment::kLeft:
 					{
 						RE::GFxValue arg[1];
 						arg[0].SetString("left");
 						bossBar.bar.Invoke("bossNameAlignment", nullptr, arg, 1);
 						break;
 					}
-				case WidgetHandler::TextAlignment::kRight:
+				case TextAlignment::kRight:
 					{
 						RE::GFxValue arg[1];
 						arg[0].SetString("right");
@@ -283,7 +282,7 @@ namespace Scaleform
 				}
 
 				{
-					float barAlpha = widgetHandler->_bUseHUDOpacityForBossBar ? *g_fHUDOpacity : widgetHandler->_bossBarOpacity;
+					float barAlpha = Settings::bUseHUDOpacityForBossBar ? *g_fHUDOpacity : Settings::fBossBarOpacity;
 					barAlpha *= 100.f;
 					RE::GFxValue arg[1];
 					arg[0].SetNumber(barAlpha);
@@ -298,7 +297,7 @@ namespace Scaleform
 
 			//_bossList.Invoke("playTimeline");
 
-			if (!_bSubtitleYSaved && widgetHandler->_bossBarOffsetSubtitles) {
+			if (!_bSubtitleYSaved && Settings::bBossBarOffsetSubtitles) {
 				auto hud = RE::UI::GetSingleton()->GetMenu("HUD Menu");
 				hud.get()->uiMovie->GetVariable(&_savedSubtitleY, "HUDMovieBaseInstance.SubtitleTextHolder._y");
 				_bSubtitleYSaved = true;
@@ -325,8 +324,6 @@ namespace Scaleform
 		{
 			return;
 		}
-
-		auto widgetHandler = WidgetHandler::GetSingleton();
 
 		float currentHealth = 0.f;
 		float maxHealth = 0.f;
@@ -356,7 +353,7 @@ namespace Scaleform
 			a_bossBar.bar.Invoke("setHealthPercent", nullptr, args, 1);
 			a_bossBar.healthPercent = currentHealthPercent;
 
-			a_bossBar.updateTimer = widgetHandler->_bossDamageDuration;
+			a_bossBar.updateTimer = Settings::fBossDamageDuration;
 
 			a_bossBar.prevHealth = currentHealth;
 		}
@@ -371,9 +368,9 @@ namespace Scaleform
 			a_bossBar.healthPercent = currentHealthPercent;
 
 			if (!bHealing) {
-				a_bossBar.updateTimer = widgetHandler->_bossDamageDuration;
+				a_bossBar.updateTimer = Settings::fBossDamageDuration;
 
-				if (widgetHandler->_bShowBossDamage) {
+				if (Settings::bShowBossDamage) {
 					a_bossBar.damage += (a_bossBar.prevHealth - currentHealth);
 					a_bossBar.prevHealth = currentHealth;
 
@@ -428,13 +425,13 @@ namespace Scaleform
 
 		auto widgetHandler = WidgetHandler::GetSingleton();
 
-		if (widgetHandler->_bossBarOffsetSubtitles)
+		if (Settings::bBossBarOffsetSubtitles)
 		{
 			auto hud = RE::UI::GetSingleton()->GetMenu("HUD Menu");
 			hud.get()->uiMovie->SetVariable("HUDMovieBaseInstance.SubtitleTextHolder._y", _savedSubtitleY);
 		}
 
-		if (widgetHandler->_bBossHideVanillaTargetBar) {
+		if (Settings::bBossHideVanillaTargetBar) {
 			if (_bVanillaTargetBarHidden) {
 				widgetHandler->ShowVanillaTargetBar();
 				_bVanillaTargetBarHidden = false;
@@ -456,7 +453,7 @@ namespace Scaleform
 		{
 			if (_occupiedBarSpots[i])
 			{
-				return (i + 1) * WidgetHandler::GetSingleton()->_multipleBossBarsOffset;
+				return (i + 1) * Settings::fMultipleBossBarsOffset;
 			}
 		}
 

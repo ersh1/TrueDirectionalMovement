@@ -1,4 +1,5 @@
 #include "Hooks.h"
+#include "Settings.h"
 #include "DirectionalMovementHandler.h"
 #include "Offsets.h"
 #include "Utils.h"
@@ -177,7 +178,7 @@ namespace Hooks
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 		if (a_event && a_event->IsRight() && directionalMovementHandler->HasTargetLocked() && !directionalMovementHandler->ShouldFaceCrosshair()) 
 		{
-			if (!directionalMovementHandler->GetTargetLockUseRightThumbstick())
+			if (!Settings::bTargetLockUseRightThumbstick)
 			{
 				return;  // ensure lock camera movement during lockon
 			}
@@ -219,7 +220,7 @@ namespace Hooks
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 		if (a_event && directionalMovementHandler->HasTargetLocked() && !directionalMovementHandler->ShouldFaceCrosshair())
 		{
-			if (!directionalMovementHandler->GetTargetLockUseMouse())
+			if (!Settings::bTargetLockUseMouse)
 			{
 				return; // ensure lock camera movement during lockon
 			}
@@ -227,7 +228,7 @@ namespace Hooks
 			int32_t absX = abs(a_event->mouseInputX);
 			int32_t absY = abs(a_event->mouseInputY);
 
-			if (absX + absY > 32)
+			if (absX + absY > static_cast<int32_t>(Settings::uTargetLockMouseSensitivity))
 			{
 				if (absX > absY)
 				{
@@ -248,7 +249,7 @@ namespace Hooks
 
 				bTargetRecentlySwitched = true;
 			} 
-			else if (absX + absY <= 32)
+			else if (absX + absY <= static_cast<int32_t>(Settings::uTargetLockMouseSensitivity))
 			{
 				bTargetRecentlySwitched = false;
 			}
@@ -297,7 +298,7 @@ namespace Hooks
 	void FirstPersonStateHook::ProcessButton(RE::FirstPersonState* a_this, RE::ButtonEvent* a_event, RE::PlayerControlsData* a_data)
 	{
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
-		if (a_event && directionalMovementHandler->HasTargetLocked() && directionalMovementHandler->GetTargetLockUseScrollWheel())
+		if (a_event && directionalMovementHandler->HasTargetLocked() && Settings::bTargetLockUseScrollWheel)
 		{
 			auto userEvent = a_event->QUserEvent();
 			auto userEvents = RE::UserEvents::GetSingleton();
@@ -307,6 +308,16 @@ namespace Hooks
 				return;
 			} else if (userEvent == userEvents->zoomOut) {
 				directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Directions::kRight);
+				return;
+			}
+		}
+
+		if (a_event && Settings::bTargetLockUsePOVSwitch) {
+			auto userEvent = a_event->QUserEvent();
+			auto userEvents = RE::UserEvents::GetSingleton();
+
+			if (userEvent == userEvents->togglePOV && a_event->IsUp() && a_event->HeldDuration() < Settings::fTargetLockPOVHoldDuration) {
+				directionalMovementHandler->ToggleTargetLock(!directionalMovementHandler->HasTargetLocked());
 				return;
 			}
 		}
@@ -364,27 +375,32 @@ namespace Hooks
 				if (!bHasTargetLocked) {
 					float pitchDelta = -a_this->freeRotation.y;
 
+					bool bIsSwimming = cameraTarget->IsSwimming();
 					// swimming pitch fix and swim up/down buttons handling
-					if (cameraTarget->IsSwimming()) {
-						float mult = 1.f;
+					if (bIsSwimming) {
 						float currentPitch = cameraTarget->data.angle.x;
-						float desiredPitch = 0;
 
 						if (directionalMovementHandler->_pressedDirections.any(DirectionalMovementHandler::Directions::kUp) || directionalMovementHandler->_pressedDirections.any(DirectionalMovementHandler::Directions::kDown)) {
 							if (directionalMovementHandler->_pressedDirections.any(DirectionalMovementHandler::Directions::kUp)) {
-								desiredPitch += directionalMovementHandler->HasMovementInput() ? -PI / 4 : -PI / 2;
+								directionalMovementHandler->SetDesiredSwimmingPitchOffset(directionalMovementHandler->HasMovementInput() ? -PI / 4 : -PI / 2);
 							}
 							if (directionalMovementHandler->_pressedDirections.any(DirectionalMovementHandler::Directions::kDown)) {
-								desiredPitch += directionalMovementHandler->HasMovementInput() ? PI / 4 : PI / 2;
+								directionalMovementHandler->SetDesiredSwimmingPitchOffset(directionalMovementHandler->HasMovementInput() ? PI / 4 : PI / 2);
 							}
 							auto playerControls = RE::PlayerControls::GetSingleton();
 							playerControls->data.moveInputVec = RE::NiPoint2(0.f, 1.f);
+						} else if (directionalMovementHandler->_pressedDirections.underlying()) {
+							directionalMovementHandler->SetDesiredSwimmingPitchOffset((currentPitch - a_this->freeRotation.y) * cos(fabs(a_this->freeRotation.x)));
 						} else {
-							mult = cos(fabs(a_this->freeRotation.x));
-							desiredPitch = (currentPitch - a_this->freeRotation.y) * mult;
+							directionalMovementHandler->SetDesiredSwimmingPitchOffset(0.f);
 						}
 
+						float desiredPitch = directionalMovementHandler->GetCurrentSwimmingPitchOffset();
 						pitchDelta = desiredPitch - currentPitch;
+						auto characterController = cameraTarget->GetCharController();
+						if (characterController) {
+							characterController->pitchAngle = desiredPitch;
+						}
 					}
 
 					bool bMoving = cameraTarget->actorState1.movingBack ||
@@ -407,7 +423,7 @@ namespace Hooks
 	void ThirdPersonStateHook::ProcessButton(RE::ThirdPersonState* a_this, RE::ButtonEvent* a_event, RE::PlayerControlsData* a_data)
 	{
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
-		if (a_event && directionalMovementHandler->HasTargetLocked() && directionalMovementHandler->GetTargetLockUseScrollWheel()) {
+		if (a_event && directionalMovementHandler->HasTargetLocked() && Settings::bTargetLockUseScrollWheel) {
 			auto userEvent = a_event->QUserEvent();
 			auto userEvents = RE::UserEvents::GetSingleton();
 
@@ -416,6 +432,17 @@ namespace Hooks
 				return;
 			} else if (userEvent == userEvents->zoomOut) {
 				directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Directions::kRight);
+				return;
+			}
+		}
+
+		if (a_event && Settings::bTargetLockUsePOVSwitch)
+		{
+			auto userEvent = a_event->QUserEvent();
+			auto userEvents = RE::UserEvents::GetSingleton();
+
+			if (userEvent == userEvents->togglePOV && a_event->IsUp() && a_event->HeldDuration() < Settings::fTargetLockPOVHoldDuration) {
+				directionalMovementHandler->ToggleTargetLock(!directionalMovementHandler->HasTargetLocked());
 				return;
 			}
 		}
@@ -493,10 +520,6 @@ namespace Hooks
 		}
 	}
 
-	static float* g_fSomething = (float*)REL::ID(509846).address();  // 1DF3658
-	static float* g_fSomeKindOfSensitivity = (float*)REL::ID(509884).address();  // 1DF3820
-	static float* g_fSome2 = (float*)REL::ID(509862).address();                  // 1DF3718
-
 	void HorseCameraStateHook::HandleLookInput(RE::HorseCameraState* a_this, const RE::NiPoint2& a_input)
 	{
 		if (DirectionalMovementHandler::GetSingleton()->HasTargetLocked()) {
@@ -509,7 +532,7 @@ namespace Hooks
 	void HorseCameraStateHook::ProcessButton(RE::HorseCameraState* a_this, RE::ButtonEvent* a_event, RE::PlayerControlsData* a_data)
 	{
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
-		if (a_event && directionalMovementHandler->HasTargetLocked() && directionalMovementHandler->GetTargetLockUseScrollWheel()) {
+		if (a_event && directionalMovementHandler->HasTargetLocked() && Settings::bTargetLockUseScrollWheel) {
 			auto userEvent = a_event->QUserEvent();
 			auto userEvents = RE::UserEvents::GetSingleton();
 
@@ -584,62 +607,53 @@ namespace Hooks
 		_Func1(a1, a2);
 	}
 
-	void ProjectileHook::GetLinearVelocity(RE::Projectile* a_this, RE::NiPoint3& a_outVelocity)
+	void ProjectileHook::ProjectileAimSupport(RE::Projectile* a_this)
 	{
 		auto projectileNode = a_this->Get3D2();
-		
-		// player only, 0x100000 == player
-		if (projectileNode && a_this->shooter.native_handle() == 0x100000)
-		{
-			auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
-			if (directionalMovementHandler->HasTargetLocked() || a_this->desiredTarget.native_handle() != 0)
-			{
-				DirectionalMovementHandler::TargetLockProjectileAimType aimType;
 
-				switch (a_this->formType.get())
-				{
+		// player only, 0x100000 == player
+		if (projectileNode && a_this->shooter.native_handle() == 0x100000) {
+			auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+			if (directionalMovementHandler->HasTargetLocked() || a_this->desiredTarget.native_handle() != 0) {
+				TargetLockProjectileAimType aimType;
+
+				switch (a_this->formType.get()) {
 				case RE::FormType::ProjectileArrow:
-					aimType = directionalMovementHandler->GetTargetLockArrowAimType();
+					aimType = Settings::uTargetLockArrowAimType;
 					break;
 				case RE::FormType::ProjectileMissile:
-					aimType = directionalMovementHandler->GetTargetLockMissileAimType();
+					aimType = Settings::uTargetLockMissileAimType;
 					break;
 				default:
-					aimType = DirectionalMovementHandler::kFreeAim;
+					aimType = TargetLockProjectileAimType::kFreeAim;
 				}
 
-				if (aimType != DirectionalMovementHandler::kFreeAim)
-				{
+				if (aimType != TargetLockProjectileAimType::kFreeAim) {
 					if (!a_this->desiredTarget.get()) {
 						auto target = directionalMovementHandler->GetTarget();
-						if (!target)
-						{
-							return _GetLinearVelocity(a_this, a_outVelocity);
+						if (!target) {
+							return;
 						}
 						a_this->desiredTarget = target;
 
-						if (aimType == DirectionalMovementHandler::kPredict)
-						{
+						if (aimType == TargetLockProjectileAimType::kPredict) {
 							// predict only at the start (desiredTarget not yet set), then let the projectile go unchanged in next updates
 							RE::NiPoint3 targetPos;
-							if (GetTargetPos(a_this->desiredTarget, targetPos))
-							{
+							if (GetTargetPos(a_this->desiredTarget, targetPos)) {
 								RE::NiPoint3 targetVelocity;
 								target.get()->GetLinearVelocity(targetVelocity);
 
 								float projectileGravity = 0.f;
 								auto ammo = a_this->ammoSource;
-								if (ammo)
-								{
+								if (ammo) {
 									auto bgsProjectile = ammo->data.projectile;
-									if (bgsProjectile)
-									{
+									if (bgsProjectile) {
 										projectileGravity = bgsProjectile->data.gravity;
 									}
 								}
 
 								PredictAimProjectile(a_this->data.location, targetPos, targetVelocity, projectileGravity, a_this->linearVelocity);
-								
+
 								// rotate
 								RE::NiPoint3 direction = a_this->linearVelocity;
 								direction.Unitize();
@@ -661,8 +675,7 @@ namespace Hooks
 					}
 
 					RE::NiPoint3 targetPos;
-					if (aimType == DirectionalMovementHandler::kHoming && GetTargetPos(a_this->desiredTarget, targetPos)) 
-					{
+					if (aimType == TargetLockProjectileAimType::kHoming && GetTargetPos(a_this->desiredTarget, targetPos)) {
 						// homing
 						RE::NiPoint3& velocity = a_this->linearVelocity;
 						float speed = velocity.Length();
@@ -694,8 +707,27 @@ namespace Hooks
 				}
 			}
 		}
+	}
 
-		_GetLinearVelocity(a_this, a_outVelocity);
+	void ProjectileHook::GetLinearVelocityProjectile(RE::Projectile* a_this, RE::NiPoint3& a_outVelocity)
+	{
+		_GetLinearVelocityProjectile(a_this, a_outVelocity);
+
+		ProjectileAimSupport(a_this);
+	}
+
+	void ProjectileHook::GetLinearVelocityArrow(RE::Projectile* a_this, RE::NiPoint3& a_outVelocity)
+	{
+		_GetLinearVelocityArrow(a_this, a_outVelocity);
+
+		ProjectileAimSupport(a_this);
+	}
+
+	void ProjectileHook::GetLinearVelocityMissile(RE::Projectile* a_this, RE::NiPoint3& a_outVelocity)
+	{
+		_GetLinearVelocityMissile(a_this, a_outVelocity);
+
+		ProjectileAimSupport(a_this);
 	}
 
 	void ProjectileHook::Func183(RE::Projectile* a_this)
@@ -740,6 +772,8 @@ namespace Hooks
 
 	void PlayerCharacterHook::ProcessTracking(RE::Actor* a_this, float a_delta, RE::NiAVObject* a_obj3D)
 	{
+		// Handle TDM headtracking stuff that needs to be done before calling the original
+
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 
 		bool bBehaviorPatchInstalled = DirectionalMovementHandler::IsBehaviorPatchInstalled(a_this);
@@ -756,8 +790,8 @@ namespace Hooks
 			a_this->SetGraphVariableBool("IsNPC", false);
 			return _ProcessTracking(a_this, a_delta, a_obj3D);
 		}
-				
-		bool bIsHeadtrackingEnabled = directionalMovementHandler->IsHeadtrackingEnabled();
+		
+		bool bIsHeadtrackingEnabled = Settings::bHeadtracking;
 		bool bIsBlocking = false;
 		bool bIsSprinting = false;
 
@@ -766,6 +800,8 @@ namespace Hooks
 				a_this->actorState2.headTracking = true;
 				a_this->SetGraphVariableBool("IsNPC", true);
 			}
+
+			a_this->SetGraphVariableBool("bHeadTrackSpine", Settings::bHeadtrackSpine ? true : false);
 			
 			// expire dialogue headtrack if timer is up
 			if (a_this->currentProcess->high && a_this->currentProcess->high->headTrack3) {
@@ -776,7 +812,6 @@ namespace Hooks
 
 			// set headtracking variables if we have any target set
 			auto target = a_this->currentProcess->GetHeadtrackTarget();
-			auto cameraState = RE::PlayerCamera::GetSingleton()->currentState;
 			if (target) {
 				a_this->actorState2.headTracking = true;
 				if (!bBehaviorPatchInstalled) {
@@ -790,7 +825,6 @@ namespace Hooks
 			}
 
 			bIsBlocking = a_this->actorState2.wantBlocking;
-			bIsSprinting = a_this->actorState1.sprinting;
 			// disable headtracking while attacking or blocking without behavior patch
 			if ((!bBehaviorPatchInstalled && bIsBlocking) ||
 				(a_this->actorState1.meleeAttackState > RE::ATTACK_STATE_ENUM::kNone)) {
@@ -803,8 +837,10 @@ namespace Hooks
 
 		RE::NiPoint3 targetPos;
 
+		//a_this->actorState2.headTracking = true;
+
 		// reset headtrack
-		if (a_this->currentProcess && a_this->currentProcess->high) {
+		if (bIsHeadtrackingEnabled && a_this->currentProcess && a_this->currentProcess->high) {
 			// clear the 0 and 1 targets if they're set for whatever reason
 			auto selfHandle = a_this->GetHandle();
 			if (a_this->currentProcess->high->headTrack0) {
@@ -812,26 +848,32 @@ namespace Hooks
 			}
 			if (a_this->currentProcess->high->headTrack1) {
 				a_this->currentProcess->high->SetHeadtrackTarget(1, nullptr);
-			}
+			}			
+		}
 
+		// run original function
+		// If player is on a mount, need to force the headtracking target to forward direction because for some reason it gets stuck otherwise
+		if (a_this->IsOnMount()) {
 			targetPos = a_this->GetLookingAtLocation();
 			float yaw = NormalRelativeAngle(a_this->data.angle.z - PI2);
-			RE::NiPoint3 offset = -RotationToDirection(yaw, 0) * 500.f;
+			RE::NiPoint3 offset = -RotationToDirection(yaw, 0.1f) * 500.f;
 			offset.x *= -1.f;
 			targetPos += offset;
 			a_this->currentProcess->high->headTrackTargetOffset = targetPos;
 			a_this->currentProcess->SetHeadtrackTarget(a_this, targetPos);
 		}
 
-		// run original function
 		_ProcessTracking(a_this, a_delta, a_obj3D);
 
 		// handle fake IsNPC
 		if (!bIsHeadtrackingEnabled && bBehaviorPatchInstalled && !DirectionalMovementHandler::GetSingleton()->GetPlayerIsNPC()) {
-			a_this->currentProcess->SetHeadtrackTarget(a_this, targetPos);
+			//a_this->currentProcess->SetHeadtrackTarget(a_this, targetPos);
+			a_this->actorState2.headTracking = false;
 		}
 
-		if (bIsHeadtrackingEnabled && !bIsSprinting && !bIsBlocking && directionalMovementHandler->IsCameraHeadtrackingEnabled() && a_this->currentProcess && a_this->boolBits.none(RE::Actor::BOOL_BITS::kHasSceneExtra)) {
+		bIsSprinting = a_this->actorState1.sprinting;
+
+		if (bIsHeadtrackingEnabled && !bIsSprinting && !bIsBlocking && Settings::bCameraHeadtracking && a_this->currentProcess && a_this->boolBits.none(RE::Actor::BOOL_BITS::kHasSceneExtra)) {
 			// try camera headtracking
 			auto highProcess = a_this->currentProcess->high;
 			if (highProcess && 
@@ -840,6 +882,7 @@ namespace Hooks
 				!highProcess->headTrack2 && !highProcess->headTrack3 && !highProcess->headTrack4 && !highProcess->headTrack5)
 			{
 				if (!bBehaviorPatchInstalled) {
+					a_this->actorState2.headTracking = true;
 					a_this->SetGraphVariableBool("IsNPC", true);
 				}
 
@@ -984,11 +1027,11 @@ namespace Hooks
 			// added
 			auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 			bool bHasMovementInput = playerControls->data.prevMoveVec.x != 0.f || playerControls->data.prevMoveVec.y != 0.f;
-			bool bIsAttacking = directionalMovementHandler->GetAttackState() != DirectionalMovementHandler::AttackState::kNone;
+			//bool bIsAttacking = directionalMovementHandler->GetAttackState() != DirectionalMovementHandler::AttackState::kNone;
 			bool bIsDodging = directionalMovementHandler->IsDodging();
-			int iState;
-			a_this->GetGraphVariableInt("iState", iState);
-			bool bIsCasting = iState == 10;
+			//int iState;
+			//a_this->GetGraphVariableInt("iState", iState);
+			//bool bIsCasting = iState == 10;
 			bool bFreeCamTargetLocked = directionalMovementHandler->HasTargetLocked() && directionalMovementHandler->IsFreeCamera();
 			
 			if (bMounted)
@@ -997,13 +1040,14 @@ namespace Hooks
 				bIsNotStrafing = bHasMovementInput;
 			}
 
-			bool bSpecific = bFreeCamTargetLocked ? bHasMovementInput && !bIsAttacking && !bIsDodging && !bIsCasting : bIsSprintingRunningOrBlocking && bIsPreviousMoveInputForward && bIsNotStrafing; // branch depending on the mode we're in
+			bool bSpecific = bFreeCamTargetLocked ? bHasMovementInput && !bIsDodging : bIsPreviousMoveInputForward && bIsNotStrafing; // branch depending on the mode we're in
 
 			if (bHasUnkBDD_SprintingFlag &&
 				!bUnk1 &&
 				!bIsOverEncumbered &&
 				bUnk2 &&
 				bIsStaminaNotZero &&
+				bIsSprintingRunningOrBlocking &&
 				bSpecific)
 			{
 				bShouldBeSprinting = true;
@@ -1063,7 +1107,7 @@ namespace Hooks
 
 		WidgetHandler::GetSingleton()->SetEnemyHealthTargetRef(*refHandle);
 
-		if (WidgetHandler::ShowSoftTargetBar()) {
+		if (Settings::bShowSoftTargetBar) {
 			if (*refHandle) {
 				auto actorPtr = RE::Actor::LookupByHandle(*refHandle);
 				if (actorPtr) {
@@ -1080,7 +1124,7 @@ namespace Hooks
 	void HeadtrackingHook::SetHeadtrackTarget0(RE::AIProcess* a_this, RE::Actor* a_target)
 	{	
 		// Skip for player so we don't get random headtracking targets
-		if (DirectionalMovementHandler::GetSingleton()->IsHeadtrackingEnabled() && a_this == RE::PlayerCharacter::GetSingleton()->currentProcess) {
+		if (Settings::bHeadtracking && a_this == RE::PlayerCharacter::GetSingleton()->currentProcess) {
 			_SetHeadtrackTarget0(a_this, nullptr);
 			return;
 		}
@@ -1107,7 +1151,7 @@ namespace Hooks
 	{
 		_SetHeadtrackTarget4(a_this, a_target);
 
-		if (DirectionalMovementHandler::GetSingleton()->IsHeadtrackingEnabled() && a_target && a_target->IsPlayerRef() && a_this->middleHigh)
+		if (Settings::bHeadtracking && a_target && a_target->IsPlayerRef() && a_this->middleHigh)
 		{
 			RE::NiAVObject* object = a_this->middleHigh->torsoNode;
 			if (!object) {

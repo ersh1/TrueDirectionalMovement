@@ -4,6 +4,7 @@ set(HEADERS
 	src/Hooks.h
 	src/Offsets.h
 	src/Papyrus.h
+	src/Settings.h
 	src/SmoothCamAPI.h
 	src/Utils.h
 	src/ViewHandler.h

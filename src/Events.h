@@ -12,20 +12,7 @@ namespace Events
 
 		virtual EventResult			ProcessEvent(RE::InputEvent* const* a_event, RE::BSTEventSource<RE::InputEvent*>* a_eventSource) override;
 
-		bool						Save(const SKSE::SerializationInterface* a_intfc, std::uint32_t a_typeCode, std::uint32_t a_version);
-		bool						Load(const SKSE::SerializationInterface* a_intfc);
-		void						Clear();
-		std::uint32_t				GetTargetLockKey() const;
-		void						SetTargetLockKey(std::uint32_t a_key);
-		std::uint32_t				GetSwitchTargetLeftKey() const;
-		void						SetSwitchTargetLeftKey(std::uint32_t a_key);
-		std::uint32_t				GetSwitchTargetRightKey() const;
-		void						SetSwitchTargetRightKey(std::uint32_t a_key);
-
 	private:
-		using Lock = std::recursive_mutex;
-		using Locker = std::lock_guard<Lock>;
-
 		enum : std::uint32_t
 		{
 			kInvalid = static_cast<std::uint32_t>(-1),
@@ -34,18 +21,13 @@ namespace Events
 			kGamepadOffset = 266
 		};
 
-		InputEventHandler();
+		InputEventHandler() = default;
 		InputEventHandler(const InputEventHandler&) = delete;
 		InputEventHandler(InputEventHandler&&) = delete;
 		virtual ~InputEventHandler() = default;
 
 		InputEventHandler& operator=(const InputEventHandler&) = delete;
 		InputEventHandler& operator=(InputEventHandler&&) = delete;
-
-		mutable Lock _lock;
-		std::uint32_t _targetLockKey;
-		std::uint32_t _switchTargetLeftKey;
-		std::uint32_t _switchTargetRightKey;
 
 		std::uint32_t GetGamepadIndex(RE::BSWin32GamepadDevice::Key a_key);
 	};

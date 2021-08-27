@@ -118,7 +118,7 @@ static bool GetTorsoPos(RE::ActorPtr a_actor, RE::NiPoint3& point)
 	return false;
 }
 
-bool GetTargetPos(RE::ObjectRefHandle a_target, RE::NiPoint3& pos)
+bool GetTargetPos(RE::ObjectRefHandle a_target, RE::NiPoint3& pos, bool bGetTorsoPos /*= true*/)
 {
 	auto target = a_target.get();
 	if (!target) {
@@ -132,7 +132,7 @@ bool GetTargetPos(RE::ObjectRefHandle a_target, RE::NiPoint3& pos)
 	if (target->formType == RE::FormType::ActorCharacter) 
 	{
 		auto actorPtr = RE::ActorPtr(target->As<RE::Actor>());
-		if (!GetTorsoPos(actorPtr, pos))
+		if (!bGetTorsoPos || !GetTorsoPos(actorPtr, pos))
 		{
 			pos = target->GetLookingAtLocation();
 		}

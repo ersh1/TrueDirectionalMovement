@@ -3,6 +3,7 @@ set(SOURCES
 	src/Events.cpp
 	src/Hooks.cpp
 	src/Papyrus.cpp
+	src/Settings.cpp
 	src/Utils.cpp
 	src/ViewHandler.cpp
 	src/WidgetHandler.cpp

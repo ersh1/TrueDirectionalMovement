@@ -1,11 +1,11 @@
 #pragma once
 
-#define PI 3.14159265f
-#define TWOTHIRDS_PI 2.09439510f
-#define TWO_PI 6.28318531f
-#define PI2 1.57079633f
-#define PI3 1.04719755f
-#define PI4 0.78539816f
+#define PI 3.1415926535897932f
+#define TWOTHIRDS_PI 2.0943951023931955f
+#define TWO_PI 6.2831853071795865f
+#define PI2 1.5707963267948966f
+#define PI3 1.0471975511965977f
+#define PI4 0.7853981633974483f
 
 struct AngleZX
 {
@@ -19,7 +19,7 @@ bool GetAngle(RE::TESObjectREFR* a_target, AngleZX& angle);
 RE::NiPoint3 GetCameraPos();
 float NormalAbsoluteAngle(float a_angle);
 float NormalRelativeAngle(float a_angle);
-bool GetTargetPos(RE::ObjectRefHandle a_target, RE::NiPoint3& pos);
+bool GetTargetPos(RE::ObjectRefHandle a_target, RE::NiPoint3& pos, bool bGetTorsoPos = true);
 void SetRotationMatrix(RE::NiMatrix3& a_matrix, float sacb, float cacb, float sb);
 bool PredictAimProjectile(RE::NiPoint3 a_projectilePos, RE::NiPoint3 a_targetPosition, RE::NiPoint3 a_targetVelocity, float a_gravity, RE::NiPoint3& a_projectileVelocity);
 
@@ -169,4 +169,9 @@ inline float InterpAngleTo(float a_current, float a_target, float a_deltaTime, f
 	const float delta = distance * Clamp(a_deltaTime * a_interpSpeed, 0.f, 1.f);
 
 	return a_current + delta;
+}
+
+inline float GetAngleDiff(const float& A, const float& B)
+{
+	return PI - fabs(fmod(fabs(A - B), TWO_PI) - PI);
 }
