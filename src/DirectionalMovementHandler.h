@@ -236,7 +236,6 @@ private:
 	static constexpr float _meleeMagnetismRange = 250.f;
 	static constexpr float _faceCrosshairDuration = 0.4f;
 	static constexpr float _targetLockDistanceHysteresis = 1.05f;
-	static constexpr float _swimmingPitchOffsetSpeed = 3.f;
 
 	bool _playerIsNPC = false;
 

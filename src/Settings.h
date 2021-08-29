@@ -84,9 +84,12 @@ struct Settings
 	static inline float fAttackMidRotationSpeedMult = 1.f;
 	static inline float fAttackEndRotationSpeedMult = 0.f;
 	static inline float fAirRotationSpeedMult = 0.5f;
+	static inline float fWaterRotationSpeedMult = 0.5f;
+	static inline float fSwimmingRotationSpeedMult = 0.5f;
 	static inline float fFaceCrosshairRotationSpeedMultiplier = 2.f;
 	static inline bool bFaceCrosshairInstantly = false;
 	static inline bool bDisableAttackRotationMultipliersForTransformations = true;
+	static inline float fSwimmingPitchSpeed = 3.f;
 
 	// Headtracking
 	static inline bool bHeadtracking = true;

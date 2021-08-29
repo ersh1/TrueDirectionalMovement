@@ -16,7 +16,6 @@ void Settings::ReadSettings()
 	ReadBoolSetting(ini, "General", "bDirectionalMovementSheathed", bDirectionalMovementSheathed);
 	ReadBoolSetting(ini, "General", "bDirectionalMovementDrawn", bDirectionalMovementDrawn);
 	ReadUInt32Setting(ini, "General", "uDialogueMode", (uint32_t&)uDialogueMode);
-	ReadBoolSetting(ini, "General", "bDirectionalMovementSheathed", bDirectionalMovementSheathed);
 	ReadFloatSetting(ini, "General", "fMeleeMagnetismAngle", fMeleeMagnetismAngle);
 
 	// Directional Movement related
@@ -31,9 +30,12 @@ void Settings::ReadSettings()
 	ReadFloatSetting(ini, "DirectionalMovement", "fAttackMidRotationSpeedMult", fAttackMidRotationSpeedMult);
 	ReadFloatSetting(ini, "DirectionalMovement", "fAttackEndRotationSpeedMult", fAttackEndRotationSpeedMult);
 	ReadFloatSetting(ini, "DirectionalMovement", "fAirRotationSpeedMult", fAirRotationSpeedMult);
+	ReadFloatSetting(ini, "DirectionalMovement", "fWaterRotationSpeedMult", fWaterRotationSpeedMult);
+	ReadFloatSetting(ini, "DirectionalMovement", "fSwimmingRotationSpeedMult", fSwimmingRotationSpeedMult);
 	ReadFloatSetting(ini, "DirectionalMovement", "fFaceCrosshairRotationSpeedMultiplier", fFaceCrosshairRotationSpeedMultiplier);
 	ReadBoolSetting(ini, "DirectionalMovement", "bFaceCrosshairInstantly", bFaceCrosshairInstantly);
 	ReadBoolSetting(ini, "DirectionalMovement", "bDisableAttackRotationMultipliersForTransformations", bDisableAttackRotationMultipliersForTransformations);
+	ReadFloatSetting(ini, "DirectionalMovement", "fSwimmingPitchSpeed", fSwimmingPitchSpeed);
 
 	// Headtracking
 	ReadBoolSetting(ini, "Headtracking", "bHeadtracking", bHeadtracking);

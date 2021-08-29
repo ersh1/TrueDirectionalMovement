@@ -14,10 +14,10 @@ static RE::NiRect<float>* g_viewPort = (RE::NiRect<float>*)REL::ID(519618).addre
 
 
 typedef RE::BGSMovementType*(__fastcall* tsub_140335150)(const char** a1);
-static REL::Relocation<tsub_140335150> sub_140335150{ REL::ID(static_cast<std::uint64_t>(23268)) };
+static REL::Relocation<tsub_140335150> sub_140335150{ REL::ID(23268) };
 
 typedef int64_t(__fastcall* tBShkbAnimationGraph_sub_140AF0C10)(RE::BShkbAnimationGraph* a_this, RE::BSFixedString* a_string);
-static REL::Relocation<tBShkbAnimationGraph_sub_140AF0C10> BShkbAnimationGraph_sub_140AF0C10{ REL::ID(static_cast<std::uint64_t>(62654)) };
+static REL::Relocation<tBShkbAnimationGraph_sub_140AF0C10> BShkbAnimationGraph_sub_140AF0C10{ REL::ID(62654) };
 
 typedef bool(__fastcall* tActor__IsSyncSprintState_140608800)(RE::Actor* a_this);
 static REL::Relocation<tActor__IsSyncSprintState_140608800> Actor__IsSyncSprintState_140608800{ REL::ID(36924) };
@@ -39,3 +39,6 @@ static REL::Relocation<tsub_140C6E180> sub_140C6E180{ REL::ID(69466) };
 
 typedef void(__fastcall* tPlayerControls__ApplyLookSensitivitySettings_140705AE0)(RE::PlayerControls* a_this, RE::NiPoint2* a_lookVector);
 static REL::Relocation<tPlayerControls__ApplyLookSensitivitySettings_140705AE0> PlayerControls__ApplyLookSensitivitySettings_140705AE0{ REL::ID(41275) };
+
+typedef float(__fastcall* tGetSubmergeLevel)(RE::TESObjectREFR* a_this, float a_zPos, RE::TESObjectCELL* a_parentCell);
+static REL::Relocation<tGetSubmergeLevel> GetSubmergeLevel{ REL::ID(36452) };

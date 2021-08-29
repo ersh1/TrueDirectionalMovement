@@ -34,18 +34,14 @@ RE::NiPoint3 GetCameraPos()
 
 	if (playerCamera->currentState == playerCamera->cameraStates[RE::CameraStates::kFirstPerson] || 
 		playerCamera->currentState == playerCamera->cameraStates[RE::CameraStates::kThirdPerson] ||
-		playerCamera->currentState == playerCamera->cameraStates[RE::CameraStates::kMount]) 
-	{
+		playerCamera->currentState == playerCamera->cameraStates[RE::CameraStates::kMount]) {
 		RE::NiNode* root = playerCamera->cameraRoot.get();
-		if (root) 
-		{
+		if (root) {
 			ret.x = root->world.translate.x;
 			ret.y = root->world.translate.y;
 			ret.z = root->world.translate.z;
 		}
-	} 
-	else 
-	{
+	} else {
 		RE::NiPoint3 playerPos = player->GetLookingAtLocation();
 
 		ret.z = playerPos.z;

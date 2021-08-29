@@ -145,11 +145,11 @@ void DirectionalMovementHandler::UpdateDirectionalMovement()
 		if (_directionalMovementGlobal) {
 			_directionalMovementGlobal->value = 0;
 		}
-		if (bIsAIDriven && currentCameraState->id == RE::CameraStates::kThirdPerson) {
-			// reset the free rotation while ai driven to avoid issues
-			auto thirdPersonState = static_cast<RE::ThirdPersonState*>(currentCameraState);
-			thirdPersonState->freeRotation.x = 0;
-		}
+		//if (bIsAIDriven && currentCameraState->id == RE::CameraStates::kThirdPerson) {
+		//	// reset the free rotation while ai driven to avoid issues
+		//	auto thirdPersonState = static_cast<RE::ThirdPersonState*>(currentCameraState);
+		//	thirdPersonState->freeRotation.x = 0;
+		//}
 		ResetDesiredAngle();
 	}
 
@@ -335,7 +335,7 @@ void DirectionalMovementHandler::UpdateSwimmingPitchOffset()
 {
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	if (playerCharacter && playerCharacter->IsSwimming()) {
-		_currentSwimmingPitchOffset = InterpTo(_currentSwimmingPitchOffset, _desiredSwimmingPitchOffset, *g_deltaTime, _swimmingPitchOffsetSpeed);
+		_currentSwimmingPitchOffset = InterpTo(_currentSwimmingPitchOffset, _desiredSwimmingPitchOffset, *g_deltaTime, Settings::fSwimmingPitchSpeed);
 	}
 }
 
@@ -608,6 +608,8 @@ void DirectionalMovementHandler::UpdateRotation()
 		if (_bCurrentlyTurningToCrosshair)
 		{
 			rotationSpeedMult *= Settings::fFaceCrosshairRotationSpeedMultiplier;
+		} else if (playerCharacter->IsSwimming()) {
+			rotationSpeedMult *= Settings::fSwimmingRotationSpeedMult;
 		} else {
 			// Get the current movement type
 			RE::BSTSmartPointer<RE::BSAnimationGraphManager> animationGraphManagerPtr;
@@ -657,6 +659,12 @@ void DirectionalMovementHandler::UpdateRotation()
 				rotationSpeedMult *= Settings::fSprintingRotationSpeedMult;
 			} else {
 				rotationSpeedMult *= Settings::fRunningRotationSpeedMult;
+			}
+
+			// multiply it by water speed mult
+			float submergeLevel = GetSubmergeLevel(playerCharacter, playerCharacter->data.location.z, playerCharacter->parentCell);
+			if (submergeLevel > 0.18f) {
+				rotationSpeedMult *= 0.69f - submergeLevel + ((0.31f + submergeLevel) * Settings::fWaterRotationSpeedMult);
 			}
 		}
 		
@@ -806,7 +814,7 @@ bool DirectionalMovementHandler::IsPlayerAnimationDriven() const
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	if (playerCharacter)
 	{
-		return playerCharacter->IsAnimationDriven() && !HasTargetLocked();
+		return playerCharacter->IsAnimationDriven() && !_bCurrentlyTurningToCrosshair && !HasTargetLocked();
 	}
 	return false;
 }
@@ -1451,11 +1459,9 @@ void DirectionalMovementHandler::UpdateCameraHeadtracking()
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	auto playerCamera = RE::PlayerCamera::GetSingleton();
 
-	if (!playerCharacter || !playerCamera || !playerCamera->currentState) {
+	if (!playerCharacter || !playerCamera || !playerCamera->currentState || !playerCamera->cameraRoot) {
 		return;
 	}
-
-	
 
 	RE::ThirdPersonState* currentState = nullptr;
 
@@ -1468,7 +1474,7 @@ void DirectionalMovementHandler::UpdateCameraHeadtracking()
 		return;
 	}
 
-	float directionMult = -1.f;
+	/*float directionMult = -1.f;
 	float offsetMult = 1.f;
 	float pitchOffsetMult = 1.f;
 	float pitchOffset = 0.f;
@@ -1497,9 +1503,32 @@ void DirectionalMovementHandler::UpdateCameraHeadtracking()
 	pitch += pitchOffset;
 
 	RE::NiPoint3 direction = RotationToDirection(yaw, pitch) * directionMult;
-	direction.x *= -1.f;
+	direction.x *= -1.f;*/
 	
-	auto targetPos = playerCharacter->GetLookingAtLocation() + direction * 500.f;
+	RE::NiPoint3 cameraPos = GetCameraPos();
+
+	float cameraYawOffset = NormalRelativeAngle(currentState->freeRotation.x);
+	if (Settings::uCameraHeadtrackingMode == CameraHeadtrackingMode::kDisable && !(cameraYawOffset < TWOTHIRDS_PI && cameraYawOffset > -TWOTHIRDS_PI)) {
+		return;
+	} else if (Settings::uCameraHeadtrackingMode == CameraHeadtrackingMode::kFaceCamera && !(cameraYawOffset < PI2 && cameraYawOffset > -PI2)) {
+		playerCharacter->currentProcess->SetHeadtrackTarget(playerCharacter, cameraPos);
+		return;
+	}
+
+	float cameraPitchOffset = currentState->freeRotation.y;
+	float offsetMult = Settings::fCameraHeadtrackingStrength;
+	cameraYawOffset *= offsetMult;
+	float yaw = NormalRelativeAngle(playerCharacter->data.angle.z + cameraYawOffset - PI2);
+	float pitch = NormalRelativeAngle(playerCharacter->data.angle.x - cameraPitchOffset);
+	pitch *= offsetMult;
+	RE::NiPoint3 direction = -RotationToDirection(yaw, pitch);
+	direction.x *= -1.f;
+
+	RE::NiPoint3 playerHeadPos = playerCharacter->GetLookingAtLocation();
+	/*RE::NiPoint3 direction{ 0.0, 1.0, 0.0 };
+	direction = TransformVectorByMatrix(direction, playerCamera->cameraRoot->world.rotate);*/
+
+	auto targetPos = playerHeadPos + direction * 500.f;
 	playerCharacter->currentProcess->SetHeadtrackTarget(playerCharacter, targetPos);
 }
 

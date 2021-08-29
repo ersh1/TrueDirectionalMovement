@@ -1040,14 +1040,13 @@ namespace Hooks
 				bIsNotStrafing = bHasMovementInput;
 			}
 
-			bool bSpecific = bFreeCamTargetLocked ? bHasMovementInput && !bIsDodging : bIsPreviousMoveInputForward && bIsNotStrafing; // branch depending on the mode we're in
+			bool bSpecific = bFreeCamTargetLocked ? bHasMovementInput && !bIsDodging : bIsSprintingRunningOrBlocking && bIsPreviousMoveInputForward && bIsNotStrafing;  // branch depending on the mode we're in
 
 			if (bHasUnkBDD_SprintingFlag &&
 				!bUnk1 &&
 				!bIsOverEncumbered &&
 				bUnk2 &&
 				bIsStaminaNotZero &&
-				bIsSprintingRunningOrBlocking &&
 				bSpecific)
 			{
 				bShouldBeSprinting = true;
