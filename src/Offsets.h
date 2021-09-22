@@ -8,6 +8,8 @@ static bool* g_bDampenPlayerControls = (bool*)REL::ID(509451).address();				// 1
 static float* g_fSprintStopThreshold = (float*)REL::ID(509489).address();				// 1DF1680
 static float* g_fHUDOpacity = (float*)REL::ID(510579).address();						// 1DF58F8
 static float* g_fNearDistance = (float*)REL::ID(512125).address();                      // 1E06ED0
+static float* g_fLThumbDeadzone = (float*)REL::ID(511905).address();                    // 1E05DD0
+static float* g_fLThumbDeadzoneMax = (float*)REL::ID(511911).address();                 // 1E05E18
 
 static uintptr_t g_worldToCamMatrix = REL::ID(519579).address();						// 2F4C910
 static RE::NiRect<float>* g_viewPort = (RE::NiRect<float>*)REL::ID(519618).address();	// 2F4DED0

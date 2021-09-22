@@ -77,6 +77,7 @@ namespace Hooks
 
 		MovementHook::Hook();
 		LookHook::Hook();
+		TogglePOVHook::Hook();
 		FirstPersonStateHook::Hook();
 		ThirdPersonStateHook::Hook();
 		HorseCameraStateHook::Hook();
@@ -94,7 +95,7 @@ namespace Hooks
 		NukeSetIsNPCHook::Hook();
 		PlayerCameraHook::Hook();
 		MainUpdateHook::Hook();
-		HorseAimHook::Hook();
+		//HorseAimHook::Hook();
 
 		logger::trace("...success");
 	}
@@ -113,6 +114,9 @@ namespace Hooks
 		if (!bHandled)
 		{
 			_ProcessThumbstick(a_this, a_event, a_data);
+			if (Settings::bThumbstickBounceFix) {
+				directionalMovementHandler->SetLastInputDirection(a_data->moveInputVec);
+			}
 		}
 	}
 
@@ -168,6 +172,10 @@ namespace Hooks
 		{
 			*pressedDirections = DirectionalMovementHandler::Directions::kInvalid;
 			_ProcessButton(a_this, a_event, a_data);
+			if (Settings::bThumbstickBounceFix) {
+				directionalMovementHandler->SetLastInputDirection(a_data->moveInputVec);
+			}
+			
 		}
 	}
 
@@ -211,6 +219,10 @@ namespace Hooks
 		else
 		{
 			bTargetRecentlySwitched = false;
+			if (Settings::bCameraHeadtracking && Settings::fCameraHeadtrackingDuration > 0.f) {
+				directionalMovementHandler->RefreshCameraHeadtrackTimer();
+			}
+
 			_ProcessThumbstick(a_this, a_event, a_data);
 		}
 	}
@@ -257,8 +269,37 @@ namespace Hooks
 		else
 		{
 			bTargetRecentlySwitched = false;
+			if (Settings::bCameraHeadtracking && Settings::fCameraHeadtrackingDuration > 0.f) {
+				directionalMovementHandler->RefreshCameraHeadtrackTimer();
+			}
+
 			_ProcessMouseMove(a_this, a_event, a_data);
 		}
+	}
+
+	void TogglePOVHook::ProcessButton(RE::TogglePOVHandler* a_this, RE::ButtonEvent* a_event, RE::PlayerControlsData* a_data)
+	{
+		if (a_event && Settings::bTargetLockUsePOVSwitch) {
+			auto userEvent = a_event->QUserEvent();
+			auto userEvents = RE::UserEvents::GetSingleton();
+
+			if (userEvent == userEvents->togglePOV)
+			{
+				if (a_event->HeldDuration() < Settings::fTargetLockPOVHoldDuration)
+				{
+					if (a_event->IsUp())
+					{
+						auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+						directionalMovementHandler->ToggleTargetLock(!directionalMovementHandler->HasTargetLocked(), true);
+					}
+					return;
+				} else {
+					a_event->heldDownSecs = 0;
+				}
+			}
+		}
+
+		_ProcessButton(a_this, a_event, a_data);
 	}
 
 	void FirstPersonStateHook::OnEnterState(RE::FirstPersonState* a_this)
@@ -270,7 +311,7 @@ namespace Hooks
 				// turn character towards where the camera was looking in third person state before entering first person state
 				if (savedCamera.rotationType == SaveCamera::RotationType::kThirdPerson) {
 					auto x = savedCamera.ConsumeX();
-					if (playerCharacter->actorState1.sitSleepState != RE::SIT_SLEEP_STATE::kIsSleeping) {  // don't do this while sleeping
+					if (playerCharacter->actorState1.sitSleepState == RE::SIT_SLEEP_STATE::kNormal) {  // don't do this while sitting, sleeping etc.
 						playerCharacter->SetRotationZ(x);
 					}
 				}
@@ -317,7 +358,6 @@ namespace Hooks
 			auto userEvents = RE::UserEvents::GetSingleton();
 
 			if (userEvent == userEvents->togglePOV && a_event->IsUp() && a_event->HeldDuration() < Settings::fTargetLockPOVHoldDuration) {
-				directionalMovementHandler->ToggleTargetLock(!directionalMovementHandler->HasTargetLocked());
 				return;
 			}
 		}
@@ -442,7 +482,7 @@ namespace Hooks
 			auto userEvents = RE::UserEvents::GetSingleton();
 
 			if (userEvent == userEvents->togglePOV && a_event->IsUp() && a_event->HeldDuration() < Settings::fTargetLockPOVHoldDuration) {
-				directionalMovementHandler->ToggleTargetLock(!directionalMovementHandler->HasTargetLocked());
+				//directionalMovementHandler->ToggleTargetLock(!directionalMovementHandler->HasTargetLocked());
 				return;
 			}
 		}
@@ -545,12 +585,22 @@ namespace Hooks
 			}
 		}
 
+		if (a_event && Settings::bTargetLockUsePOVSwitch) {
+			auto userEvent = a_event->QUserEvent();
+			auto userEvents = RE::UserEvents::GetSingleton();
+
+			if (userEvent == userEvents->togglePOV && a_event->IsUp() && a_event->HeldDuration() < Settings::fTargetLockPOVHoldDuration) {
+				//directionalMovementHandler->ToggleTargetLock(!directionalMovementHandler->HasTargetLocked());
+				return;
+			}
+		}
+
 		_ProcessButton(a_this, a_event, a_data);
 	}
 
 	void TweenMenuCameraStateHook::OnEnterState(RE::TESCameraState* a_this)
 	{
-		if (DirectionalMovementHandler::GetSingleton()->GetFreeCameraEnabled()) {
+		if (DirectionalMovementHandler::GetSingleton()->IsFreeCamera()) {
 			savedCamera.rotationType = SaveCamera::RotationType::kNone;
 		}
 		
@@ -644,11 +694,18 @@ namespace Hooks
 								target.get()->GetLinearVelocity(targetVelocity);
 
 								float projectileGravity = 0.f;
-								auto ammo = a_this->ammoSource;
-								if (ammo) {
-									auto bgsProjectile = ammo->data.projectile;
-									if (bgsProjectile) {
+								if (auto ammo = a_this->ammoSource) {
+									if (auto bgsProjectile = ammo->data.projectile) {
 										projectileGravity = bgsProjectile->data.gravity;
+										if (auto bhkWorld = a_this->parentCell->GetbhkWorld()) {
+											if (auto hkpWorld = bhkWorld->GetWorld()) {
+												auto vec4 = hkpWorld->gravity;
+												float quad[4];
+												_mm_store_ps(quad, vec4.quad);
+												float gravity = -quad[2] * bhkWorld->GetWorldScaleInverse();
+												projectileGravity *= gravity;
+											}
+										}
 									}
 								}
 
@@ -770,6 +827,24 @@ namespace Hooks
 		}
 	}
 
+	void PlayerCharacterHook::UpdateAnimation(RE::Actor* a_this, float a_delta)
+	{
+		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+		auto previousAimAngle = directionalMovementHandler->GetCurrentHorseAimAngle();
+		directionalMovementHandler->SetCurrentHorseAimAngle(0.f); // the horse aim function only gets called when you're actually aiming on a horse, so we have to reset here to detect when you stop aiming
+
+		_UpdateAnimation(a_this, a_delta);
+
+		auto updatedAimAngle = directionalMovementHandler->GetCurrentHorseAimAngle(); // if we were aiming, it will be updated by now
+
+		if (updatedAimAngle != previousAimAngle) {
+			directionalMovementHandler->SetPreviousHorseAimAngle(previousAimAngle);
+			directionalMovementHandler->UpdateHorseAimDirection();
+		}
+
+		//directionalMovementHandler->UpdateLeaning();
+	}
+
 	void PlayerCharacterHook::ProcessTracking(RE::Actor* a_this, float a_delta, RE::NiAVObject* a_obj3D)
 	{
 		// Handle TDM headtracking stuff that needs to be done before calling the original
@@ -873,7 +948,14 @@ namespace Hooks
 
 		bIsSprinting = a_this->actorState1.sprinting;
 
-		if (bIsHeadtrackingEnabled && !bIsSprinting && !bIsBlocking && Settings::bCameraHeadtracking && a_this->currentProcess && a_this->boolBits.none(RE::Actor::BOOL_BITS::kHasSceneExtra)) {
+		if (bIsHeadtrackingEnabled &&
+			Settings::bCameraHeadtracking &&
+			(Settings::fCameraHeadtrackingDuration == 0.f || directionalMovementHandler->GetCameraHeadtrackTimer() > 0.f) &&
+			!bIsSprinting &&
+			!bIsBlocking &&
+			
+			a_this->currentProcess &&
+			a_this->boolBits.none(RE::Actor::BOOL_BITS::kHasSceneExtra)) {
 			// try camera headtracking
 			auto highProcess = a_this->currentProcess->high;
 			if (highProcess && 
@@ -963,6 +1045,8 @@ namespace Hooks
 
 			// End phase. Ignore vanilla events if we're tracing already
 			case "HitFrame"_h:
+			case "attackWinStart"_h:
+			case "SkySA_AttackWinStart"_h:
 				if (DirectionalMovementHandler::GetSingleton()->GetAttackState() != DirectionalMovementHandler::kTracing)
 				{
 					DirectionalMovementHandler::GetSingleton()->SetAttackState(DirectionalMovementHandler::AttackState::kEnd);
@@ -977,6 +1061,7 @@ namespace Hooks
 			// Back to none
 			case "attackStop"_h:
 			case "TDM_AttackStop"_h:
+			case "SkySA_AttackWinEnd"_h:
 				DirectionalMovementHandler::GetSingleton()->SetAttackState(DirectionalMovementHandler::AttackState::kNone);
 				break;
 			}
@@ -1236,17 +1321,30 @@ namespace Hooks
 		DirectionalMovementHandler::GetSingleton()->UpdatePlayerPitch();
 	}
 
+	void PlayerCameraHook::SetCameraState(RE::TESCamera* a_this, RE::TESCameraState* a_newState)
+	{
+		if (a_this->currentState)
+		{
+			auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+			directionalMovementHandler->SetCameraStateBeforeTween(a_this->currentState->id);
+		}
+
+		_SetCameraState(a_this, a_newState);
+	}
+
 	void MainUpdateHook::Update(RE::Main* a_this, float a2)
 	{
 		_Update(a_this, a2);
 
 		DirectionalMovementHandler::GetSingleton()->Update();
+		WidgetHandler::GetSingleton()->Update();
 	}
 
 	static float angleToTarget = 0.f;
 	float* HorseAimHook::GetHorseCameraFreeRotationYaw(RE::PlayerCamera* a_this)
 	{
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+		float* ret = nullptr;
 		if (directionalMovementHandler->HasTargetLocked() && directionalMovementHandler->GetTarget())
 		{
 			auto playerCharacter = RE::PlayerCharacter::GetSingleton();
@@ -1266,9 +1364,17 @@ namespace Hooks
 
 			angleToTarget = GetAngle(currentCharacterDirection, directionToTarget);
 
-			return &angleToTarget;
+			ret = &angleToTarget;
+		} else {
+			ret = _GetHorseCameraFreeRotationYaw(a_this);
 		}
-		return _GetHorseCameraFreeRotationYaw(a_this);
+		
+		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+		RE::NiPoint3 axis;
+		playerCharacter->GetGraphVariableNiPoint3("TDM_HorseAimTurn_PitchAxis", axis);
+		directionalMovementHandler->SetCurrentHorseAimAngle(*ret);
+
+		return ret;
 	}
 
 	void HorseAimHook::Func(RE::PlayerCamera* a_this)
@@ -1280,4 +1386,22 @@ namespace Hooks
 
 		_Func(a_this);
 	}
+
+	float HorseAimHook::GetYaw([[maybe_unused]] RE::Actor* a_this)
+	{
+		// originally it returns the value of AimHeadingCurrent graph variable minus the character yaw
+		[[maybe_unused]] float original = _GetYaw(a_this);
+		RE::ActorPtr mount;
+		float angleOffset = 0.f;
+		if (a_this->GetMount(mount)) {
+			angleOffset = mount->data.angle.z;
+		}
+		return DirectionalMovementHandler::GetSingleton()->GetCurrentHorseAimAngle() + angleOffset;
+	}
+
+	/*void CreateProjectileHook::CreateProjectile(void* a1, ProjectileLaunchData* a_projectileLaunchData)
+	{
+		_CreateProjectile(a1, a_projectileLaunchData);
+	}*/
+
 }

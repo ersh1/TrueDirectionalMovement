@@ -6,6 +6,7 @@
 #define PI2 1.5707963267948966f
 #define PI3 1.0471975511965977f
 #define PI4 0.7853981633974483f
+#define PI8 0.3926990816987242f
 
 struct AngleZX
 {
@@ -67,6 +68,22 @@ inline RE::NiPoint3 RotateAngleAxis(const RE::NiPoint3& vec, const float angle, 
 		(OMC * XY + ZS) * vec.x + (OMC * YY + C) * vec.y + (OMC * YZ - XS) * vec.z,
 		(OMC * ZX - YS) * vec.x + (OMC * YZ + XS) * vec.y + (OMC * ZZ + C) * vec.z
 	);
+}
+
+inline RE::NiPoint3 ClampSizeMax(const RE::NiPoint3& vec, const float max)
+{
+	if (max < 1.e-4f)
+	{
+		return RE::NiPoint3 {0, 0, 0};
+	}
+
+	const float squaredLength = vec.SqrLength();
+	if (squaredLength > max * max) {
+		const float scale = max * (1.0f / std::sqrt(squaredLength));
+		return vec * scale;
+	} else {
+		return vec;
+	}
 }
 
 //inline float ClampAngle(float angle, float min, float max)

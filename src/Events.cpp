@@ -61,7 +61,7 @@ namespace Events
 
 				if (key == Settings::uTargetLockKey) {
 					auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
-					directionalMovementHandler->ToggleTargetLock(!directionalMovementHandler->HasTargetLocked());
+					directionalMovementHandler->ToggleTargetLock(!directionalMovementHandler->HasTargetLocked(), true);
 					break;
 				}
 
@@ -222,8 +222,16 @@ namespace Events
 				return false;
 			}
 
+			auto actorBase = a_actor->GetActorBase();
+			RE::TESActorBase* originalBase = nullptr;
+
+			auto extraLeveledCreature = static_cast<RE::ExtraLeveledCreature*>(a_actor->extraList.GetByType(RE::ExtraDataType::kLeveledCreature));
+			if (extraLeveledCreature) {
+				originalBase = extraLeveledCreature->originalBase;
+			}
+
 			// Check blacklist
-			if (directionalMovementHandler->GetBossNPCBlacklist().contains(a_actor->GetActorBase()))
+			if (directionalMovementHandler->GetBossNPCBlacklist().contains(actorBase) || (originalBase && directionalMovementHandler->GetBossNPCBlacklist().contains(originalBase)))
 			{
 				return false;
 			}
@@ -235,7 +243,7 @@ namespace Events
 			}
 
 			// Check NPC
-			if (directionalMovementHandler->GetBossNPCs().contains(a_actor->GetActorBase()))
+			if (directionalMovementHandler->GetBossNPCs().contains(actorBase) || (originalBase && directionalMovementHandler->GetBossNPCs().contains(originalBase)))
 			{
 				return true;
 			}

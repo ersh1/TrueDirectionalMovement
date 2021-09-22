@@ -305,6 +305,26 @@ namespace Scaleform
 		}
 	}
 
+	void BossMenu::Hide()
+	{
+		_hideCount++;
+		if (_hideCount > 0) {
+			depthPriority = -1;
+			_view->SetVisible(false);
+		}
+	}
+
+	void BossMenu::Show()
+	{
+		if (_hideCount > 0) {
+			_hideCount--;
+			if (_hideCount == 0) {
+				depthPriority = SORT_PRIORITY;
+				_view->SetVisible(true);
+			}
+		}
+	}
+
 	bool BossMenu::IsDisplayingBoss(RE::ActorHandle a_boss) const
 	{
 		for (auto& bossBar : _bossBars)
@@ -413,6 +433,10 @@ namespace Scaleform
 
 	void BossMenu::OnOpen()
 	{
+		if (RE::UI::GetSingleton()->IsMenuOpen(RE::TweenMenu::MENU_NAME)) {
+			Hide();
+		}
+
 		RefreshUI();
 
 		ProcessDelegate();

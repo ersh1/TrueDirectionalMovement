@@ -105,6 +105,10 @@ private:
 		//	return false;
 		//}
 
+		/*if (RE::UI::GetSingleton()->IsMenuOpen(RE::TweenMenu::MENU_NAME)) {
+			return false;
+		}*/
+
 		return true;
 	}
 
@@ -114,6 +118,10 @@ private:
 			return false;
 		}
 
+		/*if (RE::UI::GetSingleton()->IsMenuOpen(RE::TweenMenu::MENU_NAME)) {
+			return false;
+		}*/
+
 		return true;
 	}
 
@@ -121,7 +129,10 @@ private:
 	std::vector<TargetLockTasklet> _targetLockMenuTaskQueue;
 	std::vector<BossTasklet> _bossMenuTaskQueue;
 	uint8_t _hideVanillaTargetBar = 0;
-	bool _refreshTargetLockMenu{ false };
-	bool _refreshBossMenu{ false };
+	bool _refreshTargetLockMenu { false };
+	bool _refreshBossMenu { false };
 	RE::RefHandle _enemyHealthTargetRef;
+
+	bool _targetLockMenuHidden { false };
+	bool _bossMenuHidden { false };
 };

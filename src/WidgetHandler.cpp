@@ -53,7 +53,13 @@ void WidgetHandler::UpdateVanillaTargetBarState()
 		bVisible = true;
 	}
 
-	auto hud = RE::UI::GetSingleton()->GetMenu("HUD Menu");
+	auto ui = RE::UI::GetSingleton();
+
+	if (ui->IsMenuOpen(RE::MapMenu::MENU_NAME) || ui->IsMenuOpen(RE::TweenMenu::MENU_NAME)) {
+		return;
+	}
+
+	auto hud = ui->GetMenu("HUD Menu");
 	if (hud && hud->uiMovie) {
 		hud->uiMovie->SetVariable("HUDMovieBaseInstance.EnemyHealth_mc._visible", bVisible);
 	}
@@ -210,6 +216,40 @@ bool WidgetHandler::IsBossMenuOpen() const
 
 void WidgetHandler::Update()
 {
+	// tween menu issue workaround
+	if (IsTargetLockMenuOpen())
+	{
+		if (RE::UI::GetSingleton()->IsMenuOpen(RE::TweenMenu::MENU_NAME) || (RE::PlayerCamera::GetSingleton()->currentState && RE::PlayerCamera::GetSingleton()->currentState->id == RE::CameraStates::kVATS)) {
+			if (!_targetLockMenuHidden) {
+				AddTargetLockMenuTask([](TargetLockMenu& a_menu) {
+					a_menu.Hide();
+				});
+				_targetLockMenuHidden = true;
+			}
+		} else if (_targetLockMenuHidden) {
+			AddTargetLockMenuTask([](TargetLockMenu& a_menu) {
+				a_menu.Show();
+			});
+			_targetLockMenuHidden = false;
+		}
+	}
+
+	if (IsBossMenuOpen()) {
+		if (RE::UI::GetSingleton()->IsMenuOpen(RE::TweenMenu::MENU_NAME) || (RE::PlayerCamera::GetSingleton()->currentState && RE::PlayerCamera::GetSingleton()->currentState->id == RE::CameraStates::kVATS)) {
+			if (!_bossMenuHidden) {
+				AddBossMenuTask([](BossMenu& a_menu) {
+					a_menu.Hide();
+				});
+				_bossMenuHidden = true;
+			}
+		} else if (_bossMenuHidden) {
+			AddBossMenuTask([](BossMenu& a_menu) {
+				a_menu.Show();
+			});
+			_bossMenuHidden = false;
+		}
+	}
+
 	UpdateVanillaTargetBarState();
 }
 

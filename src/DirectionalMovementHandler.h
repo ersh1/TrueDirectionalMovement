@@ -18,8 +18,6 @@ namespace std
 class DirectionalMovementHandler
 {
 public:
-
-
 	enum AttackState : std::uint8_t
 	{
 		kNone = 0,
@@ -40,6 +38,8 @@ public:
 	void UpdateDodgingState();
 	void UpdateSwimmingPitchOffset();
 	void ProgressTimers();
+
+	void UpdateLeaning();
 
 	void HideCrosshair();
 	void ShowCrosshair();
@@ -94,7 +94,7 @@ public:
 		kSort_Invalid = 5
 	};
 
-	bool ToggleTargetLock(bool bEnable);
+	bool ToggleTargetLock(bool bEnable, bool bPressedManually = false);
 	RE::ActorHandle GetTarget();
 	void ClearTargets();
 
@@ -129,6 +129,18 @@ public:
 
 	void UpdateCameraHeadtracking();
 
+	void SetPreviousHorseAimAngle(float a_angle);
+	void SetCurrentHorseAimAngle(float a_angle);
+	void UpdateHorseAimDirection();
+	void SetNewHorseAimDirection(float a_angle);
+	float GetCurrentHorseAimAngle() const;
+
+	void SetLastInputDirection(RE::NiPoint2& a_inputDirection);
+	bool CheckInputDot(float a_dot) const;
+	bool DetectInputAnalogStickBounce() const;
+
+	void SetCameraStateBeforeTween(RE::CameraStates::CameraState a_cameraState);
+
 	RE::NiPoint3 GetCameraRotation();
 
 	void LookAtTarget(RE::ActorHandle a_target);
@@ -140,6 +152,8 @@ public:
 
 	float GetDialogueHeadtrackTimer() const;
 	void RefreshDialogueHeadtrackTimer();
+	float GetCameraHeadtrackTimer() const;
+	void RefreshCameraHeadtrackTimer();
 
 	void Initialize();
 	void OnPreLoadGame();
@@ -192,6 +206,14 @@ private:
 	DirectionalMovementHandler& operator=(DirectionalMovementHandler&&) = delete;
 
 	mutable Lock _lock;
+
+	struct LeanAmount
+	{
+		float LR;
+		float FB;
+	} _leanAmount;
+
+	RE::NiPoint3 _previousVelocity;
 		
 	float _freecamControllerBufferDepth = 0.02f;
 	float _defaultControllerBufferDepth = -1.f;
@@ -222,10 +244,22 @@ private:
 	float _desiredAIProcessRotationSpeed = 0.f;
 	Directions _lastTargetSwitchDirection = Directions::kInvalid;
 
+	float _previousHorseAimAngle = 0.f;
+	float _horseAimAngle = 0.f;
+	Directions _currentHorseAimDirection = Directions::kForward;
+
+	RE::CameraStates::CameraState _cameraStateBeforeTween;
+
+	// for analog bounce fix
+	static constexpr float _analogBounceDotThreshold = 0.25f;
+	static constexpr size_t _inputBufferSize = 5;
+	std::deque<RE::NiPoint2> _lastInputs;
+
 	float _lastTargetSwitchTimer = 0.f;
 	float _lastLOSTimer = 0.f;
 	float _dialogueHeadtrackTimer = 0.f;
 	float _faceCrosshairTimer = 0.f;
+	float _cameraHeadtrackTimer = 0.f;
 
 	bool _bCrosshairIsHidden = false;
 	bool _bAiming = false;
@@ -236,6 +270,10 @@ private:
 	static constexpr float _meleeMagnetismRange = 250.f;
 	static constexpr float _faceCrosshairDuration = 0.4f;
 	static constexpr float _targetLockDistanceHysteresis = 1.05f;
+
+	static constexpr float _leanInterpSpeed = 4.f;
+	//static constexpr size_t _velocityBufferSize = 10;
+	//std::deque<RE::NiPoint3> _velocityBuffer;
 
 	bool _playerIsNPC = false;
 
@@ -252,6 +290,6 @@ private:
 
 	std::unordered_set<RE::TESRace*> _bossRaces;
 	std::unordered_set<RE::BGSLocationRefType*> _bossLocRefTypes;
-	std::unordered_set<RE::TESNPC*> _bossNPCs;
-	std::unordered_set<RE::TESNPC*> _bossNPCBlacklist;
+	std::unordered_set<RE::TESActorBase*> _bossNPCs;
+	std::unordered_set<RE::TESActorBase*> _bossNPCBlacklist;
 };

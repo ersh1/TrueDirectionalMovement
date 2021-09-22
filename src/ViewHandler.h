@@ -41,7 +41,9 @@ protected:
 		auto intfcStr = RE::InterfaceStrings::GetSingleton();
 		if (intfcStr &&
 			a_event &&
-			a_event->menuName == intfcStr->mapMenu) {
+			a_event->menuName == intfcStr->mapMenu /*||
+			a_event->menuName == intfcStr->tweenMenu*/
+		) {
 			if (!a_event->opening) {
 				Enable();
 			} else {
@@ -74,9 +76,11 @@ private:
 		RE::GPtr safety{ _menu };
 		auto task = SKSE::GetTaskInterface();
 		task->AddUITask([this, safety]() {
-			if (!_enabled) {
-				SetVisible(true);
-				_enabled = true;
+			if (_hideCount > 0) {
+				_hideCount--;
+				if (_hideCount == 0) {
+					SetVisible(true);
+				}	
 			}
 		});
 	}
@@ -86,29 +90,19 @@ private:
 		RE::GPtr safety{ _menu };
 		auto task = SKSE::GetTaskInterface();
 		task->AddUITask([this, safety]() {
-			if (_enabled) {
+			_hideCount++;
+			if (_hideCount > 0) {
 				SetVisible(false);
-				_enabled = false;
 			}
 		});
 	}
 
-	void SetVisible(bool a_visible)
-	{
-		if (_view) {
-			const auto prev = _view->GetVisible();
-			if (prev != a_visible) {
-				_view->SetVisible(a_visible);
-			}
-		} else {
-			assert(false);
-		}
-	}
+	void SetVisible(bool a_visible);
 
 	void Close();
 
 	SKSE::stl::observer<RE::IMenu*> _menu;
 	RE::GPtr<RE::GFxMovieView> _view;
 	MenuType _menuType;
-	bool _enabled{ true };
+	uint8_t _hideCount = 0;
 };

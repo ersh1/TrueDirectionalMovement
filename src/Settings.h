@@ -90,13 +90,15 @@ struct Settings
 	static inline bool bFaceCrosshairInstantly = false;
 	static inline bool bDisableAttackRotationMultipliersForTransformations = true;
 	static inline float fSwimmingPitchSpeed = 3.f;
+	static inline bool bThumbstickBounceFix = false;
 
 	// Headtracking
 	static inline bool bHeadtracking = true;
 	static inline bool bHeadtrackSpine = true;
 	static inline float fDialogueHeadtrackingDuration = 3.0f;
 	static inline bool bCameraHeadtracking = true;
-	static inline float fCameraHeadtrackingStrength = 0.5f;
+	static inline float fCameraHeadtrackingStrength = 0.75f;
+	static inline float fCameraHeadtrackingDuration = 1.f;
 	static inline CameraHeadtrackingMode uCameraHeadtrackingMode = CameraHeadtrackingMode::kDisable;
 
 	// Target Lock
@@ -119,6 +121,7 @@ struct Settings
 	static inline uint32_t uTargetLockMouseSensitivity = 32;
 	static inline bool bTargetLockUseScrollWheel = true;
 	static inline bool bTargetLockUseRightThumbstick = true;
+	static inline bool bResetCameraWithTargetLock = false;
 	
 	// Target Lock Widget
 	static inline bool bShowReticle = true;

@@ -38,6 +38,21 @@ namespace Hooks
 		static inline REL::Relocation<decltype(ProcessMouseMove)> _ProcessMouseMove;
 	};
 
+	class TogglePOVHook
+	{
+	public:
+		static void Hook()
+		{
+			REL::Relocation<std::uintptr_t> TogglePOVHandlerVtbl{ RE::Offset::TogglePOVHandler::Vtbl };
+			_ProcessButton = TogglePOVHandlerVtbl.write_vfunc(0x4, ProcessButton);
+		}
+
+	private:
+		static void ProcessButton(RE::TogglePOVHandler* a_this, RE::ButtonEvent* a_event, RE::PlayerControlsData* a_data);
+
+		static inline REL::Relocation<decltype(ProcessButton)> _ProcessButton;
+	};
+
 	class FirstPersonStateHook
 	{
 	public:
@@ -209,24 +224,27 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> PlayerCharacterVtbl{ RE::Offset::PlayerCharacter::Vtbl };				// 1665E0
+			REL::Relocation<std::uintptr_t> PlayerCharacterVtbl{ RE::Offset::PlayerCharacter::Vtbl };					// 1665E0
+			//_UpdateAnimation = PlayerCharacterVtbl.write_vfunc(0x7D, UpdateAnimation);
 			_ProcessTracking = PlayerCharacterVtbl.write_vfunc(0x122, ProcessTracking);
-			REL::Relocation<std::uintptr_t> PlayerCharacter_IAnimationGraphManagerHolderVtbl{ REL::ID(261918) };	// 1663F78
-			_ProcessEvent = PlayerCharacter_IAnimationGraphManagerHolderVtbl.write_vfunc(0x1, ProcessEvent);
-			REL::Relocation<std::uintptr_t> PlayerCharacter_ActorStateVtbl{ REL::ID(261922) };						// 16640E8
+			REL::Relocation<std::uintptr_t> PlayerCharacter_BSTEventSink_BSAnimationGraphEventVtbl{ REL::ID(261918) };  // 1663F78
+			_ProcessEvent = PlayerCharacter_BSTEventSink_BSAnimationGraphEventVtbl.write_vfunc(0x1, ProcessEvent);
+			REL::Relocation<std::uintptr_t> PlayerCharacter_ActorStateVtbl{ REL::ID(261922) };							// 16640E8
 			_GetAngle = PlayerCharacter_ActorStateVtbl.write_vfunc(0x4, GetAngle);
 
-			REL::Relocation<uintptr_t> SprintHook{ REL::ID(static_cast<std::uint64_t>(39673)) };					// 6B8F20
+			REL::Relocation<uintptr_t> SprintHook{ REL::ID(static_cast<std::uint64_t>(39673)) };						// 6B8F20
 			auto& trampoline = SKSE::GetTrampoline();
 			trampoline.write_branch<6>(SprintHook.address(), Sprint);
 		}
 
 	private:
+		static void UpdateAnimation(RE::Actor* a_this, float a_delta);
 		static void ProcessTracking(RE::Actor* a_this, float a_delta, RE::NiAVObject* a_obj3D);
 		static void ProcessEvent(RE::BSTEventSink<RE::BSAnimationGraphEvent>* a_this, const RE::BSAnimationGraphEvent* a_event, RE::BSTEventSource<RE::BSAnimationGraphEvent>* a_dispatcher);
 		static void GetAngle(RE::ActorState* a_this, RE::NiPoint3 &a_angle);
 		static void Sprint(RE::PlayerCharacter* a_this);
 
+		static inline REL::Relocation<decltype(UpdateAnimation)> _UpdateAnimation;
 		static inline REL::Relocation<decltype(ProcessTracking)> _ProcessTracking;
 		static inline REL::Relocation<decltype(ProcessEvent)> _ProcessEvent;
 		static inline REL::Relocation<decltype(GetAngle)> _GetAngle;
@@ -355,15 +373,20 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> hook{ REL::ID(49852) };  // 84AB90
+			REL::Relocation<std::uintptr_t> hook1{ REL::ID(49852) };  // 84AB90
+			REL::Relocation<std::uintptr_t> hook2{ REL::ID(49883) };  // 84BCC0, EnterTweenMenuState
 
 			auto& trampoline = SKSE::GetTrampoline();
-			_Update = trampoline.write_call<5>(hook.address() + 0x1A6, Update);
+			_Update = trampoline.write_call<5>(hook1.address() + 0x1A6, Update);
+			_SetCameraState = trampoline.write_call<5>(hook2.address() + 0x7C, SetCameraState);
 		}
 
 	private:
 		static void Update(RE::TESCamera* a_this);
+		static void SetCameraState(RE::TESCamera* a_this, RE::TESCameraState* a_newState);
+
 		static inline REL::Relocation<decltype(Update)> _Update;
+		static inline REL::Relocation<decltype(SetCameraState)> _SetCameraState;
 	};
 
 	class MainUpdateHook
@@ -390,20 +413,70 @@ namespace Hooks
 		{
 			REL::Relocation<uintptr_t> hook1{ REL::ID(42496) };  // 72FAC0
 			REL::Relocation<uintptr_t> hook2{ REL::ID(49960) };  // 84F490
+			REL::Relocation<uintptr_t> hook3{ REL::ID(43009) };  // 7516E0, replace horse aim yaw
 
 			auto& trampoline = SKSE::GetTrampoline();
 			_GetHorseCameraFreeRotationYaw = trampoline.write_call<5>(hook1.address() + 0x17A, GetHorseCameraFreeRotationYaw);
 			_Func = trampoline.write_call<5>(hook2.address() + 0x45, Func);
+			_GetYaw = trampoline.write_call<5>(hook3.address() + 0x1C0, GetYaw);
 		}
 
 	private:
 		static float* GetHorseCameraFreeRotationYaw(RE::PlayerCamera* a_this);
 		static void Func(RE::PlayerCamera* a_this);
+		static float GetYaw(RE::Actor* a_this);
 		
 		static inline REL::Relocation<decltype(GetHorseCameraFreeRotationYaw)> _GetHorseCameraFreeRotationYaw;
 		static inline REL::Relocation<decltype(Func)> _Func;
-
+		static inline REL::Relocation<decltype(GetYaw)> _GetYaw;
 	};
+
+	//class TweenMenuHook
+	//{
+	//public:
+	//	static void Hook()
+	//	{
+	//		REL::Relocation<uintptr_t> address{ REL::ID(51831) };  // 8D05A0, constructor
+
+	//		REL::safe_fill(address.address() + 0xC4, 1, 1); // replace menu depth, 0 -> 1
+	//	}
+	//};
+
+	//class CreateProjectileHook
+	//{
+	//	struct ProjectileLaunchData
+	//	{
+	//	public:
+	//		// members
+	//		std::uint64_t unk00;				// 00
+	//		RE::NiPoint3 location;				// 08
+	//		std::uint32_t unk14;				// 14
+	//		std::uint64_t unk18;				// 18
+	//		RE::BGSProjectile* projectile;      // 20
+	//		RE::Actor* source;                  // 28
+	//		std::uint64_t unk30;				// 30
+	//		RE::TESObjectWEAP* weaponSource;    // 38
+	//		RE::TESAmmo* ammoSource;            // 40
+	//		float yaw;                          // 48
+	//		float pitch;                        // 4C
+	//	};
+
+	//public:
+	//	static void Hook()
+	//	{
+	//		REL::Relocation<uintptr_t> hook{ REL::ID(17693) };  // 235240, TESObjectWeap::Fire
+	//		REL::Relocation<uintptr_t> hook2{ REL::ID(40245) };  // 6D0AD0
+
+	//		auto& trampoline = SKSE::GetTrampoline();
+	//		//_CreateProjectile = trampoline.write_call<5>(hook.address() + 0xE82, CreateProjectile);
+	//		_CreateProjectile = trampoline.write_call<5>(hook.address() + 0xE82, CreateProjectile);
+	//	}
+
+	//private:
+	//	static void CreateProjectile(void* a1, ProjectileLaunchData* a_projectileLaunchData);
+
+	//	static inline REL::Relocation<decltype(CreateProjectile)> _CreateProjectile;
+	//};
 
 	void Install();
 }

@@ -22,6 +22,9 @@ namespace Scaleform
 
 		void RefreshUI();
 
+		void Hide();
+		void Show();
+
 	protected:
 		using UIResult = RE::UI_MESSAGE_RESULTS;
 
@@ -39,6 +42,7 @@ namespace Scaleform
 
 			assert(success);
 			menuFlags.set(RE::UI_MENU_FLAGS::kAllowSaving);
+			menu->inputContext = Context::kNone;
 
 			_viewHandler.emplace(menu, ViewHandler::MenuType::kTargetLockMenu);
 			_view = menu->uiMovie;
@@ -128,6 +132,7 @@ namespace Scaleform
 		float _prevTargetHealth = -1.f;
 		float _damage = 0.f;
 		bool _bVanillaTargetBarHidden = false;
+		uint8_t _hideCount = 0;
 
 		static constexpr std::string_view FILE_NAME{ "TrueDirectionalMovement/TDM_TargetLock" };
 		static constexpr std::string_view MENU_NAME{ "TargetLockMenu" };

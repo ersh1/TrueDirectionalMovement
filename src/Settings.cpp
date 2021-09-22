@@ -36,6 +36,7 @@ void Settings::ReadSettings()
 	ReadBoolSetting(ini, "DirectionalMovement", "bFaceCrosshairInstantly", bFaceCrosshairInstantly);
 	ReadBoolSetting(ini, "DirectionalMovement", "bDisableAttackRotationMultipliersForTransformations", bDisableAttackRotationMultipliersForTransformations);
 	ReadFloatSetting(ini, "DirectionalMovement", "fSwimmingPitchSpeed", fSwimmingPitchSpeed);
+	ReadBoolSetting(ini, "DirectionalMovement", "bThumbstickBounceFix", bThumbstickBounceFix);
 
 	// Headtracking
 	ReadBoolSetting(ini, "Headtracking", "bHeadtracking", bHeadtracking);
@@ -43,6 +44,7 @@ void Settings::ReadSettings()
 	ReadFloatSetting(ini, "Headtracking", "fDialogueHeadtrackingDuration", fDialogueHeadtrackingDuration);
 	ReadBoolSetting(ini, "Headtracking", "bCameraHeadtracking", bCameraHeadtracking);
 	ReadFloatSetting(ini, "Headtracking", "fCameraHeadtrackingStrength", fCameraHeadtrackingStrength);
+	ReadFloatSetting(ini, "Headtracking", "fCameraHeadtrackingDuration", fCameraHeadtrackingDuration);
 	ReadUInt32Setting(ini, "Headtracking", "uCameraHeadtrackingMode", (uint32_t&)uCameraHeadtrackingMode);
 
 	// Target Lock
@@ -65,6 +67,7 @@ void Settings::ReadSettings()
 	ReadUInt32Setting(ini, "TargetLock", "uTargetLockMouseSensitivity", (uint32_t&)uTargetLockMouseSensitivity);
 	ReadBoolSetting(ini, "TargetLock", "bTargetLockUseScrollWheel", bTargetLockUseScrollWheel);
 	ReadBoolSetting(ini, "TargetLock", "bTargetLockUseRightThumbstick", bTargetLockUseRightThumbstick);
+	ReadBoolSetting(ini, "TargetLock", "bResetCameraWithTargetLock", bResetCameraWithTargetLock);
 
 	// Target Lock Widget
 	ReadBoolSetting(ini, "TargetLockWidget", "bShowReticle", bShowReticle);

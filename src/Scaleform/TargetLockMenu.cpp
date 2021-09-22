@@ -345,6 +345,26 @@ namespace Scaleform
 		}
 	}
 
+	void TargetLockMenu::Hide()
+	{
+		_hideCount++;
+		if (_hideCount > 0) {
+			depthPriority = -1;
+			_view->SetVisible(false);
+		}
+	}
+
+	void TargetLockMenu::Show()
+	{
+		if (_hideCount > 0) {
+			_hideCount--;
+			if (_hideCount == 0) {
+				depthPriority = SORT_PRIORITY;
+				_view->SetVisible(true);
+			}
+		}
+	}
+
 	/*void TargetLockMenu::Open(RE::TESObjectREFR* a_target)
 	{
 		m_lookHandler->SetInputEventHandlingEnabled(false);
@@ -356,6 +376,10 @@ namespace Scaleform
 
 	void TargetLockMenu::OnOpen()
 	{
+		/*if (RE::UI::GetSingleton()->IsMenuOpen(RE::TweenMenu::MENU_NAME)) {
+			Hide();
+		}*/
+
 		RefreshUI();
 
 		ProcessDelegate();

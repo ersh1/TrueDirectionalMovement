@@ -75,6 +75,9 @@ namespace Scaleform
 
 		void RefreshUI();
 
+		void Hide();
+		void Show();
+
 		bool IsDisplayingBoss(RE::ActorHandle a_boss) const;
 
 	protected:
@@ -93,7 +96,10 @@ namespace Scaleform
 				});
 
 			assert(success);
+			menuFlags.set(RE::UI_MENU_FLAGS::kRequiresUpdate);
 			menuFlags.set(RE::UI_MENU_FLAGS::kAllowSaving);
+			menuFlags.set(RE::UI_MENU_FLAGS::kCustomRendering);
+			menu->inputContext = Context::kNone;
 
 			RE::GFxValue _bossBar0;
 			RE::GFxValue _bossBar1;
@@ -198,6 +204,7 @@ namespace Scaleform
 		RE::GFxValue _savedSubtitleY;
 
 		bool _bVanillaTargetBarHidden = false;
+		uint8_t _hideCount = 0;
 
 		static constexpr std::string_view FILE_NAME{ "TrueDirectionalMovement/TDM_Boss" };
 		static constexpr std::string_view MENU_NAME{ "BossMenu" };
