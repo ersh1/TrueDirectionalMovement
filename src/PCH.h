@@ -1,14 +1,15 @@
 #pragma once
 
-#include "RE/Skyrim.h"
-#include "SKSE/SKSE.h"
+#pragma warning(push)
+#include <RE/Skyrim.h>
+#include <REL/Relocation.h>
+#include <SKSE/SKSE.h>
 
 //#include <xbyak/xbyak.h>
-
+#include <SimpleIni.h>
+#include "ModAPI.h"
 #define SMOOTHCAM_API_COMMONLIB
 
-#pragma warning(push)
-#include <SimpleIni.h>
 #ifdef NDEBUG
 #	include <spdlog/sinks/basic_file_sink.h>
 #else
@@ -20,6 +21,11 @@ using namespace std::literals;
 
 namespace logger = SKSE::log;
 
+namespace util
+{
+	using SKSE::stl::report_and_fail;
+}
+
 #define DLLEXPORT __declspec(dllexport)
 
-#include "Version.h"
+#include "Plugin.h"

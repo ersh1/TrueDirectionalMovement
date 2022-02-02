@@ -199,3 +199,43 @@ inline float GetAngleDiff(const float& A, const float& B)
 {
 	return PI - fabs(fmod(fabs(A - B), TWO_PI) - PI);
 }
+
+inline bool FloatCompare(const float a, const float b)
+{
+	double delta = fabs(a - b);
+	if (delta < std::numeric_limits<float>::epsilon() &&
+		delta > -std::numeric_limits<float>::epsilon()) {
+		return true;
+	}
+	return false;
+}
+
+inline float GetPct(const float a_current, const float a_max)
+{
+	float percent = -1.f;
+
+	if (a_max < 0.f) {
+		return percent;
+	}
+
+	if (!FloatCompare(a_max, 0.f)) {
+		//percent = ceil((a_current / a_max) * 100.f);
+		percent = a_current / a_max;
+		//return fmin(100.f, fmax(percent, -1.f));  // negative indicates that the actor value is not used
+		return fmin(1.f, fmax(percent, -1.f));  // negative indicates that the actor value is not used
+	}
+
+	return percent;
+}
+
+inline RE::NiPoint3 GetNiPoint3(RE::hkVector4 a_hkVector4)
+{
+	float quad[4];
+	_mm_store_ps(quad, a_hkVector4.quad);
+	return RE::NiPoint3{ quad[0], quad[1], quad[2] };
+}
+
+inline float Remap(const float a_oldValue, const float a_oldMin, const float a_oldMax, const float a_newMin, const float a_newMax)
+{
+	return (((a_oldValue - a_oldMin) * (a_newMax - a_newMin)) / (a_oldMax - a_oldMin)) + a_newMin;
+}

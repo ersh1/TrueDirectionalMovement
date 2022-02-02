@@ -14,7 +14,6 @@ enum class DialogueMode : std::uint32_t
 	kFaceSpeaker = 2
 };
 
-
 enum class CameraHeadtrackingMode : std::uint32_t
 {
 	kDisable = 0,
@@ -22,12 +21,19 @@ enum class CameraHeadtrackingMode : std::uint32_t
 	kFaceCamera = 2
 };
 
+enum class CameraAdjustMode : std::uint32_t
+{
+	kDisable = 0,
+	kDuringSprint = 1,
+	kAlways = 2
+};
 
 enum class ReticleStyle : std::uint32_t
 {
-	kDefault = 0,
-	kSimpleDot = 1,
-	kSimpleGlow = 2
+	kCrosshair = 0,
+	kCrosshairNoTransform = 1,
+	kDot = 2,
+	kGlow = 3
 };
 
 enum class WidgetAnchor : std::uint32_t
@@ -36,30 +42,9 @@ enum class WidgetAnchor : std::uint32_t
 	kHead = 1,
 };
 
-enum class TargetLockLevelMode : std::uint32_t
-{
-	kDisable = 0,
-	kIcon = 1,
-	kText = 2,
-	kOutline = 3
-};
-
-enum class BossLevelMode : std::uint32_t
-{
-	kDisable = 0,
-	kIcon = 1,
-	kText = 2
-};
-
-enum class TextAlignment : std::uint32_t
-{
-	kCenter = 0,
-	kLeft = 1,
-	kRight = 2
-};
-
 struct Settings
 {
+	static void Initialize();
 	static void ReadSettings();
 
 	static void ReadBoolSetting(CSimpleIniA& a_ini, const char* a_sectionName, const char* a_settingName, bool& a_setting);
@@ -78,6 +63,7 @@ struct Settings
 	static inline bool bFaceCrosshairWhileBlocking = true;
 	static inline bool bFaceCrosshairDuringAutoMove = true;
 	static inline bool bStopOnDirectionChange = true;
+	static inline CameraAdjustMode uAdjustCameraYawDuringMovement = CameraAdjustMode::kAlways;
 	static inline float fRunningRotationSpeedMult = 1.5f;
 	static inline float fSprintingRotationSpeedMult = 2.f;
 	static inline float fAttackStartRotationSpeedMult = 5.f;
@@ -88,6 +74,9 @@ struct Settings
 	static inline float fSwimmingRotationSpeedMult = 0.5f;
 	static inline float fFaceCrosshairRotationSpeedMultiplier = 2.f;
 	static inline bool bFaceCrosshairInstantly = false;
+	static inline float fCameraAutoAdjustDelay = 0.1f;
+	static inline float fCameraAutoAdjustSpeedMult = 1.5f;
+	static inline bool bIgnoreSlowTime = false;
 	static inline bool bDisableAttackRotationMultipliersForTransformations = true;
 	static inline float fSwimmingPitchSpeed = 3.f;
 	static inline bool bThumbstickBounceFix = false;
@@ -96,6 +85,7 @@ struct Settings
 	static inline bool bHeadtracking = true;
 	static inline bool bHeadtrackSpine = true;
 	static inline float fDialogueHeadtrackingDuration = 3.0f;
+	static inline bool bHeadtrackSoftTarget = true;
 	static inline bool bCameraHeadtracking = true;
 	static inline float fCameraHeadtrackingStrength = 0.75f;
 	static inline float fCameraHeadtrackingDuration = 1.f;
@@ -115,58 +105,32 @@ struct Settings
 	static inline float fTargetLockPitchOffsetStrength = 0.25f;
 	static inline TargetLockProjectileAimType uTargetLockArrowAimType = TargetLockProjectileAimType::kPredict;
 	static inline TargetLockProjectileAimType uTargetLockMissileAimType = TargetLockProjectileAimType::kPredict;
-	static inline bool bTargetLockUsePOVSwitch = false;
+	static inline bool bTargetLockUsePOVSwitchKeyboard = false;
+	static inline bool bTargetLockUsePOVSwitchGamepad = true;
 	static inline float fTargetLockPOVHoldDuration = 0.25f;
 	static inline bool bTargetLockUseMouse = true;
 	static inline uint32_t uTargetLockMouseSensitivity = 32;
 	static inline bool bTargetLockUseScrollWheel = true;
 	static inline bool bTargetLockUseRightThumbstick = true;
 	static inline bool bResetCameraWithTargetLock = false;
-	
-	// Target Lock Widget
-	static inline bool bShowReticle = true;
-	static inline bool bShowTargetBar = true;
-	static inline bool bShowSoftTargetBar = true;
-	static inline bool bShowTargetName = true;
-	static inline bool bShowHealthPhantom = true;
-	static inline bool bShowDamage = true;
-	static inline bool bHideVanillaTargetBar = true;
-	static inline WidgetAnchor uReticleAnchor = WidgetAnchor::kBody;
-	static inline ReticleStyle uReticleStyle = ReticleStyle::kDefault;
-	static inline WidgetAnchor uTargetBarAnchor = WidgetAnchor::kHead;
-	static inline float fTargetBarZOffset = 30.f;
-	static inline TargetLockLevelMode uTargetLevelMode = TargetLockLevelMode::kOutline;
-	static inline uint16_t uTargetLevelThreshold = 10;
-	static inline float fHealthPhantomDuration = 0.75f;
-	static inline float fDamageDuration = 2.f;
-	static inline float fReticleScale = 1.f;
-	static inline bool bUseHUDOpacityForReticle = true;
-	static inline float fReticleOpacity = 1.f;
-	static inline float fTargetBarScale = 1.f;
-	static inline bool bUseHUDOpacityForTargetBar = true;
-	static inline float fTargetBarOpacity = 1.f;
+	static inline bool bTargetLockEnableHint = true;
 
-	// Boss Bar Widget
-	static inline bool bShowBossBar = true;
-	static inline bool bShowBossHealthPhantom = true;
-	static inline bool bShowBossDamage = true;
-	static inline bool bBossHideVanillaTargetBar = true;
-	static inline TextAlignment uBossNameAlignment = TextAlignment::kCenter;
-	static inline BossLevelMode uBossLevelMode = BossLevelMode::kText;
-	static inline uint16_t uBossLevelThreshold = 10;
-	static inline float fBossHealthPhantomDuration = 0.75f;
-	static inline float fBossDamageDuration = 2.f;
-	static inline float fBossBarScale = 1.f;
-	static inline bool bUseHUDOpacityForBossBar = true;
-	static inline float fBossBarOpacity = 1.f;
-	static inline float fBossBarX = 0.5f;
-	static inline float fBossBarY = 0.87f;
-	static inline bool bBossBarOffsetSubtitles = true;
-	static inline float fMultipleBossBarsOffset = 45.f;
-	static inline bool bMultipleBossBarsStackUpwards = true;
+	// HUD
+	static inline bool bEnableTargetLockReticle = true;
+	static inline WidgetAnchor uReticleAnchor = WidgetAnchor::kBody;
+	static inline ReticleStyle uReticleStyle = ReticleStyle::kCrosshair;
+	static inline float fReticleScale = 1.f;
+	static inline bool bReticleUseHUDOpacity = true;
+	static inline float fReticleOpacity = 1.f;
 
 	// Keys
-	static inline std::uint32_t uTargetLockKey = static_cast<std::uint32_t>(-1);
-	static inline std::uint32_t uSwitchTargetLeftKey = static_cast<std::uint32_t>(-1);
-	static inline std::uint32_t uSwitchTargetRightKey = static_cast<std::uint32_t>(-1);
+	static inline uint32_t uTargetLockKey = 258;
+	static inline uint32_t uSwitchTargetLeftKey = static_cast<uint32_t>(-1);
+	static inline uint32_t uSwitchTargetRightKey = static_cast<uint32_t>(-1);
+
+	// Non-MCM
+	static inline RE::BGSKeyword* kywd_magicWard = nullptr;
+	static inline RE::SpellItem* spel_targetLockSpell = nullptr;
+	static inline RE::TESGlobal* glob_directionalMovement = nullptr;
+	static inline RE::TESGlobal* glob_targetLockHint = nullptr;
 };

@@ -1,6 +1,7 @@
 #pragma once
-#include <unordered_set>
 #include "SmoothCamAPI.h"
+#include "TrueHUDAPI.h"
+#include "Widgets/TargetLockReticle.h"
 
 namespace std
 {
@@ -18,13 +19,20 @@ namespace std
 class DirectionalMovementHandler
 {
 public:
-	enum AttackState : std::uint8_t
+	enum class AttackState : std::uint8_t
 	{
 		kNone = 0,
 		kStart = 1,
 		kMid = 2,
 		kTracing = 3, // Melee Tracing compatibility
 		kEnd = 4
+	};
+
+	enum class Hint : std::uint8_t
+	{
+		kNone = 0,
+		kToggle = 1,
+		kSwitchTarget = 2
 	};
 
 	static DirectionalMovementHandler* GetSingleton();
@@ -41,8 +49,17 @@ public:
 
 	void UpdateLeaning();
 
+	void UpdateCameraAutoRotation();
+	void ResetCameraRotationDelay();
+
+	void UpdateTutorial();
+
+	bool IsCrosshairVisible() const;
 	void HideCrosshair();
 	void ShowCrosshair();
+
+	bool IsAiming() const;
+	void SetIsAiming(bool a_bIsAiming);
 
 	bool ProcessInput(RE::NiPoint2& a_inputDirection, RE::PlayerControlsData* a_playerControlsData);
 	void SetDesiredAngleToTarget(RE::PlayerCharacter* a_playerCharacter, RE::ActorHandle a_target);
@@ -52,24 +69,30 @@ public:
 	void UpdateAIProcessRotationSpeed(RE::Actor* a_actor);
 	void SetDesiredAIProcessRotationSpeed(float a_rotationSpeed);
 	
-	bool IsIFPV() const;
-	bool IsImprovedCamera() const;
+	bool IFPV_IsFirstPerson() const;
+	bool ImprovedCamera_IsFirstPerson() const;
+	bool IsImprovedCameraInstalled() const;
 
 	bool IsFreeCamera() const;
 	bool GetFreeCameraEnabled() const;
 	bool HasMovementInput() const;
 
 	bool IsDodging() const;
+	bool IsMagnetismActive() const;
 
 	bool IsPlayerAnimationDriven() const;
 
 	AttackState GetAttackState() const;
 	void SetAttackState(AttackState a_state);
 
+	bool IsCameraResetting() const;
+	void ResetCamera();
+
 	void ResetDesiredAngle();
 
 	float GetYawDelta() const;
 	void ResetYawDelta();
+
 
 	enum class Directions
 	{
@@ -87,11 +110,12 @@ public:
 	enum TargetSortOrder : std::uint32_t
 	{
 		kSort_CameraDistance = 0,					// descending order of distance from camera
-		kSort_CharacterDistanceAndCrosshair = 1,    // descending order of distance from character
+		kSort_CharacterDistanceAndCrosshair = 1,    // descending order of distance from character and crosshair
 		kSort_Crosshair = 2,						// descending order of distance from crosshair
-		kSort_ZAxisClock = 3,						// z axis clockwise
-		kSort_ZAxisRClock = 4,						// z axis counterclockwise
-		kSort_Invalid = 5
+		kSort_Combined = 3,                         // descending order of combined angle to character and distance and crosshair
+		kSort_ZAxisClock = 4,						// z axis clockwise
+		kSort_ZAxisRClock = 5,						// z axis counterclockwise
+		kSort_Invalid = 6
 	};
 
 	bool ToggleTargetLock(bool bEnable, bool bPressedManually = false);
@@ -103,7 +127,9 @@ public:
 	float GetTargetLockDistanceRaceSizeMultiplier(RE::TESRace* a_race) const;
 	bool CheckCurrentTarget(RE::ActorHandle a_target, bool bInstantLOS = false);
 	void UpdateTargetLock();
-	void CheckBosses();
+
+	void ShowTargetLockHint(Hint a_hint);
+	Hint GetCurrentTargetLockHint() const;
 
 	bool IsActorValidTarget(RE::ActorPtr a_actor, bool a_bCheckDistance = false) const;
 
@@ -120,12 +146,13 @@ public:
 	void SetTarget(RE::ActorHandle a_target);
 	void SetSoftTarget(RE::ActorHandle a_softTarget);
 
-	void AddBoss(RE::ActorHandle a_boss);
-	void RemoveBoss(RE::ActorHandle a_boss, bool a_bBossDied);
+	void AddTargetLockReticle(RE::ActorHandle a_target);
+	void ReticleRemoved();
+	void RemoveTargetLockReticle();
 
 	void SwitchTarget(Directions a_direction);
 	
-	void SetHeadtrackTarget(RE::TESObjectREFR* a_target);
+	void SetHeadtrackTarget(int32_t a_headtrackPriority, RE::TESObjectREFR* a_target);
 
 	void UpdateCameraHeadtracking();
 
@@ -158,9 +185,7 @@ public:
 	void Initialize();
 	void OnPreLoadGame();
 
-	void OnSettingsUpdated();
-
-	void LoadIniSettings();
+	void OnSettingsUpdated();	
 
 	void InitCameraModsCompatibility();
 
@@ -169,29 +194,16 @@ public:
 	bool GetPlayerIsNPC() const;
 	void SetPlayerIsNPC(bool a_enable);
 
-	void UpdatePlayerPitch();
+	void UpdatePlayerPitch();	
 
-	inline auto& GetBossRaces() const
-	{
-		return _bossRaces;
-	}
+	SmoothCamAPI::IVSmoothCam3* g_SmoothCam = nullptr;
+	TRUEHUD_API::IVTrueHUD1* g_trueHUD = nullptr;
+	std::atomic_bool _bReticleRemoved{ false };
 
-	inline auto& GetBossNPCs() const
-	{
-		return _bossNPCs;
-	}
-
-	inline auto& GetBossLocRefTypes() const
-	{
-		return _bossLocRefTypes;
-	}
-
-	inline auto& GetBossNPCBlacklist() const
-	{
-		return _bossNPCBlacklist;
-	}
-
-	SmoothCamAPI::IVSmoothCam1* g_SmoothCam = nullptr;
+	bool GetForceDisableDirectionalMovement() const;
+	bool GetForceDisableHeadtracking() const;
+	void SetForceDisableDirectionalMovement(bool a_disable);
+	void SetForceDisableHeadtracking(bool a_disable);
 
 private:
 	using Lock = std::recursive_mutex;
@@ -221,13 +233,6 @@ private:
 	bool _bMagnetismActive = false;
 	bool _bCurrentlyTurningToCrosshair = false;
 
-	RE::TESGlobal* _IFPV_IsFirstPerson = nullptr;
-	bool* _ImprovedCamera_IsThirdPerson = nullptr;
-	bool _bACCInstalled = false;
-
-	RE::SpellItem* _targetLockSpell = nullptr;
-	RE::TESGlobal* _directionalMovementGlobal = nullptr;
-
 	float _desiredAngle = -1.f;
 
 	bool _bDirectionalMovement = false;
@@ -237,10 +242,13 @@ private:
 	bool _bUpdatePlayerPitch = false;
 	float _desiredPlayerPitch;
 
+	bool _bResetCamera = false;
+	float _desiredCameraAngleX;
+	float _desiredCameraAngleY;		
+
 	bool _bIsTweening = false;
 	float _yawDelta = 0.f;
 	
-	bool _bTargetLock = false;
 	float _desiredAIProcessRotationSpeed = 0.f;
 	Directions _lastTargetSwitchDirection = Directions::kInvalid;
 
@@ -260,16 +268,22 @@ private:
 	float _dialogueHeadtrackTimer = 0.f;
 	float _faceCrosshairTimer = 0.f;
 	float _cameraHeadtrackTimer = 0.f;
+	float _cameraRotationDelayTimer = 0.f;
+	float _tutorialHintTimer = 0.f;
 
 	bool _bCrosshairIsHidden = false;
-	bool _bAiming = false;
+	bool _bIsAiming = false;
 
 	float _desiredSwimmingPitchOffset = 0.f;
 	float _currentSwimmingPitchOffset = 0.f;
+
+	float _currentAutoCameraRotationSpeed = 0.f;
 	
 	static constexpr float _meleeMagnetismRange = 250.f;
 	static constexpr float _faceCrosshairDuration = 0.4f;
 	static constexpr float _targetLockDistanceHysteresis = 1.05f;
+	static constexpr float _cameraAutoRotationAngleDeadzone = 0.2f;
+	static constexpr float _hintDuration = 5.f;
 
 	static constexpr float _leanInterpSpeed = 4.f;
 	//static constexpr size_t _velocityBufferSize = 10;
@@ -282,14 +296,20 @@ private:
 	bool _bJustDodged = false;
 	AttackState _attackState;
 
+	bool _bForceDisableDirectionalMovement = false;
+	bool _bForceDisableHeadtracking = false;
+
 	RE::ActorHandle _target;
 	RE::ActorHandle _softTarget;
 	RE::ObjectRefHandle _dialogueSpeaker;
 
-	std::unordered_set<RE::ActorHandle> _bossTargets;
+	Hint _currentHint = Hint::kNone;
 
-	std::unordered_set<RE::TESRace*> _bossRaces;
-	std::unordered_set<RE::BGSLocationRefType*> _bossLocRefTypes;
-	std::unordered_set<RE::TESActorBase*> _bossNPCs;
-	std::unordered_set<RE::TESActorBase*> _bossNPCBlacklist;
+	// Compatibility
+	RE::TESGlobal* _IFPV_IsFirstPerson = nullptr;
+	bool* _ImprovedCamera_IsFirstPerson = nullptr;
+	bool _bACCInstalled = false;
+	bool _bControlsTrueHUDTarget = false;
+
+	std::weak_ptr<Scaleform::TargetLockReticle> _targetLockReticle;
 };

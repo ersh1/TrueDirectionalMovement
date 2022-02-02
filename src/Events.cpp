@@ -3,8 +3,6 @@
 #include "DirectionalMovementHandler.h"
 #include "Offsets.h"
 
-#include "WidgetHandler.h"
-
 namespace Events
 {
 	InputEventHandler* InputEventHandler::GetSingleton()
@@ -206,156 +204,57 @@ namespace Events
 		logger::info("Registered {}"sv, typeid(RE::TESDeathEvent).name());
 		scriptEventSourceHolder->GetEventSource<RE::TESEnterBleedoutEvent>()->AddEventSink(EventHandler::GetSingleton());
 		logger::info("Registered {}"sv, typeid(RE::TESEnterBleedoutEvent).name());
-		scriptEventSourceHolder->GetEventSource<RE::TESHitEvent>()->AddEventSink(EventHandler::GetSingleton());
-		logger::info("Registered {}"sv, typeid(RE::TESHitEvent).name());
 	}
 
-	bool CheckActorForBoss(RE::Actor* a_actor)
-	{
-		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
-		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
-		if (a_actor && playerCharacter && (a_actor != playerCharacter))
-		{
-			// Check whether the target is even alive or hostile first
-			if (a_actor->IsDead() || (a_actor->IsBleedingOut() && a_actor->IsEssential()) || !a_actor->IsHostileToActor(playerCharacter))
-			{
-				return false;
-			}
-
-			auto actorBase = a_actor->GetActorBase();
-			RE::TESActorBase* originalBase = nullptr;
-
-			auto extraLeveledCreature = static_cast<RE::ExtraLeveledCreature*>(a_actor->extraList.GetByType(RE::ExtraDataType::kLeveledCreature));
-			if (extraLeveledCreature) {
-				originalBase = extraLeveledCreature->originalBase;
-			}
-
-			// Check blacklist
-			if (directionalMovementHandler->GetBossNPCBlacklist().contains(actorBase) || (originalBase && directionalMovementHandler->GetBossNPCBlacklist().contains(originalBase)))
-			{
-				return false;
-			}
-
-			// Check race
-			if (directionalMovementHandler->GetBossRaces().contains(a_actor->race))
-			{
-				return true;
-			}
-
-			// Check NPC
-			if (directionalMovementHandler->GetBossNPCs().contains(actorBase) || (originalBase && directionalMovementHandler->GetBossNPCs().contains(originalBase)))
-			{
-				return true;
-			}
-
-			// Check current loc refs
-			if (playerCharacter->currentLocation)
-			{
-				for (auto& ref : playerCharacter->currentLocation->specialRefs)
-				{
-					if (ref.type && directionalMovementHandler->GetBossLocRefTypes().contains(ref.type) && ref.refData.refID == a_actor->formID)
-					{
-						return true;
-					}
-				}
-			}
-		}
-		
-		return false;
-	}
-
+	// On combat start - target lock hint
 	EventResult EventHandler::ProcessEvent(const RE::TESCombatEvent* a_event, RE::BSTEventSource<RE::TESCombatEvent>*)
 	{
-		if (Settings::bShowBossBar)
-		{
-			using CombatState = RE::ACTOR_COMBAT_STATE;
-
-			const auto isPlayerRef = [](auto&& a_ref) {
-				return a_ref && a_ref->IsPlayerRef();
-			};
-
-			if (a_event && a_event->actor && a_event->targetActor && isPlayerRef(a_event->targetActor)) {
-				auto actor = a_event->actor->As<RE::Actor>();
-				RE::ActorHandle actorHandle = actor->GetHandle();
-				if (a_event->newState == CombatState::kCombat) {
-					if (CheckActorForBoss(actor)) {
-						DirectionalMovementHandler::GetSingleton()->AddBoss(actorHandle);
-					}
-				} else if (a_event->newState == CombatState::kNone) {
-					DirectionalMovementHandler::GetSingleton()->RemoveBoss(actorHandle, true);
+		if (Settings::bTargetLockEnableHint && a_event && a_event->actor && a_event->targetActor && a_event->targetActor->IsPlayerRef()) {
+			if (a_event->newState == RE::ACTOR_COMBAT_STATE::kCombat) {
+				auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+				if (directionalMovementHandler->GetCurrentTargetLockHint() == DirectionalMovementHandler::Hint::kNone) {
+					directionalMovementHandler->ShowTargetLockHint(directionalMovementHandler->HasTargetLocked() ? DirectionalMovementHandler::Hint::kSwitchTarget : DirectionalMovementHandler::Hint::kToggle);
 				}
 			}
 		}
-		
+
 		return EventResult::kContinue;
 	}
 
+	// On death - toggle target lock
 	EventResult EventHandler::ProcessEvent(const RE::TESDeathEvent* a_event, RE::BSTEventSource<RE::TESDeathEvent>*)
 	{
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
-		if (a_event && a_event->actorDying && directionalMovementHandler->GetTarget() == a_event->actorDying->GetHandle()) {
-			if (directionalMovementHandler->HasTargetLocked()) {
+		if (a_event && a_event->actorDying) {
+			if (directionalMovementHandler->HasTargetLocked() && directionalMovementHandler->GetTarget() == a_event->actorDying->GetHandle()) {
 				if (Settings::bAutoTargetNextOnDeath) {
 					directionalMovementHandler->ToggleTargetLock(true);
 				} else {
 					directionalMovementHandler->ToggleTargetLock(false);
 				}
 			}
-			
-			if (Settings::bShowBossBar) {
-				auto actor = a_event->actorDying->As<RE::Actor>();
-				if (actor) {
-					directionalMovementHandler->RemoveBoss(actor->GetHandle(), true);
-				}
-			}
 		}
 
 		return EventResult::kContinue;
 	}
 
+	// On bleedout - for essential targets
 	EventResult EventHandler::ProcessEvent(const RE::TESEnterBleedoutEvent* a_event, RE::BSTEventSource<RE::TESEnterBleedoutEvent>*)
 	{
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
-		if (a_event && a_event->actor && directionalMovementHandler->GetTarget() == a_event->actor->GetHandle()) {
+		if (a_event && a_event->actor) {
 			auto actor = a_event->actor->As<RE::Actor>();
 			if (actor && actor->IsEssential())
 			{
-				if (directionalMovementHandler->HasTargetLocked()) {
+				if (directionalMovementHandler->HasTargetLocked() && directionalMovementHandler->GetTarget() == a_event->actor->GetHandle()) {
 					if (Settings::bAutoTargetNextOnDeath) {
 						directionalMovementHandler->ToggleTargetLock(true);
 					} else {
 						directionalMovementHandler->ToggleTargetLock(false);
 					}
 				}
-
-				if (Settings::bShowBossBar) {
-					directionalMovementHandler->RemoveBoss(actor->GetHandle(), true);
-				}
 			}
 		}
-
-		return EventResult::kContinue;
-	}
-
-	EventResult EventHandler::ProcessEvent(const RE::TESHitEvent* a_event, RE::BSTEventSource<RE::TESHitEvent>*)
-	{
-		if (Settings::bShowBossBar) {
-			if (a_event && a_event->cause && a_event->target) {
-				auto causeActor = a_event->cause->As<RE::Actor>();
-				auto targetActor = a_event->target->As<RE::Actor>();
-
-				if (causeActor && targetActor) {
-					bool bCausePlayer = causeActor->IsPlayerRef();
-					bool bTargetPlayer = a_event->target->IsPlayerRef();
-
-					if (bCausePlayer && CheckActorForBoss(targetActor)) {
-						DirectionalMovementHandler::GetSingleton()->AddBoss(targetActor->GetHandle());
-					} else if (bTargetPlayer && CheckActorForBoss(causeActor)) {
-						DirectionalMovementHandler::GetSingleton()->AddBoss(causeActor->GetHandle());
-					}
-				}
-			}
-		}	
 
 		return EventResult::kContinue;
 	}

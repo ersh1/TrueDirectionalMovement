@@ -101,17 +101,26 @@ static bool GetNodePosition(RE::ActorPtr a_actor, const char* a_nodeName, RE::Ni
 static bool GetTorsoPos(RE::ActorPtr a_actor, RE::NiPoint3& point)
 {
 	RE::TESRace* race = a_actor->race;
+	if (!race)
+	{
+		return false;
+	}
+
 	RE::BGSBodyPartData* bodyPartData = race->bodyPartData;
+	if (!bodyPartData)
+	{
+		return false;
+	}
 
 	// bodyPart->part[0] body
 	// bodyPart->part[1] head
 	RE::BGSBodyPart* bodyPart = bodyPartData->parts[0];
-	if (bodyPart) 
+	if (!bodyPart) 
 	{
-		return GetNodePosition(a_actor, bodyPart->targetName.c_str(), point);
+		return false;
 	}
 
-	return false;
+	return GetNodePosition(a_actor, bodyPart->targetName.c_str(), point);
 }
 
 bool GetTargetPos(RE::ObjectRefHandle a_target, RE::NiPoint3& pos, bool bGetTorsoPos /*= true*/)

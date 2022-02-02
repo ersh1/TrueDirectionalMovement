@@ -1,4 +1,5 @@
 #pragma once
+#include <functional>
 #include <stdint.h>
 
 #if !defined(SMOOTHCAM_API_SKSE) && !defined(SMOOTHCAM_API_COMMONLIB)
@@ -27,12 +28,18 @@ static_assert(0, "SmoothCamAPI: SKSE API type not defined. Define one of (SMOOTH
 
 #ifdef SMOOTHCAM_API_COMMONLIB
 	using PluginHandle = SKSE::PluginHandle;
+	using Actor = RE::Actor;
+	using TESObjectREFR = RE::TESObjectREFR;
+	using NiCamera = RE::NiCamera;
+	using NiPoint3 = RE::NiPoint3;
 #endif
 
 	// Available SmoothCam interface versions
 	enum class InterfaceVersion : uint8_t
 	{
 		V1,
+		V2,
+		V3
 	};
 
 	// Error types that may be returned by the SmoothCam API
@@ -79,7 +86,7 @@ static_assert(0, "SmoothCamAPI: SKSE API type not defined. Define one of (SMOOTH
 		/// SmoothCam will not perform any positional clean-up of the camera or camera states, you get the camera as-is.
 		/// </summary>
 		/// <param name="myPluginHandle">Your assigned plugin handle</param>
-		/// <returns>OK, MustKeep, AlreadyGiven, AlreadyTaken, BadThread</returns>
+		/// <returns>OK, MustKeep, AlreadyGiven, AlreadyTaken</returns>
 		[[nodiscard]] virtual APIResult RequestCameraControl(PluginHandle myPluginHandle) noexcept = 0;
 
 		/// <summary>
@@ -88,7 +95,7 @@ static_assert(0, "SmoothCamAPI: SKSE API type not defined. Define one of (SMOOTH
 		/// </summary>
 		/// <param name="myPluginHandle">Your assigned plugin handle</param>
 		/// <param name="restoreDefaults">SmoothCam will first restore the crosshair to default settings</param>
-		/// <returns>OK, MustKeep, AlreadyGiven, AlreadyTaken, BadThread</returns>
+		/// <returns>OK, MustKeep, AlreadyGiven, AlreadyTaken</returns>
 		[[nodiscard]] virtual APIResult RequestCrosshairControl(PluginHandle myPluginHandle,
 			bool restoreDefaults = true) noexcept = 0;
 
@@ -98,7 +105,7 @@ static_assert(0, "SmoothCamAPI: SKSE API type not defined. Define one of (SMOOTH
 		/// </summary>
 		/// <param name="myPluginHandle">Your assigned plugin handle</param>
 		/// <param name="restoreDefaults">SmoothCam will first restore the stealth meter to default settings</param>
-		/// <returns>OK, MustKeep, AlreadyGiven, AlreadyTaken, BadThread</returns>
+		/// <returns>OK, MustKeep, AlreadyGiven, AlreadyTaken</returns>
 		[[nodiscard]] virtual APIResult RequestStealthMeterControl(PluginHandle myPluginHandle,
 			bool restoreDefaults = true) noexcept = 0;
 
@@ -124,22 +131,84 @@ static_assert(0, "SmoothCamAPI: SKSE API type not defined. Define one of (SMOOTH
 		/// Release your control of the player camera.
 		/// </summary>
 		/// <param name="myPluginHandle">Your assigned plugin handle</param>
-		/// <returns>OK, NotOwner, BadThread</returns>
+		/// <returns>OK, NotOwner</returns>
 		virtual APIResult ReleaseCameraControl(PluginHandle myPluginHandle) noexcept = 0;
 
 		/// <summary>
 		/// Release your control of the crosshair.
 		/// </summary>
 		/// <param name="myPluginHandle">Your assigned plugin handle</param>
-		/// <returns>OK, NotOwner, BadThread</returns>
+		/// <returns>OK, NotOwner</returns>
 		virtual APIResult ReleaseCrosshairControl(PluginHandle myPluginHandle) noexcept = 0;
 
 		/// <summary>
 		/// Release your control of the stealth meter.
 		/// </summary>
 		/// <param name="myPluginHandle">Your assigned plugin handle</param>
-		/// <returns>OK, NotOwner, BadThread</returns>
+		/// <returns>OK, NotOwner</returns>
 		virtual APIResult ReleaseStealthMeterControl(PluginHandle myPluginHandle) noexcept = 0;
+	};
+
+	class IVSmoothCam2 : public IVSmoothCam1
+	{
+	public:
+		/// <summary>
+		/// Get the last world position of the camera set by SmoothCam.
+		/// </summary>
+		/// <returns>World position</returns>
+		virtual NiPoint3 GetLastCameraPosition() const noexcept = 0;
+
+		/// <summary>
+		/// Request that position interpolators continue to update while you have camera control.
+		/// SmoothCam will not update the camera position with interpolators running, but will enable functions like
+		/// `GetLastCameraPosition` to return current, up to date values while you own the camera resource.
+		///
+		/// When given control of the camera, the default action is to pause interpolator updates. If you want them
+		/// to continue running, you must call this method each time you gain control of the camera.
+		/// </summary>
+		/// <param name="myPluginHandle">Your assigned plugin handle</param>
+		/// <param name="allowUpdates">Allow interpolators to continue updates in the background</param>
+		/// <returns>OK, NotOwner</returns>
+		virtual APIResult RequestInterpolatorUpdates(PluginHandle myPluginHandle, bool allowUpdates) noexcept = 0;
+
+		/// <summary>
+		/// When called before releasing camera control, instructs the camera to move to its goal position once control
+		/// is returned to SmoothCam.
+		/// </summary>
+		/// <param name="myPluginHandle">Your assigned plugin handle</param>
+		/// <param name="shouldMoveToGoal">Instructs the camera to move to it's goal position when control is gained back</param>
+		/// <param name="moveNow">Move to the current goal immediately</param>
+		/// <param name="ref">Object reference for rotation calculations</param>
+		/// <returns>OK, NotOwner</returns>
+		virtual APIResult SendToGoalPosition(PluginHandle myPluginHandle, bool shouldMoveToGoal, bool moveNow = false,
+			const Actor* ref = nullptr) noexcept = 0;
+
+		/// <summary>
+		/// Return SmoothCam's current goal position.
+		/// </summary>
+		/// <param name="ref">Object reference for rotation calculations</param>
+		/// <param name="world">World goal position</param>
+		/// <param name="local">Player local goal position</param>
+		/// <returns></returns>
+		virtual void GetGoalPosition(TESObjectREFR* ref, NiPoint3& world, NiPoint3& local) const noexcept = 0;
+
+		/// <summary>
+		/// Returns false if the user has disabled SmoothCam via the MCM/hotkey.
+		/// When in a disabled state, SmoothCam will not update position information.
+		/// </summary>
+		/// <returns>Enabled</returns>
+		virtual bool IsCameraEnabled() const noexcept = 0;
+	};
+
+	class IVSmoothCam3 : public IVSmoothCam2
+	{
+	public:
+		/// <summary>
+		/// Enable or disable the unlocked aim vector when on horseback
+		/// </summary>
+		/// <param name="enable">Enables an unlocked aim vector on horseback</param>
+		/// <returns></returns>
+		virtual void EnableUnlockedHorseAim(bool enable) noexcept = 0;
 	};
 
 	struct PluginCommand
@@ -200,7 +269,7 @@ static_assert(0, "SmoothCamAPI: SKSE API type not defined. Define one of (SMOOTH
 	/// <param name="version">The interface version to request</param>
 	/// <returns>If any plugin was listening for this request, true. See skse/PluginAPI.h</returns>
 	[[nodiscard]] inline bool RequestInterface(SKSEMessagingInterface * skseMessaging, PluginHandle myPluginHandle,
-		InterfaceVersion version = InterfaceVersion::V1) noexcept
+		InterfaceVersion version = InterfaceVersion::V3) noexcept
 	{
 		InterfaceRequest req = {};
 		req.interfaceVersion = version;
@@ -269,7 +338,7 @@ static_assert(0, "SmoothCamAPI: SKSE API type not defined. Define one of (SMOOTH
 	/// <param name="version">The interface version to request</param>
 	/// <returns>If any plugin was listening for this request, true. See skse/PluginAPI.h</returns>
 	[[nodiscard]] inline bool RequestInterface(const SKSE::MessagingInterface* skseMessaging,
-		InterfaceVersion version = InterfaceVersion::V1) noexcept
+		InterfaceVersion version = InterfaceVersion::V3) noexcept
 	{
 		InterfaceRequest req = {};
 		req.interfaceVersion = version;

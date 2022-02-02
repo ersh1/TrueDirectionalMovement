@@ -7,7 +7,7 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> MovementHandlerVtbl { RE::Offset::MovementHandler::Vtbl };
+			REL::Relocation<std::uintptr_t> MovementHandlerVtbl{ RE::VTABLE_MovementHandler[0] };
 			_ProcessThumbstick = MovementHandlerVtbl.write_vfunc(0x2, ProcessThumbstick);
 			_ProcessButton = MovementHandlerVtbl.write_vfunc(0x4, ProcessButton);
 		}
@@ -25,7 +25,7 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> LookHandlerVtbl{ RE::Offset::LookHandler::Vtbl };
+			REL::Relocation<std::uintptr_t> LookHandlerVtbl{ RE::VTABLE_LookHandler[0] };
 			_ProcessThumbstick = LookHandlerVtbl.write_vfunc(0x2, ProcessThumbstick);
 			_ProcessMouseMove = LookHandlerVtbl.write_vfunc(0x3, ProcessMouseMove);
 		}
@@ -43,7 +43,7 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> TogglePOVHandlerVtbl{ RE::Offset::TogglePOVHandler::Vtbl };
+			REL::Relocation<std::uintptr_t> TogglePOVHandlerVtbl{ RE::VTABLE_TogglePOVHandler[0] };
 			_ProcessButton = TogglePOVHandlerVtbl.write_vfunc(0x4, ProcessButton);
 		}
 
@@ -58,10 +58,10 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> FirstPersonStateVtbl{ RE::Offset::FirstPersonState::Vtbl };
+			REL::Relocation<std::uintptr_t> FirstPersonStateVtbl{ RE::VTABLE_FirstPersonState[0] };
 			_OnEnterState = FirstPersonStateVtbl.write_vfunc(0x1, OnEnterState);
 			_OnExitState = FirstPersonStateVtbl.write_vfunc(0x2, OnExitState);
-			REL::Relocation<std::uintptr_t> PlayerInputHandlerVtbl{ REL::ID(267811) };
+			REL::Relocation<std::uintptr_t> PlayerInputHandlerVtbl{ RE::VTABLE_FirstPersonState[1] };
 			_ProcessButton = PlayerInputHandlerVtbl.write_vfunc(0x4, ProcessButton);
 		}
 
@@ -80,11 +80,11 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> ThirdPersonStateVtbl{ RE::Offset::ThirdPersonState::Vtbl };
+			REL::Relocation<std::uintptr_t> ThirdPersonStateVtbl{ RE::VTABLE_ThirdPersonState[0] };
 			_OnEnterState = ThirdPersonStateVtbl.write_vfunc(0x1, OnEnterState);
 			_OnExitState = ThirdPersonStateVtbl.write_vfunc(0x2, OnExitState);
 			_SetFreeRotationMode = ThirdPersonStateVtbl.write_vfunc(0xD, SetFreeRotationMode);
-			REL::Relocation<std::uintptr_t> PlayerInputHandlerVtbl{ REL::ID(256648) };
+			REL::Relocation<std::uintptr_t> PlayerInputHandlerVtbl{ RE::VTABLE_ThirdPersonState[1] };
 			_ProcessButton = PlayerInputHandlerVtbl.write_vfunc(0x4, ProcessButton);
 		}
 	private:		
@@ -104,12 +104,12 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> HorseCameraStateVtbl{ REL::ID(267749) };
+			REL::Relocation<std::uintptr_t> HorseCameraStateVtbl{ RE::VTABLE_HorseCameraState[0] };
 			_OnEnterState = HorseCameraStateVtbl.write_vfunc(0x1, OnEnterState);
 			_OnExitState = HorseCameraStateVtbl.write_vfunc(0x2, OnExitState);
 			_UpdateRotation = HorseCameraStateVtbl.write_vfunc(0xE, UpdateRotation);
 			_HandleLookInput = HorseCameraStateVtbl.write_vfunc(0xF, HandleLookInput);
-			REL::Relocation<std::uintptr_t> PlayerInputHandlerVtbl{ REL::ID(267750) };
+			REL::Relocation<std::uintptr_t> PlayerInputHandlerVtbl{ RE::VTABLE_HorseCameraState[1] };
 			_ProcessButton = PlayerInputHandlerVtbl.write_vfunc(0x4, ProcessButton);
 		}
 
@@ -132,7 +132,7 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> TweenMenuCameraStateVtbl{ REL::ID(267922) };
+			REL::Relocation<std::uintptr_t> TweenMenuCameraStateVtbl{ RE::VTABLE_TweenMenuCameraState[0] };
 			_OnEnterState = TweenMenuCameraStateVtbl.write_vfunc(0x1, OnEnterState);
 			_OnExitState = TweenMenuCameraStateVtbl.write_vfunc(0x2, OnExitState);
 		}
@@ -150,7 +150,7 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> VATSCameraStateVtbl{ REL::ID(267929) };
+			REL::Relocation<std::uintptr_t> VATSCameraStateVtbl{ RE::VTABLE_VATSCameraState[0] };
 			_OnExitState = VATSCameraStateVtbl.write_vfunc(0x2, OnExitState);
 		}
 
@@ -165,7 +165,7 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> PlayerCameraTransitionStateVtbl{ REL::ID(267818) };
+			REL::Relocation<std::uintptr_t> PlayerCameraTransitionStateVtbl{ RE::VTABLE_PlayerCameraTransitionState[0] };
 			_OnEnterState = PlayerCameraTransitionStateVtbl.write_vfunc(0x1, OnEnterState);
 		}
 
@@ -180,8 +180,8 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> MovementHandlerAgentPlayerControlsVtbl{ REL::ID(262625) }; // 166ABA0
-			_Func1 = MovementHandlerAgentPlayerControlsVtbl.write_vfunc(0x2, Func1);
+			REL::Relocation<std::uintptr_t> MovementHandlerAgentPlayerControls_IMovementHandlerAgentVtbl{ RE::VTABLE_MovementHandlerAgentPlayerControls[1] };  // 166ABA0
+			_Func1 = MovementHandlerAgentPlayerControls_IMovementHandlerAgentVtbl.write_vfunc(0x2, Func1);
 		}
 	private:
 		static void Func1(void* a1, void* a2);
@@ -194,17 +194,22 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> ProjectileVtbl{ REL::ID(264058) };				// 167C888
-			REL::Relocation<std::uintptr_t> ArrowProjectileVtbl{ REL::ID(263776) };			// 1676318
-			REL::Relocation<std::uintptr_t> MissileProjectileVtbl{ REL::ID(263942) };		// 167AE78
-			REL::Relocation<std::uintptr_t> BeamProjectileVtbl{ REL::ID(263808) };          // 1677660
+			REL::Relocation<std::uintptr_t> ProjectileVtbl{ RE::VTABLE_Projectile[0] };				// 167C888
+			REL::Relocation<std::uintptr_t> ArrowProjectileVtbl{ RE::VTABLE_ArrowProjectile[0] };			// 1676318
+			REL::Relocation<std::uintptr_t> MissileProjectileVtbl{ RE::VTABLE_MissileProjectile[0] };		// 167AE78
+			REL::Relocation<std::uintptr_t> BeamProjectileVtbl{ RE::VTABLE_BeamProjectile[0] };          // 1677660
 			_GetLinearVelocityProjectile = ProjectileVtbl.write_vfunc(0x86, GetLinearVelocityProjectile);
 			_GetLinearVelocityArrow = ArrowProjectileVtbl.write_vfunc(0x86, GetLinearVelocityArrow);
 			_GetLinearVelocityMissile = MissileProjectileVtbl.write_vfunc(0x86, GetLinearVelocityMissile);
 
-			REL::Relocation<uintptr_t> hook{ REL::ID(static_cast<std::uint64_t>(43030)) };  // 754820
 			auto& trampoline = SKSE::GetTrampoline();
-			_Func183 = trampoline.write_call<5>(hook.address() + 0x304, Func183);
+#ifdef IS_SKYRIM_AE
+			REL::Relocation<uintptr_t> hook{ REL::ID(44222) };  // 7821A0  // manual
+			trampoline.write_call<6>(hook.address() + 0x6FF, Func183);  // 78289F // vfunc call
+#else
+			REL::Relocation<uintptr_t> hook{ REL::ID(43030) };  // 754820
+			trampoline.write_call<6>(hook.address() + 0x318, Func183);  // 754B24 // vfunc call
+#endif
 		}
 	private:
 		static void ProjectileAimSupport(RE::Projectile* a_this);
@@ -216,7 +221,6 @@ namespace Hooks
 		static inline REL::Relocation<decltype(GetLinearVelocityProjectile)> _GetLinearVelocityProjectile;
 		static inline REL::Relocation<decltype(GetLinearVelocityArrow)> _GetLinearVelocityArrow;
 		static inline REL::Relocation<decltype(GetLinearVelocityMissile)> _GetLinearVelocityMissile;
-		static inline REL::Relocation<decltype(Func183)> _Func183;
 	};
 
 	class PlayerCharacterHook
@@ -224,17 +228,22 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> PlayerCharacterVtbl{ RE::Offset::PlayerCharacter::Vtbl };					// 1665E0
-			//_UpdateAnimation = PlayerCharacterVtbl.write_vfunc(0x7D, UpdateAnimation);
+			REL::Relocation<std::uintptr_t> PlayerCharacterVtbl{ RE::VTABLE_PlayerCharacter[0] };					// 1665E0
+			_UpdateAnimation = PlayerCharacterVtbl.write_vfunc(0x7D, UpdateAnimation);
 			_ProcessTracking = PlayerCharacterVtbl.write_vfunc(0x122, ProcessTracking);
-			REL::Relocation<std::uintptr_t> PlayerCharacter_BSTEventSink_BSAnimationGraphEventVtbl{ REL::ID(261918) };  // 1663F78
+			REL::Relocation<std::uintptr_t> PlayerCharacter_BSTEventSink_BSAnimationGraphEventVtbl{ RE::VTABLE_PlayerCharacter[2] };  // 1663F78
 			_ProcessEvent = PlayerCharacter_BSTEventSink_BSAnimationGraphEventVtbl.write_vfunc(0x1, ProcessEvent);
-			REL::Relocation<std::uintptr_t> PlayerCharacter_ActorStateVtbl{ REL::ID(261922) };							// 16640E8
+			REL::Relocation<std::uintptr_t> PlayerCharacter_ActorStateVtbl{ RE::VTABLE_PlayerCharacter[6] };  // 16640E8
 			_GetAngle = PlayerCharacter_ActorStateVtbl.write_vfunc(0x4, GetAngle);
 
-			REL::Relocation<uintptr_t> SprintHook{ REL::ID(static_cast<std::uint64_t>(39673)) };						// 6B8F20
 			auto& trampoline = SKSE::GetTrampoline();
-			trampoline.write_branch<6>(SprintHook.address(), Sprint);
+#ifdef IS_SKYRIM_AE
+			REL::Relocation<uintptr_t> hook{ REL::ID(40447) };  // 6C6440
+			_UpdateSprintState = trampoline.write_call<5>(hook.address() + 0x140B, UpdateSprintState);
+#else
+			REL::Relocation<uintptr_t> hook{ REL::ID(39375) };  // 69E580
+			_UpdateSprintState = trampoline.write_call<5>(hook.address() + 0xDAE, UpdateSprintState);
+#endif
 		}
 
 	private:
@@ -242,12 +251,13 @@ namespace Hooks
 		static void ProcessTracking(RE::Actor* a_this, float a_delta, RE::NiAVObject* a_obj3D);
 		static void ProcessEvent(RE::BSTEventSink<RE::BSAnimationGraphEvent>* a_this, const RE::BSAnimationGraphEvent* a_event, RE::BSTEventSource<RE::BSAnimationGraphEvent>* a_dispatcher);
 		static void GetAngle(RE::ActorState* a_this, RE::NiPoint3 &a_angle);
-		static void Sprint(RE::PlayerCharacter* a_this);
+		static void UpdateSprintState(RE::PlayerCharacter* a_this);
 
 		static inline REL::Relocation<decltype(UpdateAnimation)> _UpdateAnimation;
 		static inline REL::Relocation<decltype(ProcessTracking)> _ProcessTracking;
 		static inline REL::Relocation<decltype(ProcessEvent)> _ProcessEvent;
 		static inline REL::Relocation<decltype(GetAngle)> _GetAngle;
+		static inline REL::Relocation<decltype(UpdateSprintState)> _UpdateSprintState;
 	};
 
 	class PlayerControlsHook
@@ -255,19 +265,37 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> PlayerControlsVtbl{ REL::ID(262983) };  // 166E838
+			REL::Relocation<std::uintptr_t> PlayerControlsVtbl{ RE::VTABLE_PlayerControls[0] };  // 166E838
 			_Handle = PlayerControlsVtbl.write_vfunc(0x1, Handle);
 
 			auto& trampoline = SKSE::GetTrampoline();
-			REL::Relocation<uintptr_t> hook{ REL::ID(static_cast<std::uint64_t>(41259)) }; // 704DE0
-			_CanProcessControls = trampoline.write_call<5>(hook.address() + 0x2E, CanProcessControls);
+#ifdef IS_SKYRIM_AE
+			REL::Relocation<uintptr_t> hook{ REL::ID(42338) };  // 72E720
+			_CheckIsInSyncAnim = trampoline.write_call<5>(hook.address() + 0x153, CheckIsInSyncAnim);
+			_Check2 = trampoline.write_call<5>(hook.address() + 0x106, Check2);
+			_Check3 = trampoline.write_call<5>(hook.address() + 0x12A, Check3);
+#else
+			//REL::Relocation<uintptr_t> hook{ REL::ID(41259) };  // 704DE0
+			REL::Relocation<uintptr_t> hook{ REL::ID(41288) };  // 706AF0
+			_CheckIsInSyncAnim = trampoline.write_call<5>(hook.address() + 0xD8, CheckIsInSyncAnim);
+			_Check2 = trampoline.write_call<5>(hook.address() + 0x99, Check2);
+			_Check3 = trampoline.write_call<5>(hook.address() + 0xB9, Check3);
+			//_CanProcessControls = trampoline.write_call<5>(hook.address() + 0x2E, CanProcessControls);  // 704E0E  // had to be revamped for AE
+#endif
+			
 		}
 
 	private:
-		static bool Handle(RE::PlayerControls* a_this, uintptr_t a2);
-		static bool CanProcessControls(RE::PlayerControls* a_this, RE::InputEvent** a_eventPtr);
+		static bool Handle(RE::PlayerControls* a_this, RE::InputEvent** a_event);
+		//static bool CanProcessControls(RE::PlayerControls* a_this, RE::InputEvent** a_eventPtr);
+		static bool CheckIsInSyncAnim(void* a_a1, void* a_a2);
+		static bool Check2(RE::PlayerCharacter* a_this);
+		static bool Check3(RE::PlayerCharacter* a_this);
 		static inline REL::Relocation<decltype(Handle)> _Handle;
-		static inline REL::Relocation<decltype(CanProcessControls)> _CanProcessControls;
+		//static inline REL::Relocation<decltype(CanProcessControls)> _CanProcessControls;
+		static inline REL::Relocation<decltype(CheckIsInSyncAnim)> _CheckIsInSyncAnim;
+		static inline REL::Relocation<decltype(Check2)> _Check2;
+		static inline REL::Relocation<decltype(Check3)> _Check3;
 
 	};
 
@@ -276,14 +304,31 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<uintptr_t> hook{ REL::ID(static_cast<std::uint64_t>(38848)) }; // 67D0C0
-
 			auto& trampoline = SKSE::GetTrampoline();
-			trampoline.write_branch<6>(hook.address(), AIProcess_SetRotationSpeedZ);
+#ifdef IS_SKYRIM_AE
+			REL::Relocation<uintptr_t> hook1{ REL::ID(37356) };  // 5FD7E0
+			REL::Relocation<uintptr_t> hook2{ REL::ID(42373) };  // 731330
+
+			_AIProcess_SetRotationSpeedZ1 = trampoline.write_call<5>(hook1.address() + 0x3EF, AIProcess_SetRotationSpeedZ1);
+			_AIProcess_SetRotationSpeedZ2 = trampoline.write_call<5>(hook1.address() + 0x632, AIProcess_SetRotationSpeedZ2);
+			_AIProcess_SetRotationSpeedZ3 = trampoline.write_branch<5>(hook2.address() + 0x49, AIProcess_SetRotationSpeedZ3);
+#else
+			REL::Relocation<uintptr_t> hook1{ REL::ID(36365) };  // 5D87F0
+			REL::Relocation<uintptr_t> hook2{ REL::ID(41293) };  // 707210
+
+			_AIProcess_SetRotationSpeedZ1 = trampoline.write_call<5>(hook1.address() + 0x356, AIProcess_SetRotationSpeedZ1);
+			_AIProcess_SetRotationSpeedZ2 = trampoline.write_call<5>(hook1.address() + 0x5E4, AIProcess_SetRotationSpeedZ2);
+			_AIProcess_SetRotationSpeedZ3 = trampoline.write_branch<5>(hook2.address() + 0x49, AIProcess_SetRotationSpeedZ3);
+#endif
 		}
 
 	private:
-		static void AIProcess_SetRotationSpeedZ(RE::AIProcess* a_this, float a_rotationSpeed);
+		static void AIProcess_SetRotationSpeedZ1(RE::AIProcess* a_this, float a_rotationSpeed);
+		static void AIProcess_SetRotationSpeedZ2(RE::AIProcess* a_this, float a_rotationSpeed);
+		static void AIProcess_SetRotationSpeedZ3(RE::AIProcess* a_this, float a_rotationSpeed);
+		static inline REL::Relocation<decltype(AIProcess_SetRotationSpeedZ1)> _AIProcess_SetRotationSpeedZ1;
+		static inline REL::Relocation<decltype(AIProcess_SetRotationSpeedZ2)> _AIProcess_SetRotationSpeedZ2;
+		static inline REL::Relocation<decltype(AIProcess_SetRotationSpeedZ3)> _AIProcess_SetRotationSpeedZ3;
 	};
 
 	class Actor_SetRotationHook
@@ -291,12 +336,21 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<uintptr_t> hook1{ REL::ID(static_cast<std::uint64_t>(32042)) }; // 4EC300  // synchronized anims
-			REL::Relocation<uintptr_t> hook2{ REL::ID(static_cast<std::uint64_t>(36365)) }; // 5D87F0
-			
 			auto& trampoline = SKSE::GetTrampoline();
-			_Actor_SetRotationX = trampoline.write_call<5>(hook1.address() + 0x4DC, Actor_SetRotationX);
-			_Actor_SetRotationZ = trampoline.write_call<5>(hook2.address() + 0x9C7, Actor_SetRotationZ);
+#ifdef IS_SKYRIM_AE
+			REL::Relocation<uintptr_t> hook1{ REL::ID(32796) };  // 504B30  // synchronized anims
+			REL::Relocation<uintptr_t> hook2{ REL::ID(37356) };  // 5FD7E0
+
+			_Actor_SetRotationX = trampoline.write_call<5>(hook1.address() + 0x667, Actor_SetRotationX);  // 4EC7DC
+			_Actor_SetRotationZ = trampoline.write_call<5>(hook2.address() + 0xA87, Actor_SetRotationZ);  // 5FE267
+
+#else
+			REL::Relocation<uintptr_t> hook1{ REL::ID(32042) };  // 4EC300  // synchronized anims
+			REL::Relocation<uintptr_t> hook2{ REL::ID(36365) };  // 5D87F0
+
+			_Actor_SetRotationX = trampoline.write_call<5>(hook1.address() + 0x4DC, Actor_SetRotationX); // 4EC7DC
+			_Actor_SetRotationZ = trampoline.write_call<5>(hook2.address() + 0x9C7, Actor_SetRotationZ); // 5D91B7 
+#endif
 		}
 
 	private:
@@ -311,7 +365,7 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> EnemyHealthVtbl{ REL::ID(268826) };  // 16B2A50
+			REL::Relocation<std::uintptr_t> EnemyHealthVtbl{ RE::VTABLE_EnemyHealth[0] };  // 16B2A50
 			_ProcessMessage = EnemyHealthVtbl.write_vfunc(0x2, ProcessMessage);
 		}
 
@@ -325,24 +379,45 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<uintptr_t> hook1{ REL::ID(static_cast<std::uint64_t>(36984)) };  // 60D300
-			REL::Relocation<uintptr_t> hook2{ REL::ID(static_cast<std::uint64_t>(36376)) };  // 5D9BF0
-			REL::Relocation<uintptr_t> hook3{ REL::ID(static_cast<std::uint64_t>(36220)) };  // 5CFD60
-			REL::Relocation<uintptr_t> hook4{ REL::ID(static_cast<std::uint64_t>(36540)) };  // 5E8070
-
 			auto& trampoline = SKSE::GetTrampoline();
-			_SetHeadtrackTarget0 = trampoline.write_call<5>(hook1.address() + 0x592, SetHeadtrackTarget0);
-			_SetHeadtrackTarget4 = trampoline.write_call<5>(hook2.address() + 0xA3, SetHeadtrackTarget4);
-			trampoline.write_call<5>(hook3.address() + 0x45C, SetHeadtrackTarget4);
-			trampoline.write_call<5>(hook3.address() + 0x5BF, SetHeadtrackTarget4);
-			trampoline.write_call<5>(hook4.address() + 0x17E, SetHeadtrackTarget4);
+
+#ifdef IS_SKYRIM_AE
+			REL::Relocation<uintptr_t> hook1{ REL::ID(38009) };  // 635270
+			REL::Relocation<uintptr_t> hook2{ REL::ID(37367) };  // 5FF320
+			REL::Relocation<uintptr_t> hook3{ REL::ID(37200) };  // 5F4320
+			REL::Relocation<uintptr_t> hook4{ REL::ID(37541) };  // 60E050
+
+			_SetHeadtrackTarget0 = trampoline.write_call<5>(hook1.address() + 0x594, SetHeadtrackTarget0); // 635804
+			_SetHeadtrackTarget4A = trampoline.write_call<5>(hook2.address() + 0xA3, SetHeadtrackTarget4A);  // 5FF3C3
+			_SetHeadtrackTarget4B = trampoline.write_call<5>(hook3.address() + 0x470, SetHeadtrackTarget4B); // 5F4790
+			_SetHeadtrackTarget4C = trampoline.write_call<5>(hook3.address() + 0x5D3, SetHeadtrackTarget4C); // 5F48F3
+			_SetHeadtrackTarget4D = trampoline.write_call<5>(hook4.address() + 0x181, SetHeadtrackTarget4D); // 60E1D1
+
+#else
+			REL::Relocation<uintptr_t> hook1{ REL::ID(36984) };  // 60D300
+			REL::Relocation<uintptr_t> hook2{ REL::ID(36376) };  // 5D9BF0
+			REL::Relocation<uintptr_t> hook3{ REL::ID(36220) };  // 5CFD60
+			REL::Relocation<uintptr_t> hook4{ REL::ID(36540) };  // 5E8070
+
+			_SetHeadtrackTarget0 = trampoline.write_call<5>(hook1.address() + 0x592, SetHeadtrackTarget0); // 60D892
+			_SetHeadtrackTarget4A = trampoline.write_call<5>(hook2.address() + 0xA3, SetHeadtrackTarget4A);  // 5D9C93
+			_SetHeadtrackTarget4B = trampoline.write_call<5>(hook3.address() + 0x45C, SetHeadtrackTarget4B);  // 5D01BC
+			_SetHeadtrackTarget4C = trampoline.write_call<5>(hook3.address() + 0x5BF, SetHeadtrackTarget4C);  // 5D031F
+			_SetHeadtrackTarget4D = trampoline.write_call<5>(hook4.address() + 0x17E, SetHeadtrackTarget4D);  // 5E81EE
+#endif
 		}
 
 	private:
 		static void SetHeadtrackTarget0(RE::AIProcess* a_this, RE::Actor* a_target);
-		static void SetHeadtrackTarget4(RE::AIProcess* a_this, RE::Actor* a_target);
+		static void SetHeadtrackTarget4A(RE::AIProcess* a_this, RE::Actor* a_target);
+		static void SetHeadtrackTarget4B(RE::AIProcess* a_this, RE::Actor* a_target);
+		static void SetHeadtrackTarget4C(RE::AIProcess* a_this, RE::Actor* a_target);
+		static void SetHeadtrackTarget4D(RE::AIProcess* a_this, RE::Actor* a_target);
 		static inline REL::Relocation<decltype(SetHeadtrackTarget0)> _SetHeadtrackTarget0;
-		static inline REL::Relocation<decltype(SetHeadtrackTarget4)> _SetHeadtrackTarget4;
+		static inline REL::Relocation<decltype(SetHeadtrackTarget4A)> _SetHeadtrackTarget4A;
+		static inline REL::Relocation<decltype(SetHeadtrackTarget4B)> _SetHeadtrackTarget4B;
+		static inline REL::Relocation<decltype(SetHeadtrackTarget4C)> _SetHeadtrackTarget4C;
+		static inline REL::Relocation<decltype(SetHeadtrackTarget4D)> _SetHeadtrackTarget4D;
 	};
 
 	class NukeSetIsNPCHook
@@ -350,14 +425,25 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
+			auto& trampoline = SKSE::GetTrampoline();
+
+#ifdef IS_SKYRIM_AE
+			REL::Relocation<uintptr_t> hook1{ REL::ID(56225) };  // 9BF1F0, bool papyrus wrapper
+			//REL::Relocation<uintptr_t> hook{ REL::ID(32885) };  // 5096B0
+			REL::Relocation<uintptr_t> hook2{ REL::ID(56226) };  // 9BF2B0, int papyrus wrapper
+
+			_SetBool = trampoline.write_call<5>(hook1.address() + 0x4C, SetBool);
+			//_SetBool = trampoline.write_call<5>(hook.address() + 0xE, SetBool);
+			_SetInt = trampoline.write_call<5>(hook2.address() + 0x4B, SetInt);
+#else
 			REL::Relocation<uintptr_t> hook1{ REL::ID(55694) };  // 996FD0, bool papyrus wrapper
 			//REL::Relocation<uintptr_t> hook{ REL::ID(32141) };  // 4F06E0
 			REL::Relocation<uintptr_t> hook2{ REL::ID(55695) };  // 997090, int papyrus wrapper
 
-			auto& trampoline = SKSE::GetTrampoline();
 			_SetBool = trampoline.write_call<5>(hook1.address() + 0x4C, SetBool);
 			//_SetBool = trampoline.write_call<5>(hook.address() + 0xE, SetBool);
 			_SetInt = trampoline.write_call<5>(hook2.address() + 0x4B, SetInt);
+#endif
 		}
 
 	private:
@@ -373,12 +459,21 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
+			auto& trampoline = SKSE::GetTrampoline();
+
+#ifdef IS_SKYRIM_AE
+			REL::Relocation<std::uintptr_t> hook1{ REL::ID(50784) };  // 876700
+			REL::Relocation<std::uintptr_t> hook2{ REL::ID(50816) };  // 877970, EnterTweenMenuState
+
+			_Update = trampoline.write_call<5>(hook1.address() + 0x1A6, Update);
+			_SetCameraState = trampoline.write_call<5>(hook2.address() + 0x83, SetCameraState);
+#else
 			REL::Relocation<std::uintptr_t> hook1{ REL::ID(49852) };  // 84AB90
 			REL::Relocation<std::uintptr_t> hook2{ REL::ID(49883) };  // 84BCC0, EnterTweenMenuState
 
-			auto& trampoline = SKSE::GetTrampoline();
 			_Update = trampoline.write_call<5>(hook1.address() + 0x1A6, Update);
 			_SetCameraState = trampoline.write_call<5>(hook2.address() + 0x7C, SetCameraState);
+#endif
 		}
 
 	private:
@@ -394,10 +489,17 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<uintptr_t> hook{ REL::ID(35551) };  // 5AF3D0, main loop
-
 			auto& trampoline = SKSE::GetTrampoline();
+
+#ifdef IS_SKYRIM_AE
+			REL::Relocation<uintptr_t> hook{ REL::ID(36544) };  // 5D29F0, main loop
+
+			_Update = trampoline.write_call<5>(hook.address() + 0x160, Update);
+#else
+			REL::Relocation<uintptr_t> hook{ REL::ID(35551) };  // 5AF3D0, main loop
+			
 			_Update = trampoline.write_call<5>(hook.address() + 0x11F, Update);
+#endif
 		}
 
 	private:
@@ -411,71 +513,56 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
+			auto& trampoline = SKSE::GetTrampoline();
+
+#ifdef IS_SKYRIM_AE
+			REL::Relocation<uintptr_t> hook1{ REL::ID(43657) };  // 75A890
+			REL::Relocation<uintptr_t> hook2{ REL::ID(50896) };  // 87B570
+			REL::Relocation<uintptr_t> hook3{ REL::ID(44200) };  // 77EFD0, replace horse aim yaw
+
+			_GetHorseCameraFreeRotationYaw = trampoline.write_call<5>(hook1.address() + 0x1B5, GetHorseCameraFreeRotationYaw);
+			//_GetMovementAgentPosition = trampoline.write_call<5>(hook1.address() + 0x22B, GetMovementAgentPosition); // 72FCEB - NPC Z offset after the location is set
+			_Func = trampoline.write_call<5>(hook2.address() + 0x45, Func);
+			_GetYaw = trampoline.write_call<5>(hook3.address() + 0x1C0, GetYaw);
+#else
 			REL::Relocation<uintptr_t> hook1{ REL::ID(42496) };  // 72FAC0
 			REL::Relocation<uintptr_t> hook2{ REL::ID(49960) };  // 84F490
 			REL::Relocation<uintptr_t> hook3{ REL::ID(43009) };  // 7516E0, replace horse aim yaw
-
-			auto& trampoline = SKSE::GetTrampoline();
-			_GetHorseCameraFreeRotationYaw = trampoline.write_call<5>(hook1.address() + 0x17A, GetHorseCameraFreeRotationYaw);
-			_Func = trampoline.write_call<5>(hook2.address() + 0x45, Func);
-			_GetYaw = trampoline.write_call<5>(hook3.address() + 0x1C0, GetYaw);
+			
+			_GetHorseCameraFreeRotationYaw = trampoline.write_call<5>(hook1.address() + 0x17A, GetHorseCameraFreeRotationYaw);  // 72FC3A
+			//_GetMovementAgentPosition = trampoline.write_call<5>(hook1.address() + 0x22B, GetMovementAgentPosition); // 72FCEB - NPC Z offset after the location is set
+			_Func = trampoline.write_call<5>(hook2.address() + 0x45, Func);  // 84F4D5
+			_GetYaw = trampoline.write_call<5>(hook3.address() + 0x1C0, GetYaw);  // 7518A0
+#endif
 		}
 
 	private:
 		static float* GetHorseCameraFreeRotationYaw(RE::PlayerCamera* a_this);
+		//static void GetMovementAgentPosition(RE::Actor* a_this, RE::NiPoint3& a_pos);
 		static void Func(RE::PlayerCamera* a_this);
 		static float GetYaw(RE::Actor* a_this);
 		
 		static inline REL::Relocation<decltype(GetHorseCameraFreeRotationYaw)> _GetHorseCameraFreeRotationYaw;
+		//static inline REL::Relocation<decltype(GetMovementAgentPosition)> _GetMovementAgentPosition;
 		static inline REL::Relocation<decltype(Func)> _Func;
 		static inline REL::Relocation<decltype(GetYaw)> _GetYaw;
 	};
 
-	//class TweenMenuHook
+	//class CrosshairPickHook
 	//{
 	//public:
 	//	static void Hook()
 	//	{
-	//		REL::Relocation<uintptr_t> address{ REL::ID(51831) };  // 8D05A0, constructor
-
-	//		REL::safe_fill(address.address() + 0xC4, 1, 1); // replace menu depth, 0 -> 1
-	//	}
-	//};
-
-	//class CreateProjectileHook
-	//{
-	//	struct ProjectileLaunchData
-	//	{
-	//	public:
-	//		// members
-	//		std::uint64_t unk00;				// 00
-	//		RE::NiPoint3 location;				// 08
-	//		std::uint32_t unk14;				// 14
-	//		std::uint64_t unk18;				// 18
-	//		RE::BGSProjectile* projectile;      // 20
-	//		RE::Actor* source;                  // 28
-	//		std::uint64_t unk30;				// 30
-	//		RE::TESObjectWEAP* weaponSource;    // 38
-	//		RE::TESAmmo* ammoSource;            // 40
-	//		float yaw;                          // 48
-	//		float pitch;                        // 4C
-	//	};
-
-	//public:
-	//	static void Hook()
-	//	{
-	//		REL::Relocation<uintptr_t> hook{ REL::ID(17693) };  // 235240, TESObjectWeap::Fire
-	//		REL::Relocation<uintptr_t> hook2{ REL::ID(40245) };  // 6D0AD0
+	//		REL::Relocation<uintptr_t> hook{ REL::ID(39534) };  // 6B01E0, PickCrosshairReference
 
 	//		auto& trampoline = SKSE::GetTrampoline();
-	//		//_CreateProjectile = trampoline.write_call<5>(hook.address() + 0xE82, CreateProjectile);
-	//		_CreateProjectile = trampoline.write_call<5>(hook.address() + 0xE82, CreateProjectile);
+	//		_Pick = trampoline.write_call<5>(hook.address() + 0x214, Pick);
 	//	}
 
 	//private:
-	//	static void CreateProjectile(void* a1, ProjectileLaunchData* a_projectileLaunchData);
+	//	static void Pick(uintptr_t a_this, RE::bhkWorld* a_bhkWorld, RE::NiPoint3& a_sourcePoint, RE::NiPoint3& a_sourceRotation);
 
-	//	static inline REL::Relocation<decltype(CreateProjectile)> _CreateProjectile;
+	//	static inline REL::Relocation<decltype(Pick)> _Pick;
 	//};
 
 	void Install();

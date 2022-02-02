@@ -1,6 +1,3 @@
-[submodule "extern/CommonLibSSE"]
-	path = extern/CommonLibSSE
-	url = https://github.com/ersh1/CommonLibSSE
 [submodule "extern/GreenSock-AS2"]
 	path = extern/GreenSock-AS2
 	url = https://github.com/greensock/GreenSock-AS2

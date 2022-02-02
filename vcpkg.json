@@ -1,15 +1,10 @@
 {
-  "name": "exampleproject",
-  "version-string": "1.0.0",
-  "description": "An example project built using CommonLibSSE",
-  "homepage": "https://github.com/Ryan-rsm-McKenzie/ExamplePlugin-CommonLibSSE",
-  "license": "MIT",
+  "name": "truedirectionalmovement",
+  "version": "2",
   "dependencies": [
-    "boost-atomic",
     "boost-stl-interfaces",
-	"simpleini",
-    "span-lite",
-    "spdlog",
-	"xbyak"
+    "rsm-binary-io",
+    "simpleini",
+    "spdlog"
   ]
 }
