@@ -55,7 +55,6 @@ namespace Events
 	};
 
 	class EventHandler : 
-		public RE::BSTEventSink<RE::TESCombatEvent>,
 		public RE::BSTEventSink<RE::TESDeathEvent>,
 		public RE::BSTEventSink<RE::TESEnterBleedoutEvent>
 	{
@@ -63,7 +62,6 @@ namespace Events
 		static EventHandler* GetSingleton();
 		static void Register();
 
-		virtual EventResult ProcessEvent(const RE::TESCombatEvent* a_event, RE::BSTEventSource<RE::TESCombatEvent>* a_eventSource) override;
 		virtual EventResult ProcessEvent(const RE::TESDeathEvent* a_event, RE::BSTEventSource<RE::TESDeathEvent>* a_eventSource) override;
 		virtual EventResult ProcessEvent(const RE::TESEnterBleedoutEvent* a_event, RE::BSTEventSource<RE::TESEnterBleedoutEvent>* a_eventSource) override;
 

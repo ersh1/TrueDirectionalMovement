@@ -89,7 +89,6 @@ void Settings::ReadSettings()
 		ReadBoolSetting(mcm, "TargetLock", "bTargetLockUseScrollWheel", bTargetLockUseScrollWheel);
 		ReadBoolSetting(mcm, "TargetLock", "bTargetLockUseRightThumbstick", bTargetLockUseRightThumbstick);
 		ReadBoolSetting(mcm, "TargetLock", "bResetCameraWithTargetLock", bResetCameraWithTargetLock);
-		ReadBoolSetting(mcm, "TargetLock", "bTargetLockEnableHint", bTargetLockEnableHint);
 
 		// HUD
 		ReadBoolSetting(mcm, "HUD", "bEnableTargetLockReticle", bEnableTargetLockReticle);

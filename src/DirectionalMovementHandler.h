@@ -28,13 +28,6 @@ public:
 		kEnd = 4
 	};
 
-	enum class Hint : std::uint8_t
-	{
-		kNone = 0,
-		kToggle = 1,
-		kSwitchTarget = 2
-	};
-
 	static DirectionalMovementHandler* GetSingleton();
 
 	static void ResetControls();
@@ -51,8 +44,6 @@ public:
 
 	void UpdateCameraAutoRotation();
 	void ResetCameraRotationDelay();
-
-	void UpdateTutorial();
 
 	bool IsCrosshairVisible() const;
 	void HideCrosshair();
@@ -127,9 +118,6 @@ public:
 	float GetTargetLockDistanceRaceSizeMultiplier(RE::TESRace* a_race) const;
 	bool CheckCurrentTarget(RE::ActorHandle a_target, bool bInstantLOS = false);
 	void UpdateTargetLock();
-
-	void ShowTargetLockHint(Hint a_hint);
-	Hint GetCurrentTargetLockHint() const;
 
 	bool IsActorValidTarget(RE::ActorPtr a_actor, bool a_bCheckDistance = false) const;
 
@@ -302,8 +290,6 @@ private:
 	RE::ActorHandle _target;
 	RE::ActorHandle _softTarget;
 	RE::ObjectRefHandle _dialogueSpeaker;
-
-	Hint _currentHint = Hint::kNone;
 
 	// Compatibility
 	RE::TESGlobal* _IFPV_IsFirstPerson = nullptr;

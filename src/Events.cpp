@@ -198,27 +198,10 @@ namespace Events
 	void EventHandler::Register()
 	{
 		auto scriptEventSourceHolder = RE::ScriptEventSourceHolder::GetSingleton();
-		scriptEventSourceHolder->GetEventSource<RE::TESCombatEvent>()->AddEventSink(EventHandler::GetSingleton());
-		logger::info("Registered {}"sv, typeid(RE::TESCombatEvent).name());
 		scriptEventSourceHolder->GetEventSource<RE::TESDeathEvent>()->AddEventSink(EventHandler::GetSingleton());
 		logger::info("Registered {}"sv, typeid(RE::TESDeathEvent).name());
 		scriptEventSourceHolder->GetEventSource<RE::TESEnterBleedoutEvent>()->AddEventSink(EventHandler::GetSingleton());
 		logger::info("Registered {}"sv, typeid(RE::TESEnterBleedoutEvent).name());
-	}
-
-	// On combat start - target lock hint
-	EventResult EventHandler::ProcessEvent(const RE::TESCombatEvent* a_event, RE::BSTEventSource<RE::TESCombatEvent>*)
-	{
-		if (Settings::bTargetLockEnableHint && a_event && a_event->actor && a_event->targetActor && a_event->targetActor->IsPlayerRef()) {
-			if (a_event->newState == RE::ACTOR_COMBAT_STATE::kCombat) {
-				auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
-				if (directionalMovementHandler->GetCurrentTargetLockHint() == DirectionalMovementHandler::Hint::kNone) {
-					directionalMovementHandler->ShowTargetLockHint(directionalMovementHandler->HasTargetLocked() ? DirectionalMovementHandler::Hint::kSwitchTarget : DirectionalMovementHandler::Hint::kToggle);
-				}
-			}
-		}
-
-		return EventResult::kContinue;
 	}
 
 	// On death - toggle target lock

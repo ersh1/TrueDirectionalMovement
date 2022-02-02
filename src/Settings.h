@@ -113,7 +113,6 @@ struct Settings
 	static inline bool bTargetLockUseScrollWheel = true;
 	static inline bool bTargetLockUseRightThumbstick = true;
 	static inline bool bResetCameraWithTargetLock = false;
-	static inline bool bTargetLockEnableHint = true;
 
 	// HUD
 	static inline bool bEnableTargetLockReticle = true;

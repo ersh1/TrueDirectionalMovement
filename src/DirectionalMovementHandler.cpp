@@ -152,8 +152,6 @@ void DirectionalMovementHandler::Update()
 			_bResetCamera = false;
 		}
 	}
-
-	UpdateTutorial();
 }
 
 void DirectionalMovementHandler::UpdateDirectionalMovement()
@@ -515,15 +513,6 @@ void DirectionalMovementHandler::ResetCameraRotationDelay()
 	_cameraRotationDelayTimer = Settings::fCameraAutoAdjustDelay;
 }
 
-void DirectionalMovementHandler::UpdateTutorial()
-{
-	if (Settings::bTargetLockEnableHint) {
-		if (_currentHint != Hint::kNone && _tutorialHintTimer <= 0.f) {
-			ShowTargetLockHint(Hint::kNone);
-		}
-	}
-}
-
 bool DirectionalMovementHandler::IsCrosshairVisible() const
 {
 	auto hud = RE::UI::GetSingleton()->GetMenu(RE::HUDMenu::MENU_NAME);
@@ -700,12 +689,7 @@ bool DirectionalMovementHandler::ProcessInput(RE::NiPoint2& a_inputDirection, RE
 		playerCharacter->NotifyAnimationGraph("TDM_Turn_180");
 	}
 
-	bool bShouldStop = Settings::bStopOnDirectionChange;
-
-	if (bShouldStop)
-	{
-		bShouldStop = RE::BSTimer::GetCurrentGlobalTimeMult() != 1;
-	}
+	bool bShouldStop = Settings::bStopOnDirectionChange && RE::BSTimer::GetCurrentGlobalTimeMult() == 1;
 
 	a_playerControlsData->prevMoveVec = a_playerControlsData->moveInputVec;
 	a_playerControlsData->moveInputVec.x = 0.f;
@@ -1105,11 +1089,6 @@ bool DirectionalMovementHandler::ToggleTargetLock(bool bEnable, bool bPressedMan
 				playerCharacter->AddSpell(Settings::spel_targetLockSpell);
 			}
 
-			// Progress tutorial
-			if (_currentHint == Hint::kToggle) {
-				ShowTargetLockHint(Hint::kSwitchTarget);
-			}
-
 			return true;
 		}
 
@@ -1148,11 +1127,6 @@ bool DirectionalMovementHandler::ToggleTargetLock(bool bEnable, bool bPressedMan
 					horse->data.angle.x = -horseCameraState->freeRotation.y;
 				}
 			}
-		}
-
-		// Regress tutorial
-		if (_currentHint == Hint::kSwitchTarget) {
-			ShowTargetLockHint(Hint::kToggle);
 		}
 
 		return true;
@@ -1287,162 +1261,6 @@ void DirectionalMovementHandler::UpdateTargetLock()
 			ToggleTargetLock(false);
 		}
 	}
-}
-
-// messy but works; planning something better in the future
-void DirectionalMovementHandler::ShowTargetLockHint(Hint a_hint)
-{
-	auto hud = RE::UI::GetSingleton()->GetMenu(RE::HUDMenu::MENU_NAME);
-	RE::GFxValue args[2];
-	std::string hintString;
-
-	enum : std::uint32_t
-	{
-		kInvalid = static_cast<std::uint32_t>(-1),
-		kKeyboardOffset = 0,
-		kMouseOffset = 256,
-		kGamepadOffset = 266
-	};
-
-	switch (a_hint) {
-	case Hint::kNone:
-		{
-			args[1].SetBoolean(false);
-			_currentHint = Hint::kNone;
-
-			const auto skyrimVM = RE::SkyrimVM::GetSingleton();
-			auto vm = skyrimVM ? skyrimVM->impl : nullptr;
-			if (vm) {
-				RE::BSFixedString modName{ "TrueDirectionalMovement" };
-				RE::BSFixedString setting{ "bTargetLockEnableHint:TargetLock" };
-				bool value = false;
-				RE::BSTSmartPointer<RE::BSScript::IStackCallbackFunctor> callback;
-				auto vmargs = RE::MakeFunctionArguments(std::move(modName), std::move(setting), std::move(value));
-				vm->DispatchStaticCall("MCM", "SetModSettingBool", vmargs, callback);
-				delete vmargs;
-			}
-			break;
-		}
-	case Hint::kToggle:
-		{
-			auto inputDeviceManager = RE::BSInputDeviceManager::GetSingleton();
-			bool bIsUsingGamepad = BSInputDeviceManager_IsUsingGamepad(inputDeviceManager);
-			bool bIsTargetLockKeyAGamepadKey = false;
-
-			RE::BSFixedString keyString;
-			if (Settings::uTargetLockKey >= kGamepadOffset) {
-				inputDeviceManager->GetGamepadHandler()->GetKeyMapping(Settings::uTargetLockKey - kGamepadOffset, keyString);
-				bIsTargetLockKeyAGamepadKey = true;
-			} else if (Settings::uTargetLockKey >= kMouseOffset) {
-				inputDeviceManager->GetMouse()->GetKeyMapping(Settings::uTargetLockKey - kMouseOffset, keyString);
-			} else {
-				inputDeviceManager->GetKeyboard()->GetKeyMapping(Settings::uTargetLockKey, keyString);
-			}
-			
-			if (bIsUsingGamepad ? Settings::bTargetLockUsePOVSwitchGamepad : Settings::bTargetLockUsePOVSwitchKeyboard) {
-				if (Settings::uTargetLockKey != 0x7FFFFFFF && (bIsTargetLockKeyAGamepadKey == bIsUsingGamepad)) {
-					hintString = keyString.data();
-					hintString = "[Toggle POV] / [" + hintString + "] Target Lock";
-				} else {
-					hintString = "[Toggle POV] Target Lock";
-				}
-			} else if (Settings::uTargetLockKey != 0x7FFFFFFF) {
-				hintString = keyString.data();
-				hintString = "[" + hintString + "] Target Lock";
-			} else {
-				ShowTargetLockHint(Hint::kNone);
-				return;
-			}
-
-			args[0].SetString(hintString.data());
-			args[1].SetBoolean(true);
-			_currentHint = Hint::kToggle;
-			_tutorialHintTimer = _hintDuration;
-
-			break;
-		}
-	case Hint::kSwitchTarget:
-		{
-			auto inputDeviceManager = RE::BSInputDeviceManager::GetSingleton();
-			bool bIsUsingGamepad = BSInputDeviceManager_IsUsingGamepad(inputDeviceManager);
-
-			RE::BSFixedString switchTargetLeftKeyString;
-			if (Settings::uSwitchTargetLeftKey >= kGamepadOffset) {
-				inputDeviceManager->GetGamepadHandler()->GetKeyMapping(Settings::uSwitchTargetLeftKey - kGamepadOffset, switchTargetLeftKeyString);
-			} else if (Settings::uSwitchTargetLeftKey >= kMouseOffset) {
-				inputDeviceManager->GetMouse()->GetKeyMapping(Settings::uSwitchTargetLeftKey - kMouseOffset, switchTargetLeftKeyString);
-			} else {
-				inputDeviceManager->GetKeyboard()->GetKeyMapping(Settings::uSwitchTargetLeftKey, switchTargetLeftKeyString);
-			}
-			RE::BSFixedString switchTargetRightKeyString;
-			if (Settings::uSwitchTargetRightKey >= kGamepadOffset) {
-				inputDeviceManager->GetGamepadHandler()->GetKeyMapping(Settings::uSwitchTargetRightKey - kGamepadOffset, switchTargetRightKeyString);
-			} else if (Settings::uSwitchTargetRightKey >= kMouseOffset) {
-				inputDeviceManager->GetMouse()->GetKeyMapping(Settings::uSwitchTargetRightKey - kMouseOffset, switchTargetRightKeyString);
-			} else {
-				inputDeviceManager->GetKeyboard()->GetKeyMapping(Settings::uSwitchTargetRightKey, switchTargetRightKeyString);
-			}
-
-			if (bIsUsingGamepad) {
-				if (Settings::bTargetLockUseRightThumbstick) {
-					hintString = "[360_rs] Switch Targets";
-				} else if (Settings::uSwitchTargetLeftKey != 0x7FFFFFFF) {
-					if (Settings::uSwitchTargetRightKey != 0x7FFFFFFF) {
-						std::string tempString1 = switchTargetLeftKeyString.data();
-						std::string tempString2 = switchTargetRightKeyString.data();
-						hintString = "[" + tempString1 + "] / [" + tempString2 + "] Switch Targets";
-					} else {
-						std::string tempString1 = switchTargetLeftKeyString.data();
-						hintString = "[" + tempString1 + "] Switch Targets";
-					}
-				} else if (Settings::uSwitchTargetRightKey != -1) {
-					std::string tempString1 = switchTargetRightKeyString.data();
-					hintString = "[" + tempString1 + "] Switch Targets";
-				} else {
-					ShowTargetLockHint(Hint::kNone);
-					return;
-				}
-			} else {
-				if (Settings::bTargetLockUseMouse) {
-					if (Settings::bTargetLockUseScrollWheel) {
-						hintString = "Scroll Wheel / [mousemove] Switch Target";
-					} else {
-						hintString = "Scroll Wheel: Switch Targets";
-					}
-				} else if (Settings::bTargetLockUseScrollWheel) {
-					hintString = "Scroll Wheel: Switch Targets";
-				} else if (Settings::uSwitchTargetLeftKey != 0x7FFFFFFF) {
-					if (Settings::uSwitchTargetRightKey != 0x7FFFFFFF) {
-						std::string tempString1 = switchTargetLeftKeyString.data();
-						std::string tempString2 = switchTargetRightKeyString.data();
-						hintString = "[" + tempString1 + "] / [" + tempString2 + "] Switch Targets";
-					} else {
-						std::string tempString1 = switchTargetLeftKeyString.data();
-						hintString = "[" + tempString1 + "] Switch Targets";
-					}
-				} else if (Settings::uSwitchTargetRightKey != 0x7FFFFFFF) {
-					std::string tempString1 = switchTargetRightKeyString.data();
-					hintString = "[" + tempString1 + "] Switch Targets";
-				} else {
-					ShowTargetLockHint(Hint::kNone);
-					return;
-				}
-			}
-			args[0].SetString(hintString);
-			args[1].SetBoolean(true);
-			_currentHint = Hint::kSwitchTarget;
-			_tutorialHintTimer = _hintDuration;
-
-			break;
-		}
-	}
-
-	hud->uiMovie->Invoke("HUDMovieBaseInstance.ShowTutorialHintText", nullptr, args, 2);
-}
-
-DirectionalMovementHandler::Hint DirectionalMovementHandler::GetCurrentTargetLockHint() const
-{
-	return _currentHint;
 }
 
 bool DirectionalMovementHandler::IsActorValidTarget(RE::ActorPtr a_actor, bool a_bCheckDistance /*= false*/) const
@@ -1824,10 +1642,6 @@ void DirectionalMovementHandler::SwitchTarget(Directions a_direction)
 		break;
 	default:
 		break;
-	}
-
-	if (_currentHint == Hint::kSwitchTarget) {
-		ShowTargetLockHint(Hint::kNone);
 	}
 
 	if (actor)
