@@ -46,6 +46,7 @@ struct Settings
 {
 	static void Initialize();
 	static void ReadSettings();
+	static void OnPostLoadGame();
 
 	static void ReadBoolSetting(CSimpleIniA& a_ini, const char* a_sectionName, const char* a_settingName, bool& a_setting);
 	static void ReadFloatSetting(CSimpleIniA& a_ini, const char* a_sectionName, const char* a_settingName, float& a_setting);
@@ -112,7 +113,8 @@ struct Settings
 	static inline uint32_t uTargetLockMouseSensitivity = 32;
 	static inline bool bTargetLockUseScrollWheel = true;
 	static inline bool bTargetLockUseRightThumbstick = true;
-	static inline bool bResetCameraWithTargetLock = false;
+	static inline bool bResetCameraWithTargetLock = true;
+	static inline bool bResetCameraPitch = false;
 
 	// HUD
 	static inline bool bEnableTargetLockReticle = true;
@@ -132,4 +134,5 @@ struct Settings
 	static inline RE::SpellItem* spel_targetLockSpell = nullptr;
 	static inline RE::TESGlobal* glob_directionalMovement = nullptr;
 	static inline RE::TESGlobal* glob_targetLockHint = nullptr;
+	static inline RE::TESGlobal* glob_trueHUD = nullptr;
 };

@@ -12,6 +12,7 @@ void Settings::Initialize()
 		spel_targetLockSpell = dataHandler->LookupForm<RE::SpellItem>(0x805, "TrueDirectionalMovement.esp");
 		glob_directionalMovement = dataHandler->LookupForm<RE::TESGlobal>(0x807, "TrueDirectionalMovement.esp");
 		glob_targetLockHint = dataHandler->LookupForm<RE::TESGlobal>(0x808, "TrueDirectionalMovement.esp");
+		glob_trueHUD = dataHandler->LookupForm<RE::TESGlobal>(0x810, "TrueDirectionalMovement.esp");
 	}
 
 	logger::info("...success");
@@ -89,6 +90,7 @@ void Settings::ReadSettings()
 		ReadBoolSetting(mcm, "TargetLock", "bTargetLockUseScrollWheel", bTargetLockUseScrollWheel);
 		ReadBoolSetting(mcm, "TargetLock", "bTargetLockUseRightThumbstick", bTargetLockUseRightThumbstick);
 		ReadBoolSetting(mcm, "TargetLock", "bResetCameraWithTargetLock", bResetCameraWithTargetLock);
+		ReadBoolSetting(mcm, "TargetLock", "bResetCameraPitch", bResetCameraPitch);
 
 		// HUD
 		ReadBoolSetting(mcm, "HUD", "bEnableTargetLockReticle", bEnableTargetLockReticle);
@@ -112,6 +114,13 @@ void Settings::ReadSettings()
 	logger::info("...success");
 
 	DirectionalMovementHandler::GetSingleton()->OnSettingsUpdated();
+}
+
+void Settings::OnPostLoadGame()
+{
+	if (glob_trueHUD) {
+		glob_trueHUD->value = DirectionalMovementHandler::GetSingleton()->g_trueHUD != nullptr ? 1.f : 0.f;
+	}
 }
 
 void Settings::ReadBoolSetting(CSimpleIniA& a_ini, const char* a_sectionName, const char* a_settingName, bool& a_setting)

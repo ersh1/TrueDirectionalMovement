@@ -72,6 +72,9 @@ void MessageHandler(SKSE::MessagingInterface::Message* a_msg)
 		break;
 	case SKSE::MessagingInterface::kPreLoadGame:
 		DirectionalMovementHandler::GetSingleton()->OnPreLoadGame();
+		break;
+	case SKSE::MessagingInterface::kPostLoadGame:
+		Settings::OnPostLoadGame();
 	}
 }
 

@@ -137,13 +137,14 @@ void DirectionalMovementHandler::Update()
 			}
 
 			float desiredRotationX = NormalRelativeAngle(_desiredCameraAngleX - cameraTarget->data.angle.z);
-			float desiredRotationY = 0.f;
+			float desiredRotationY = Settings::bResetCameraPitch ? 0.f : thirdPersonState->freeRotation.y;
+			float desiredTargetPitch = Settings::bResetCameraPitch ? 0.f : cameraTarget->data.angle.x;
 			thirdPersonState->freeRotation.x = InterpAngleTo(thirdPersonState->freeRotation.x, desiredRotationX, *g_deltaTimeRealTime, 10.f);
 			thirdPersonState->freeRotation.y = InterpAngleTo(thirdPersonState->freeRotation.y, desiredRotationY, *g_deltaTimeRealTime, 10.f);
-			cameraTarget->data.angle.x = InterpAngleTo(cameraTarget->data.angle.x, 0.f, *g_deltaTimeRealTime, 10.f);
+			cameraTarget->data.angle.x = InterpAngleTo(cameraTarget->data.angle.x, desiredTargetPitch, *g_deltaTimeRealTime, 10.f);
 			if (GetAngleDiff(thirdPersonState->freeRotation.x, desiredRotationX) < 0.05f &&
 				GetAngleDiff(thirdPersonState->freeRotation.y, desiredRotationY) < 0.05f &&
-				GetAngleDiff(cameraTarget->data.angle.x, 0) < 0.05f) {
+				GetAngleDiff(cameraTarget->data.angle.x, desiredTargetPitch) < 0.05f) {
 				_bResetCamera = false;
 			} else {
 				return;
@@ -485,7 +486,7 @@ void DirectionalMovementHandler::UpdateCameraAutoRotation()
 			cameraTarget = RE::PlayerCharacter::GetSingleton();
 		}
 		
-		if ((!IsFreeCamera() && !bIsMounted) || IsCameraResetting() || HasTargetLocked() || _cameraRotationDelayTimer > 0.f) {
+		if (!GetFreeCameraEnabled() || (!IsFreeCamera() && !bIsMounted) || IsCameraResetting() || HasTargetLocked() || _cameraRotationDelayTimer > 0.f) {
 			_currentAutoCameraRotationSpeed = 0.f;
 			return;
 		}
@@ -1044,7 +1045,9 @@ void DirectionalMovementHandler::ResetCamera()
 		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 		auto thirdPersonState = static_cast<RE::ThirdPersonState*>(playerCamera->currentState.get());
 		_desiredCameraAngleX = playerCharacter->data.angle.z;
-		_desiredCameraAngleY = playerCharacter->data.angle.x + thirdPersonState->freeRotation.y;
+		if (Settings::bResetCameraPitch) {
+			_desiredCameraAngleY = playerCharacter->data.angle.x + thirdPersonState->freeRotation.y;
+		}
 
 		_bResetCamera = true;
 	}

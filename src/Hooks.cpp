@@ -293,6 +293,9 @@ namespace Hooks
 		}
 	}
 
+	static bool bPressedPOVToUnlock = false;
+	static bool bInTargetLockWindow = false;
+
 	void TogglePOVHook::ProcessButton(RE::TogglePOVHandler* a_this, RE::ButtonEvent* a_event, RE::PlayerControlsData* a_data)
 	{
 		if (a_event && BSInputDeviceManager_IsUsingGamepad(RE::BSInputDeviceManager::GetSingleton()) ? Settings::bTargetLockUsePOVSwitchGamepad : Settings::bTargetLockUsePOVSwitchKeyboard) {
@@ -301,16 +304,35 @@ namespace Hooks
 
 			if (userEvent == userEvents->togglePOV)
 			{
-				if (a_event->HeldDuration() < Settings::fTargetLockPOVHoldDuration)
-				{
-					if (a_event->IsUp())
-					{
-						auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
-						directionalMovementHandler->ToggleTargetLock(!directionalMovementHandler->HasTargetLocked(), true);
+				auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+				if (directionalMovementHandler->HasTargetLocked()) {
+					if (a_event->IsDown()) {
+						directionalMovementHandler->ToggleTargetLock(false, true);
+						bPressedPOVToUnlock = true;
 					}
 					return;
 				} else {
-					a_event->heldDownSecs = 0;
+					if (a_event->HeldDuration() < Settings::fTargetLockPOVHoldDuration) {
+						if (a_event->IsDown()) {
+							bInTargetLockWindow = true;
+						}
+
+						if (a_event->IsUp()) {
+							if (!bPressedPOVToUnlock) {
+								directionalMovementHandler->ToggleTargetLock(true, true);
+							}
+							bPressedPOVToUnlock = false;
+							bInTargetLockWindow = false;
+						}
+
+						return;
+					} else {
+						if (bInTargetLockWindow) {
+							a_event->heldDownSecs = 0.f;
+							bInTargetLockWindow = false;
+						}						
+						bPressedPOVToUnlock = false;
+					}
 				}
 			}
 		}

@@ -13,7 +13,8 @@ namespace TRUEHUD_API
 	// Available True HUD interface versions
 	enum class InterfaceVersion : uint8_t
 	{
-		V1
+		V1,
+		V2
 	};
 
 	// Error types that may be returned by the True HUD
@@ -67,8 +68,8 @@ namespace TRUEHUD_API
 		SpecialBar
 	};
 
-	// Player widget bar color types
-	enum class PlayerWidgetBarColorType : std::uint8_t
+	// Bar color types
+	enum class BarColorType : std::uint8_t
 	{
 		BarColor,
 		PhantomColor,
@@ -170,13 +171,7 @@ namespace TRUEHUD_API
 		/// <returns>OK, AlreadyGiven, AlreadyTaken</returns>
 		[[nodiscard]] virtual APIResult RequestTargetControl(SKSE::PluginHandle a_myPluginHandle) noexcept = 0;
 
-		/// <summary>
-		/// Request control over the player widget's bar colors.
-		/// If granted, you may manipulate the widget's bar colors for the duration of your control.
-		/// </summary>
-		/// <param name="a_myPluginHandle">Your assigned plugin handle</param>
-		/// <returns>OK, MustKeep, AlreadyGiven, AlreadyTaken</returns>
-		[[nodiscard]] virtual APIResult RequestPlayerWidgetBarColorsControl(SKSE::PluginHandle a_myPluginHandle) noexcept = 0;
+		[[deprecated]] virtual APIResult RequestPlayerWidgetBarColorsControl(SKSE::PluginHandle a_myPluginHandle) noexcept = 0;
 
 		/// <summary>
 		/// Request control over the special resource bars.
@@ -226,24 +221,9 @@ namespace TRUEHUD_API
 		/// <param name="a_removalMode">How quickly should the widget be removed</param>
 		virtual void RemoveBoss(RE::ActorHandle a_actorHandle, WidgetRemovalMode a_removalMode) noexcept = 0;
 
-		/// <summary>
-		/// Tries to override the player widget bar color for the given bar type. Will only do so if granted control.
-		/// </summary>
-		/// <param name="a_myPluginHandle">Your assigned plugin handle</param>
-		/// <param name="a_playerWidgetBarType">Bar type</param>
-		/// <param name="a_colorType">Which color you want to override</param>
-		/// <param name="a_color">The color in hex</param>
-		/// <returns>OK, NotOwner</returns>
-		virtual APIResult OverridePlayerWidgetBarColor(SKSE::PluginHandle a_myPluginHandle, PlayerWidgetBarType a_playerWidgetBarType, PlayerWidgetBarColorType a_colorType, uint32_t a_color) noexcept = 0;
+		[[deprecated("Use OverrideBarColor/OverrideSpecialBarColor instead")]] virtual APIResult OverridePlayerWidgetBarColor(SKSE::PluginHandle a_myPluginHandle, PlayerWidgetBarType a_playerWidgetBarType, BarColorType a_colorType, uint32_t a_color) noexcept = 0;
 
-		/// <summary>
-		/// Tries to revert the player widget bar color for the given bar type. Will only do so if granted control.
-		/// </summary>
-		/// <param name="a_myPluginHandle">Your assigned plugin handle</param>
-		/// <param name="a_playerWidgetBarType">Bar type</param>
-		/// <param name="a_colorType">Which color you're overriding</param>
-		/// <returns>OK, NotOwner</returns>
-		virtual APIResult RevertPlayerWidgetBarColor(SKSE::PluginHandle a_myPluginHandle, PlayerWidgetBarType a_playerWidgetBarType, PlayerWidgetBarColorType a_colorType) noexcept = 0;
+		[[deprecated("Use RevertBarColor/RevertSpecialBarColor instead")]] virtual APIResult RevertPlayerWidgetBarColor(SKSE::PluginHandle a_myPluginHandle, PlayerWidgetBarType a_playerWidgetBarType, BarColorType a_colorType) noexcept = 0;
 
 		/// <summary>
 		/// Tries to send a visual flash event related to the given actor value on a widget related to the given actor handle (similar to vanilla stamina bar flashing when trying to sprint while it's empty). Will only succeed if such a target exists and is supported by the widget.
@@ -331,12 +311,7 @@ namespace TRUEHUD_API
 		/// <returns>OK, NotOwner</returns>
 		virtual APIResult ReleaseTargetControl(SKSE::PluginHandle a_myPluginHandle) noexcept = 0;
 
-		/// <summary>
-		/// Release your control of the player widget's bar colors.
-		/// </summary>
-		/// <param name="a_myPluginHandle">Your assigned plugin handle</param>
-		/// <returns>OK, NotOwner</returns>
-		virtual APIResult ReleasePlayerWidgetBarColorsControl(SKSE::PluginHandle a_myPluginHandle) noexcept = 0;
+		[[deprecated]] virtual APIResult ReleasePlayerWidgetBarColorsControl(SKSE::PluginHandle a_myPluginHandle) noexcept = 0;
 
 		/// <summary>
 		/// Release your control of the special resource bars.
@@ -344,6 +319,42 @@ namespace TRUEHUD_API
 		/// <param name="a_myPluginHandle">Your assigned plugin handle</param>
 		/// <returns>OK, NotOwner</returns>
 		virtual APIResult ReleaseSpecialResourceBarControl(SKSE::PluginHandle a_myPluginHandle) noexcept = 0;
+	};
+
+	class IVTrueHUD2 : public IVTrueHUD1
+	{
+	public:
+		/// <summary>
+		/// Overrides the bar color for the given actor handle and color type.
+		/// </summary>
+		/// <param name="a_actorHandle">Actor handle</param>
+		/// <param name="a_actorValue">Actor value represented on the bar you want to override</param>
+		/// <param name="a_colorType">Which color you want to override</param>
+		/// <param name="a_color">The color in hex</param>
+		virtual void OverrideBarColor(RE::ActorHandle a_actorHandle, RE::ActorValue a_actorValue, BarColorType a_colorType, uint32_t a_color) noexcept = 0;
+
+		/// <summary>
+		/// Overrides the special bar color for the given actor handle and color type.
+		/// </summary>
+		/// <param name="a_actorHandle">Actor handle</param>
+		/// <param name="a_colorType">Which color you want to override</param>
+		/// <param name="a_color">The color in hex</param>
+		virtual void OverrideSpecialBarColor(RE::ActorHandle a_actorHandle, BarColorType a_colorType, uint32_t a_color) noexcept = 0;
+
+		/// <summary>
+		/// Reverts the bar color for the given actor handle and color type.
+		/// </summary>
+		/// <param name="a_actorHandle">Actor handle</param>
+		/// <param name="a_actorValue">Actor value represented on the bar you want to revert</param>
+		/// <param name="a_colorType">Which color you want to revert</param>
+		virtual void RevertBarColor(RE::ActorHandle a_actorHandle, RE::ActorValue a_actorValue, BarColorType a_colorType) noexcept = 0;
+
+		/// <summary>
+		/// Reverts the special bar color for the given actor handle and color type.
+		/// </summary>
+		/// <param name="a_actorHandle">Actor handle</param>
+		/// <param name="a_colorType">Which color you want to revert</param>
+		virtual void RevertSpecialBarColor(RE::ActorHandle a_actorHandle, BarColorType a_colorType) noexcept = 0;
 	};
 
 	struct InterfaceRequest
@@ -392,7 +403,7 @@ namespace TRUEHUD_API
 	/// <param name="version">The interface version to request</param>
 	/// <returns>If any plugin was listening for this request, true. See skse/PluginAPI.h</returns>
 	[[nodiscard]] inline bool RequestInterface(const SKSE::MessagingInterface* a_skseMessaging,
-		InterfaceVersion a_version = InterfaceVersion::V1) noexcept
+		InterfaceVersion a_version = InterfaceVersion::V2) noexcept
 	{
 		InterfaceRequest req = {};
 		req.interfaceVersion = a_version;
