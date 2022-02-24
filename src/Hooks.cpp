@@ -1272,12 +1272,14 @@ namespace Hooks
 			RE::NiPoint2 normalizedInputDirection = directionalMovementHandler->GetActualInputDirection();
 			normalizedInputDirection.Unitize();
 
+			bool bAutoMove = playerControls->data.autoMove;
+
 			bool bIsSyncSprintState = Actor_IsSyncSprintState(actor);
 			bool bIsSprintingRunningOrBlocking = actor->actorState1.sprinting == true || actor->IsRunning() || actor->IsBlocking();
 			bool bUnk1 = Actor_CanSprint_CheckCharacterControllerValues(actor);
 			bool bIsOverEncumbered = actor->IsOverEncumbered();
 			bool bUnk2 = Actor_IsSyncSprintState(a_this) || (actor->GetAttackState() == RE::ATTACK_STATE_ENUM::kNone);
-			bool bIsPreviousMoveInputForward = (bShouldFaceCrosshair ? normalizedInputDirection.y : playerControls->data.prevMoveVec.y) > 0.f;
+			bool bIsPreviousMoveInputForward = ((bShouldFaceCrosshair && !bAutoMove) ? normalizedInputDirection.y : playerControls->data.prevMoveVec.y) > 0.f;
 			bool bIsNotStrafing = bShouldFaceCrosshair ? 0.75f > fabs(normalizedInputDirection.x) : *g_fSprintStopThreshold > fabs(playerControls->data.prevMoveVec.x);
 			bool bIsStaminaNotZero = actor->GetActorValue(RE::ActorValue::kStamina) > 0.f;
 			bool bHasUnkBDD_SprintingFlag = (a_this->unkBDD & RE::PlayerCharacter::FlagBDD::kSprinting) != RE::PlayerCharacter::FlagBDD::kNone;

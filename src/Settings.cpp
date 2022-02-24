@@ -93,13 +93,12 @@ void Settings::ReadSettings()
 		mcm.LoadFile(path.string().c_str());
 
 		// General
-		ReadBoolSetting(mcm, "General", "bDirectionalMovementSheathed", bDirectionalMovementSheathed);
-		ReadBoolSetting(mcm, "General", "bDirectionalMovementDrawn", bDirectionalMovementDrawn);
+		ReadUInt32Setting(mcm, "General", "uDirectionalMovementSheathed", (uint32_t&)uDirectionalMovementSheathed);
+		ReadUInt32Setting(mcm, "General", "uDirectionalMovementDrawn", (uint32_t&)uDirectionalMovementDrawn);
 		ReadUInt32Setting(mcm, "General", "uDialogueMode", (uint32_t&)uDialogueMode);
 		ReadFloatSetting(mcm, "General", "fMeleeMagnetismAngle", fMeleeMagnetismAngle);
 
 		// Directional Movement related
-		ReadBoolSetting(mcm, "DirectionalMovement", "bFaceCrosshairWhileMoving", bFaceCrosshairWhileMoving);
 		ReadBoolSetting(mcm, "DirectionalMovement", "bFaceCrosshairWhileAttacking", bFaceCrosshairWhileAttacking);
 		ReadBoolSetting(mcm, "DirectionalMovement", "bFaceCrosshairWhileShouting", bFaceCrosshairWhileShouting);
 		ReadBoolSetting(mcm, "DirectionalMovement", "bFaceCrosshairWhileBlocking", bFaceCrosshairWhileBlocking);

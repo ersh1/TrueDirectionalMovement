@@ -38,10 +38,7 @@ void DirectionalMovementHandler::Update()
 
 	UpdateFacingState();
 
-	if (!Settings::bFaceCrosshairInstantly)
-	{
-		UpdateFacingCrosshair();
-	}
+	UpdateFacingCrosshair();
 
 	UpdateDirectionalMovement();
 
@@ -224,7 +221,9 @@ void DirectionalMovementHandler::UpdateFacingState()
 		currentAttackState = playerAttackState;
 	}
 
-	if (Settings::bFaceCrosshairWhileMoving && playerAttackState == RE::ATTACK_STATE_ENUM::kNone && HasMovementInput() && !HasTargetLocked()) {
+	bool bShouldFaceCrosshairWhileMoving = (playerCharacter->GetWeaponState() == RE::WEAPON_STATE::kSheathed ? Settings::uDirectionalMovementSheathed : Settings::uDirectionalMovementDrawn) == DirectionalMovementMode::kVanilla;
+
+	if (bShouldFaceCrosshairWhileMoving && playerAttackState == RE::ATTACK_STATE_ENUM::kNone && HasMovementInput() && !HasTargetLocked()) {
 		_bShouldFaceCrosshair = true;
 		_faceCrosshairTimer = 0.f;
 		_bShouldFaceTarget = true;
@@ -853,7 +852,7 @@ void DirectionalMovementHandler::UpdateRotation()
 
 	float angleDelta = NormalRelativeAngle(_desiredAngle - playerCharacter->data.angle.z);
 
-	bool bInstantRotation = (_bShouldFaceCrosshair && !_bCurrentlyTurningToCrosshair) || (_bJustDodged && !playerCharacter->IsAnimationDriven()) || (_bYawControlledByPlugin && _controlledYawRotationSpeedMultiplier <= 0.f);
+	bool bInstantRotation = (_bShouldFaceCrosshair && Settings::bFaceCrosshairInstantly) || (_bShouldFaceCrosshair && !_bCurrentlyTurningToCrosshair) || (_bJustDodged && !playerCharacter->IsAnimationDriven()) || (_bYawControlledByPlugin && _controlledYawRotationSpeedMultiplier <= 0.f);
 
 	if (!bInstantRotation) {
 		if (IsPlayerAnimationDriven() || _bIsDodging) {
@@ -1071,7 +1070,7 @@ bool DirectionalMovementHandler::GetFreeCameraEnabled() const
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	if (playerCharacter)
 	{
-		return playerCharacter->GetWeaponState() == RE::WEAPON_STATE::kSheathed ? Settings::bDirectionalMovementSheathed : Settings::bDirectionalMovementDrawn;
+		return (playerCharacter->GetWeaponState() == RE::WEAPON_STATE::kSheathed ? Settings::uDirectionalMovementSheathed : Settings::uDirectionalMovementDrawn) != DirectionalMovementMode::kDisabled;
 	}
 
 	return false;
@@ -1869,6 +1868,10 @@ void DirectionalMovementHandler::SetDesiredSwimmingPitchOffset(float a_value)
 
 void DirectionalMovementHandler::SetTarget(RE::ActorHandle a_target)
 {
+	if (_target == a_target) {
+		return;
+	}
+
 	_target = a_target;
 
 	SetTargetPoint(GetBestTargetPoint(a_target));

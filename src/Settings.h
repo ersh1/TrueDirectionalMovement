@@ -1,5 +1,12 @@
 #pragma once
 
+enum DirectionalMovementMode : std::uint32_t
+{
+	kDisabled = 0,
+	kVanilla = 1,
+	kDirectional = 2
+};
+
 enum TargetLockProjectileAimType : std::uint32_t
 {
 	kFreeAim = 0,
@@ -53,13 +60,12 @@ struct Settings
 	static void ReadUInt32Setting(CSimpleIniA& a_ini, const char* a_sectionName, const char* a_settingName, uint32_t& a_setting);
 
 	// General
-	static inline bool bDirectionalMovementSheathed = true;
-	static inline bool bDirectionalMovementDrawn = true;
+	static inline DirectionalMovementMode uDirectionalMovementSheathed = DirectionalMovementMode::kDirectional;
+	static inline DirectionalMovementMode uDirectionalMovementDrawn = DirectionalMovementMode::kDirectional;
 	static inline DialogueMode uDialogueMode = DialogueMode::kFaceSpeaker;
 	static inline float fMeleeMagnetismAngle = 60.f;
 
 	// Directional Movement related
-	static inline bool bFaceCrosshairWhileMoving = false;
 	static inline bool bFaceCrosshairWhileAttacking = false;
 	static inline bool bFaceCrosshairWhileShouting = true;
 	static inline bool bFaceCrosshairWhileBlocking = true;
