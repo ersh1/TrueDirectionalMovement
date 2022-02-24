@@ -1,4 +1,5 @@
 #include "Settings.h"
+#include <toml++/toml.h>
 
 #include "DirectionalMovementHandler.h"
 
@@ -20,8 +21,70 @@ void Settings::Initialize()
 
 void Settings::ReadSettings()
 {
+	constexpr auto path = L"Data/SKSE/Plugins/TrueDirectionalMovement";
+	constexpr auto ext = L".toml";
+	constexpr auto basecfg = L"Data/SKSE/Plugins/TrueDirectionalMovement/TrueDirectionalMovement_base.toml";
+
 	constexpr auto defaultSettingsPath = L"Data/MCM/Config/TrueDirectionalMovement/settings.ini";
 	constexpr auto mcmPath = L"Data/MCM/Settings/TrueDirectionalMovement.ini";
+
+	auto dataHandler = RE::TESDataHandler::GetSingleton();
+
+	const auto readToml = [&](std::filesystem::path path) {
+		logger::info("  Reading {}...", path.string());
+		try {
+			const auto tbl = toml::parse_file(path.c_str());
+			auto& arr = *tbl.get_as<toml::array>("TargetPoints");
+			for (auto&& elem : arr) {
+				auto& targetPointsTbl = *elem.as_table();
+				auto formID = targetPointsTbl["BodyPartDataFormID"].value<uint32_t>();
+				auto pluginName = targetPointsTbl["Plugin"].value<std::string_view>();
+				auto boneNames = targetPointsTbl["BoneNames"].as_array();
+				if (boneNames) {
+					auto bodyPartData = dataHandler->LookupForm<RE::BGSBodyPartData>(*formID, *pluginName);
+					if (bodyPartData) {
+						std::vector<std::string> bones;
+						for (auto& boneName : *boneNames) {
+							bones.push_back(*boneName.value<std::string>());
+						}
+
+						targetPoints.insert_or_assign(bodyPartData, bones);
+					}	
+				}							
+			}
+		}
+		catch (const toml::parse_error& e) {
+			std::ostringstream ss;
+			ss
+				<< "Error parsing file \'" << *e.source().path << "\':\n"
+				<< '\t' << e.description() << '\n'
+				<< "\t\t(" << e.source().begin << ')';
+			logger::error(ss.str());
+			util::report_and_fail("failed to load settings"sv);
+		} catch (const std::exception& e) {
+			util::report_and_fail(e.what());
+		} catch (...) {
+			util::report_and_fail("unknown failure"sv);
+		}
+		
+	};
+
+	logger::info("Reading .toml files...");
+
+	auto baseToml = std::filesystem::path(basecfg);
+	readToml(baseToml);
+	if (std::filesystem::is_directory(path)) {
+		for (const auto& file : std::filesystem::directory_iterator(path)) { // read all toml files in Data/SKSE/Plugins/TrueDirectionalMovement folder
+			if (std::filesystem::is_regular_file(file) && file.path().extension() == ext) {
+				auto filePath = file.path();
+				if (filePath != basecfg) {
+					readToml(filePath);
+				}
+			}
+		}
+	}
+
+	logger::info("...success");
 
 	const auto readMCM = [&](std::filesystem::path path) {
 		CSimpleIniA mcm;
@@ -36,6 +99,7 @@ void Settings::ReadSettings()
 		ReadFloatSetting(mcm, "General", "fMeleeMagnetismAngle", fMeleeMagnetismAngle);
 
 		// Directional Movement related
+		ReadBoolSetting(mcm, "DirectionalMovement", "bFaceCrosshairWhileMoving", bFaceCrosshairWhileMoving);
 		ReadBoolSetting(mcm, "DirectionalMovement", "bFaceCrosshairWhileAttacking", bFaceCrosshairWhileAttacking);
 		ReadBoolSetting(mcm, "DirectionalMovement", "bFaceCrosshairWhileShouting", bFaceCrosshairWhileShouting);
 		ReadBoolSetting(mcm, "DirectionalMovement", "bFaceCrosshairWhileBlocking", bFaceCrosshairWhileBlocking);
@@ -58,6 +122,7 @@ void Settings::ReadSettings()
 		ReadBoolSetting(mcm, "DirectionalMovement", "bDisableAttackRotationMultipliersForTransformations", bDisableAttackRotationMultipliersForTransformations);
 		ReadFloatSetting(mcm, "DirectionalMovement", "fSwimmingPitchSpeed", fSwimmingPitchSpeed);
 		ReadBoolSetting(mcm, "DirectionalMovement", "bThumbstickBounceFix", bThumbstickBounceFix);
+		ReadFloatSetting(mcm, "DirectionalMovement", "fControllerBufferDepth", fControllerBufferDepth);
 
 		// Headtracking
 		ReadBoolSetting(mcm, "Headtracking", "bHeadtracking", bHeadtracking);

@@ -20,7 +20,9 @@ bool GetAngle(RE::TESObjectREFR* a_target, AngleZX& angle);
 RE::NiPoint3 GetCameraPos();
 float NormalAbsoluteAngle(float a_angle);
 float NormalRelativeAngle(float a_angle);
-bool GetTargetPos(RE::ObjectRefHandle a_target, RE::NiPoint3& pos, bool bGetTorsoPos = true);
+bool GetTorsoPos(RE::Actor* a_actor, RE::NiPoint3& point);
+bool GetTargetPointPosition(RE::ObjectRefHandle a_target, std::string_view a_targetPoint, RE::NiPoint3& a_outPos);
+
 void SetRotationMatrix(RE::NiMatrix3& a_matrix, float sacb, float cacb, float sb);
 bool PredictAimProjectile(RE::NiPoint3 a_projectilePos, RE::NiPoint3 a_targetPosition, RE::NiPoint3 a_targetVelocity, float a_gravity, RE::NiPoint3& a_projectileVelocity);
 
@@ -30,6 +32,17 @@ inline RE::NiPoint3 TransformVectorByMatrix(const RE::NiPoint3& a_vector, const 
 		a_matrix.entry[1][0] * a_vector.x + a_matrix.entry[1][1] * a_vector.y + a_matrix.entry[1][2] * a_vector.z,
 		a_matrix.entry[2][0] * a_vector.x + a_matrix.entry[2][1] * a_vector.y + a_matrix.entry[2][2] * a_vector.z);
 }
+
+inline float AngleToRadian(float a_angle)
+{
+	return a_angle * 0.017453292f;
+}
+
+inline float RadianToAngle(float a_radian)
+{
+	return a_radian * 57.295779513f;
+}
+
 
 inline bool ApproximatelyEqual(float A, float B)
 {
@@ -68,6 +81,14 @@ inline RE::NiPoint3 RotateAngleAxis(const RE::NiPoint3& vec, const float angle, 
 		(OMC * XY + ZS) * vec.x + (OMC * YY + C) * vec.y + (OMC * YZ - XS) * vec.z,
 		(OMC * ZX - YS) * vec.x + (OMC * YZ + XS) * vec.y + (OMC * ZZ + C) * vec.z
 	);
+}
+
+inline RE::NiPoint3 RotateVector(const RE::NiPoint3& a_vec, const RE::NiQuaternion& a_quat)
+{
+	//http://people.csail.mit.edu/bkph/articles/Quaternions.pdf
+	const RE::NiPoint3 Q{ a_quat.x, a_quat.y, a_quat.z };
+	const RE::NiPoint3 T = Q.Cross(a_vec) * 2.f;
+	return a_vec + (T * a_quat.w) + Q.Cross(T);
 }
 
 inline RE::NiPoint3 ClampSizeMax(const RE::NiPoint3& vec, const float max)

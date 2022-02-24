@@ -20,6 +20,8 @@ set(SOURCE_FILES
 	"${SOURCE_DIR}/SmoothCamAPI.h"
 	"${SOURCE_DIR}/TrueDirectionalMovementAPI.h"
 	"${SOURCE_DIR}/TrueHUDAPI.h"
+	"${SOURCE_DIR}/Raycast.cpp"
+	"${SOURCE_DIR}/Raycast.h"
 	"${SOURCE_DIR}/Utils.cpp"
 	"${SOURCE_DIR}/Utils.h"
 	"${SOURCE_DIR}/Widgets/TargetLockReticle.cpp"
@@ -98,9 +100,12 @@ else()
 	add_subdirectory("$ENV{CommonLibSSEPath_SE}" CommonLibSSE EXCLUDE_FROM_ALL)
 endif(BUILD_SKYRIM_AE)
 
+find_package(tomlplusplus REQUIRED CONFIG)
+
 target_link_libraries(
 	"${PROJECT_NAME}"
 	PRIVATE
+		tomlplusplus::tomlplusplus
 		CommonLibSSE::CommonLibSSE
 )
 

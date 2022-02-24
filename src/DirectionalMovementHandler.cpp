@@ -21,13 +21,12 @@ void DirectionalMovementHandler::ResetControls()
 {
 	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 	directionalMovementHandler->_bHasMovementInput = false;
-	directionalMovementHandler->_pressedDirections = Directions::kInvalid;
+	directionalMovementHandler->_pressedDirections = Direction::kInvalid;
 }
 
 void DirectionalMovementHandler::Update()
 {
-	if (RE::UI::GetSingleton()->GameIsPaused())
-	{
+	if (RE::UI::GetSingleton()->GameIsPaused()) {
 		return;
 	}
 
@@ -47,6 +46,8 @@ void DirectionalMovementHandler::Update()
 	UpdateDirectionalMovement();
 
 	UpdateDodgingState();
+
+	UpdateMountedArchery();
 
 	if (_bReticleRemoved || IsAiming()) {
 		_bReticleRemoved = false;
@@ -153,6 +154,8 @@ void DirectionalMovementHandler::Update()
 			_bResetCamera = false;
 		}
 	}
+
+	UpdateProjectileTargetMap();
 }
 
 void DirectionalMovementHandler::UpdateDirectionalMovement()
@@ -189,7 +192,7 @@ void DirectionalMovementHandler::UpdateDirectionalMovement()
 		ResetDesiredAngle();
 	}
 
-	OverrideControllerBufferDepth(_bDirectionalMovement);
+	OverrideControllerBufferDepth(_bDirectionalMovement && !playerCharacter->IsSprinting());
 }
 
 void DirectionalMovementHandler::UpdateFacingState()
@@ -221,11 +224,24 @@ void DirectionalMovementHandler::UpdateFacingState()
 		currentAttackState = playerAttackState;
 	}
 
-	if (Settings::bFaceCrosshairWhileAttacking && playerAttackState > RE::ATTACK_STATE_ENUM::kNone && !HasTargetLocked()) {
+	if (Settings::bFaceCrosshairWhileMoving && playerAttackState == RE::ATTACK_STATE_ENUM::kNone && HasMovementInput() && !HasTargetLocked()) {
 		_bShouldFaceCrosshair = true;
-		_faceCrosshairTimer = _faceCrosshairDuration;
+		_faceCrosshairTimer = 0.f;
 		_bShouldFaceTarget = true;
 		return;
+	}
+
+	bool bIsAttacking = playerAttackState > RE::ATTACK_STATE_ENUM::kNone && playerAttackState < RE::ATTACK_STATE_ENUM::kBowDraw;
+
+	if (Settings::bFaceCrosshairWhileAttacking && bIsAttacking && !HasTargetLocked() && !_bMagnetismActive) {
+		if (_attackState > AttackState::kNone && _attackState < AttackState::kEnd) {
+			_bShouldFaceCrosshair = true;
+			_faceCrosshairTimer = 0.f;
+			_bShouldFaceTarget = true;
+			return;
+		} else {
+			ResetDesiredAngle();
+		}
 	}
 
 	if (Settings::bFaceCrosshairWhileShouting && playerCharacter->currentProcess && playerCharacter->currentProcess->high && playerCharacter->currentProcess->high->currentShout) {
@@ -327,7 +343,8 @@ void DirectionalMovementHandler::UpdateFacingState()
 				}
 				_bShouldFaceTarget = true;
 				return;
-			} else if (Settings::bFaceCrosshairWhileBlocking && leftSpell->avEffectSetting && leftSpell->avEffectSetting->HasKeyword(Settings::kywd_magicWard)) {
+			}
+			else if (Settings::bFaceCrosshairWhileBlocking && leftSpell->avEffectSetting && leftSpell->avEffectSetting->HasKeyword(Settings::kywd_magicWard)) {
 				_bShouldFaceCrosshair = true;
 				_faceCrosshairTimer = _faceCrosshairDuration;
 				_bShouldFaceTarget = true;
@@ -346,14 +363,18 @@ void DirectionalMovementHandler::UpdateFacingState()
 
 void DirectionalMovementHandler::UpdateFacingCrosshair()
 {
-	if (_bShouldFaceCrosshair)
+	if (_bShouldFaceCrosshair && !_bYawControlledByPlugin)
 	{
 		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 		auto playerCamera = RE::PlayerCamera::GetSingleton();
 		if (playerCharacter && playerCamera && playerCamera->currentState && playerCamera->currentState->id == RE::CameraStates::kThirdPerson)
 		{
 			auto thirdPersonState = static_cast<RE::ThirdPersonState*>(playerCamera->currentState.get());
-			if (fabs(thirdPersonState->freeRotation.x) > FLT_EPSILON) {
+			if (playerCharacter->IsSprinting()) {
+				_bCurrentlyTurningToCrosshair = true;
+				return;
+			}
+			else if (!_bIsAiming || fabs(thirdPersonState->freeRotation.x) > FLT_EPSILON) {
 				_bCurrentlyTurningToCrosshair = true;
 
 				float currentCharacterRot = playerCharacter->data.angle.z;
@@ -392,6 +413,35 @@ void DirectionalMovementHandler::UpdateSwimmingPitchOffset()
 	}
 }
 
+void DirectionalMovementHandler::UpdateMountedArchery()
+{
+	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+
+	bool bEnable = IsMountedArcheryPatchInstalled(playerCharacter);
+
+	if (g_SmoothCam) {
+		g_SmoothCam->EnableUnlockedHorseAim(bEnable);
+
+		bEnable = bEnable && GetCurrentlyMountedAiming();
+		if (bEnable) {
+			if (!_mountedArcheryRequestedSmoothCamCrosshair) {
+				auto result = g_SmoothCam->RequestCrosshairControl(SKSE::GetPluginHandle(), true);
+				if (result == SmoothCamAPI::APIResult::OK || result == SmoothCamAPI::APIResult::AlreadyGiven) {
+					_mountedArcheryRequestedSmoothCamCrosshair = true;
+				}
+			}			
+		}
+		else {
+			if (_mountedArcheryRequestedSmoothCamCrosshair) {
+				_mountedArcheryRequestedSmoothCamCrosshair = false;
+				if (!_targetLockRequestedSmoothCamCrosshair) {
+					g_SmoothCam->ReleaseCrosshairControl(SKSE::GetPluginHandle());
+				}
+			}
+		}
+	}
+}
+
 void DirectionalMovementHandler::ProgressTimers()
 {
 	if (_dialogueHeadtrackTimer > 0.f) {
@@ -414,6 +464,19 @@ void DirectionalMovementHandler::ProgressTimers()
 	}
 	if (_tutorialHintTimer > 0.f) {
 		_tutorialHintTimer -= *g_deltaTimeRealTime;
+	}
+}
+
+void DirectionalMovementHandler::UpdateProjectileTargetMap()
+{
+	if (!_projectileTargets.empty()) {
+		for (auto it = _projectileTargets.begin(), next_it = it; it != _projectileTargets.end(); it = next_it) {
+			++next_it;
+
+			if (!it->first) {
+				_projectileTargets.erase(it);
+			}
+		}
 	}
 }
 
@@ -486,7 +549,7 @@ void DirectionalMovementHandler::UpdateCameraAutoRotation()
 			cameraTarget = RE::PlayerCharacter::GetSingleton();
 		}
 		
-		if (!GetFreeCameraEnabled() || (!IsFreeCamera() && !bIsMounted) || IsCameraResetting() || HasTargetLocked() || _cameraRotationDelayTimer > 0.f) {
+		if (!GetFreeCameraEnabled() || (!IsFreeCamera() && !bIsMounted) || _bShouldFaceCrosshair || IsCameraResetting() || HasTargetLocked() || _cameraRotationDelayTimer > 0.f) {
 			_currentAutoCameraRotationSpeed = 0.f;
 			return;
 		}
@@ -528,9 +591,10 @@ void DirectionalMovementHandler::HideCrosshair()
 	if (Settings::bTargetLockHideCrosshair) {
 		// Request control over crosshair from SmoothCam.
 		bool bCanControlCrosshair = false;
-		if (g_SmoothCam) {
+		if (g_SmoothCam && !_targetLockRequestedSmoothCamCrosshair) {
 			auto result = g_SmoothCam->RequestCrosshairControl(SKSE::GetPluginHandle(), true);
 			if (result == SmoothCamAPI::APIResult::OK || result == SmoothCamAPI::APIResult::AlreadyGiven) {
+				_targetLockRequestedSmoothCamCrosshair = true;
 				bCanControlCrosshair = true;
 			}
 		} else {
@@ -558,7 +622,7 @@ void DirectionalMovementHandler::ShowCrosshair()
 	if (_bCrosshairIsHidden) {
 		bool bCanControlCrosshair = false;
 		// Check if we have control over crosshair from SmoothCam
-		if (g_SmoothCam) {
+		if (g_SmoothCam && _targetLockRequestedSmoothCamCrosshair) {
 			auto pluginHandle = g_SmoothCam->GetCrosshairOwner();
 			if (pluginHandle == SKSE::GetPluginHandle()) {
 				bCanControlCrosshair = true;
@@ -576,8 +640,11 @@ void DirectionalMovementHandler::ShowCrosshair()
 			}
 
 			// Release control over crosshair to SmoothCam.
-			if (g_SmoothCam) {
-				g_SmoothCam->ReleaseCrosshairControl(SKSE::GetPluginHandle());
+			if (g_SmoothCam && _targetLockRequestedSmoothCamCrosshair) {
+				_targetLockRequestedSmoothCamCrosshair = false;
+				if (!_mountedArcheryRequestedSmoothCamCrosshair) {
+					g_SmoothCam->ReleaseCrosshairControl(SKSE::GetPluginHandle());
+				}
 			}
 		}
 
@@ -599,6 +666,8 @@ void DirectionalMovementHandler::SetIsAiming(bool a_bIsAiming)
 
 bool DirectionalMovementHandler::ProcessInput(RE::NiPoint2& a_inputDirection, RE::PlayerControlsData* a_playerControlsData)
 {
+	_actualInputDirection = a_inputDirection;
+
 	if (a_playerControlsData->fovSlideMode) {
 		return false;
 	}
@@ -606,6 +675,11 @@ bool DirectionalMovementHandler::ProcessInput(RE::NiPoint2& a_inputDirection, RE
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	auto thirdPersonState = static_cast<RE::ThirdPersonState*>(RE::PlayerCamera::GetSingleton()->cameraStates[RE::CameraState::kThirdPerson].get());
 	if (!playerCharacter || !thirdPersonState) {
+		return false;
+	}
+
+	// Skip if player's yaw is controlled by another plugin
+	if (_bYawControlledByPlugin) {
 		return false;
 	}
 
@@ -621,14 +695,14 @@ bool DirectionalMovementHandler::ProcessInput(RE::NiPoint2& a_inputDirection, RE
 		return false;
 	}
 
-	if (_bShouldFaceCrosshair) {
+	_bHasMovementInput = true;
+
+	if (_bShouldFaceCrosshair && !playerCharacter->IsSprinting()) {
 		if (!_bCurrentlyTurningToCrosshair) {
 			ResetDesiredAngle();
 		}
 		return false;  // let the hook do the rotation
 	}
-
-	_bHasMovementInput = true;
 
 	float currentCharacterRot = playerCharacter->data.angle.z;
 	float currentCameraRotOffset = thirdPersonState->freeRotation.x;
@@ -701,6 +775,10 @@ bool DirectionalMovementHandler::ProcessInput(RE::NiPoint2& a_inputDirection, RE
 
 void DirectionalMovementHandler::SetDesiredAngleToTarget(RE::PlayerCharacter* a_playerCharacter, RE::ActorHandle a_target)
 {
+	if (_bYawControlledByPlugin) {
+		return;
+	}
+
 	auto thirdPersonState = static_cast<RE::ThirdPersonState*>(RE::PlayerCamera::GetSingleton()->cameraStates[RE::CameraState::kThirdPerson].get());
 	if (!a_playerCharacter || !thirdPersonState) {
 		return;
@@ -733,9 +811,7 @@ void DirectionalMovementHandler::SetDesiredAngleToTarget(RE::PlayerCharacter* a_
 	RE::NiPoint2 playerPos;
 	playerPos.x = a_playerCharacter->GetPositionX();
 	playerPos.y = a_playerCharacter->GetPositionY();
-	RE::NiPoint2 targetPos;
-	targetPos.x = target->GetPositionX();
-	targetPos.y = target->GetPositionY();
+	RE::NiPoint3 targetPos = _currentTargetPoint ? _currentTargetPoint->world.translate : target->GetLookingAtLocation();
 
 	RE::NiPoint2 directionToTarget = RE::NiPoint2(-(targetPos.x - playerPos.x), targetPos.y - playerPos.y);
 	directionToTarget.Unitize();
@@ -777,7 +853,7 @@ void DirectionalMovementHandler::UpdateRotation()
 
 	float angleDelta = NormalRelativeAngle(_desiredAngle - playerCharacter->data.angle.z);
 
-	bool bInstantRotation = (_bShouldFaceCrosshair && !_bCurrentlyTurningToCrosshair) || (_bJustDodged && !playerCharacter->IsAnimationDriven());
+	bool bInstantRotation = (_bShouldFaceCrosshair && !_bCurrentlyTurningToCrosshair) || (_bJustDodged && !playerCharacter->IsAnimationDriven()) || (_bYawControlledByPlugin && _controlledYawRotationSpeedMultiplier <= 0.f);
 
 	if (!bInstantRotation) {
 		if (IsPlayerAnimationDriven() || _bIsDodging) {
@@ -788,11 +864,10 @@ void DirectionalMovementHandler::UpdateRotation()
 		float rotationSpeedMult = PI;
 		bool bRelativeSpeed = true;
 
-		if (_bCurrentlyTurningToCrosshair)
-		{
-			rotationSpeedMult *= Settings::fFaceCrosshairRotationSpeedMultiplier;
-		} else if (playerCharacter->IsSwimming()) {
+		if (playerCharacter->IsSwimming()) {
 			rotationSpeedMult *= Settings::fSwimmingRotationSpeedMult;
+		} else if (_bYawControlledByPlugin) {
+			rotationSpeedMult *= _controlledYawRotationSpeedMultiplier;
 		} else {
 			// Get the current movement type
 			RE::BSTSmartPointer<RE::BSAnimationGraphManager> animationGraphManagerPtr;
@@ -840,9 +915,13 @@ void DirectionalMovementHandler::UpdateRotation()
 				}
 			} else if (playerCharacter->IsSprinting()) {
 				rotationSpeedMult *= Settings::fSprintingRotationSpeedMult;
+			} else if (_bCurrentlyTurningToCrosshair) {
+				rotationSpeedMult *= Settings::fFaceCrosshairRotationSpeedMultiplier;
 			} else {
 				rotationSpeedMult *= Settings::fRunningRotationSpeedMult;
 			}
+
+			
 
 			// multiply it by water speed mult
 			float submergeLevel = TESObjectREFR_GetSubmergeLevel(playerCharacter, playerCharacter->data.location.z, playerCharacter->parentCell);
@@ -891,10 +970,11 @@ void DirectionalMovementHandler::UpdateRotationLockedCam()
 		return;
 	}
 
-	RE::NiPoint3 targetPos;
-	if (!GetTargetPos(_target, targetPos)) {
+	if (!_target) {
 		return;
 	}
+
+	RE::NiPoint3 targetPos = _currentTargetPoint ? _currentTargetPoint->world.translate : _target.get()->GetLookingAtLocation();
 
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	if (!playerCharacter) {
@@ -902,7 +982,7 @@ void DirectionalMovementHandler::UpdateRotationLockedCam()
 	}
 
 	RE::NiPoint3 playerPos;
-	if (!GetTargetPos(playerCharacter->GetHandle(), playerPos)) {
+	if (!GetTorsoPos(playerCharacter, playerPos)) {
 		return;
 	}
 
@@ -1068,6 +1148,11 @@ void DirectionalMovementHandler::ResetYawDelta()
 	_yawDelta = 0.f;
 }
 
+RE::NiPoint2 DirectionalMovementHandler::GetActualInputDirection() const
+{
+	return _actualInputDirection;
+}
+
 bool DirectionalMovementHandler::ToggleTargetLock(bool bEnable, bool bPressedManually /*= false */)
 {
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
@@ -1078,8 +1163,7 @@ bool DirectionalMovementHandler::ToggleTargetLock(bool bEnable, bool bPressedMan
 			return false;
 		}
 
-		//RE::ActorHandle actor = FindTarget(Settings::fTargetLockDistance, HasTargetLocked() ? kSort_CharacterDistanceAndCrosshair : kSort_Crosshair);
-		RE::ActorHandle actor = FindTarget(Settings::fTargetLockDistance, kSort_Combined);
+		RE::ActorHandle actor = FindTarget(bPressedManually ? TargetLockSelectionMode::kCombined : TargetLockSelectionMode::kClosest);
 		if (actor) 
 		{
 			SetTarget(actor);
@@ -1115,7 +1199,7 @@ bool DirectionalMovementHandler::ToggleTargetLock(bool bEnable, bool bPressedMan
 
 		//ShowCrosshair();
 
-		_lastLOSTimer = -1.f;
+		_lastLOSTimer = _lostSightAllowedDuration;
 
 		auto playerCamera = RE::PlayerCamera::GetSingleton();
 		// If on a mount, set player and horse pitch to avoid camera snap
@@ -1138,10 +1222,26 @@ bool DirectionalMovementHandler::ToggleTargetLock(bool bEnable, bool bPressedMan
 	return false;
 }
 
-RE::ActorHandle DirectionalMovementHandler::GetTarget()
+RE::ActorHandle DirectionalMovementHandler::GetTarget() const
 {
 	//return HasTargetLocked() ? _target : _softTarget;
 	return _target;
+}
+
+RE::NiPointer<RE::NiAVObject> DirectionalMovementHandler::GetTargetPoint() const
+{
+	return _currentTargetPoint;
+}
+
+RE::NiPoint3 DirectionalMovementHandler::GetTargetPosition() const
+{
+	if (_currentTargetPoint) {
+		return _currentTargetPoint->world.translate;
+	} else if (_target) {
+		return _target.get()->GetLookingAtLocation();
+	}
+
+	return RE::NiPoint3();
 }
 
 void DirectionalMovementHandler::ClearTargets()
@@ -1158,12 +1258,11 @@ void DirectionalMovementHandler::ClearTargets()
 
 void DirectionalMovementHandler::OverrideControllerBufferDepth(bool a_override)
 {
-	Locker locker(_lock);
 	if (a_override)	{
 		if (_defaultControllerBufferDepth == -1.f) {
 			_defaultControllerBufferDepth = *g_fControllerBufferDepth;
 		}
-		*g_fControllerBufferDepth = _freecamControllerBufferDepth;
+		*g_fControllerBufferDepth = Settings::fControllerBufferDepth;
 	}
 	else if (_defaultControllerBufferDepth > 0.f) {
 		*g_fControllerBufferDepth = _defaultControllerBufferDepth;
@@ -1230,18 +1329,14 @@ bool DirectionalMovementHandler::CheckCurrentTarget(RE::ActorHandle a_target, bo
 		{
 			auto timeNow = std::chrono::system_clock::now();
 
-			bool bFirstLOSCheck = _lastLOSTimer == -1.f;
-
 			bool r8 = false;
 			bool bHasLOS = playerCharacter->HasLineOfSight(a_target.get().get(), r8);
-			if (bHasLOS || bFirstLOSCheck) {
-				_lastLOSTimer = 1.f;
+			if (bHasLOS) {
+				_lastLOSTimer = _lostSightAllowedDuration;
 			}
 
-			if (!bFirstLOSCheck) {
-				if (_lastLOSTimer <= 0.f) {
-					return false;
-				}
+			if (_lastLOSTimer <= 0.f) {
+				return false;
 			}
 		}
 	}
@@ -1307,123 +1402,9 @@ bool DirectionalMovementHandler::IsActorValidTarget(RE::ActorPtr a_actor, bool a
 	return true;
 }
 
-std::vector<RE::ActorHandle> DirectionalMovementHandler::FindCloseActor(float a_distance, TargetSortOrder a_sortOrder)
+RE::ActorHandle DirectionalMovementHandler::FindTarget(TargetLockSelectionMode a_mode)
 {
-	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
-	auto playerCamera = RE::PlayerCamera::GetSingleton();
-	float fovThreshold = playerCamera->worldFOV / 180.f * PI / 2;
-
-	// Increase the FOV threshold a bit when switching targets
-	if (a_sortOrder == kSort_ZAxisClock || a_sortOrder == kSort_ZAxisRClock) {
-		fovThreshold *= 1.5f;	
-	}
-
-	std::vector<RE::ActorHandle> result;
-
-	auto& actorHandles = RE::ProcessLists::GetSingleton()->highActorHandles;
-	if (actorHandles.size() == 0)
-	{
-		return result;
-	}
-
-	std::vector<std::pair<float, RE::ActorHandle>> vec;
-
-	RE::NiPoint3 playerPosition = playerCharacter->data.location;
-	RE::NiPoint2 forwardVector(0.f, 1.f);	
-	RE::NiPoint2 playerDirection = Vec2Rotate(forwardVector, playerCharacter->data.angle.z);
-	RE::NiPoint3 cameraPosition = playerCamera->pos;
-	RE::NiPoint3 cameraAngle = GetCameraRotation();
-
-	for (auto& actorHandle : actorHandles)
-	{
-		auto actor = actorHandle.get();
-		if (IsActorValidTarget(actor))
-		{
-			RE::NiPoint3 actorPosition = actor->GetPosition();
-			const float dx = actorPosition.x - cameraPosition.x;
-			const float dy = actorPosition.y - cameraPosition.y;
-			const float dz = actorPosition.z - cameraPosition.z;
-			const float dd = sqrtf(dx * dx + dy * dy + dz * dz);
-
-			float distance = a_distance * GetTargetLockDistanceRaceSizeMultiplier(actor->GetRace());
-
-			if (distance <= 0 || dd <= distance)
-			{
-				float point;
-				const float angleZ = NormalRelativeAngle(atan2(dx, dy) - cameraAngle.z);
-				const float angleX = NormalRelativeAngle(atan2(-dz, sqrtf(dx * dx + dy * dy)) -cameraAngle.x);
-
-				if (fabs(angleZ) < fovThreshold)
-				{
-					switch (a_sortOrder)
-					{
-					case kSort_CameraDistance:
-						point = dd;
-						break;
-					case kSort_CharacterDistanceAndCrosshair:
-						point = actorPosition.GetDistance(playerPosition) + sqrtf(angleZ * angleZ + angleX * angleX);
-						break;
-					case kSort_Crosshair:
-						point = sqrtf(angleZ * angleZ + angleX * angleX);
-						break;
-					case kSort_Combined:
-					{
-						RE::NiPoint2 directionToTarget = RE::NiPoint2(-(actorPosition.x - playerPosition.x), actorPosition.y - playerPosition.y);
-						directionToTarget.Unitize();
-						float dot = playerDirection.Dot(directionToTarget);
-						point = actorPosition.GetDistance(playerPosition) * (1 - dot) + sqrtf(angleZ * angleZ + angleX * angleX);
-						break;
-					}						
-					case kSort_ZAxisClock:
-						point = NormalAbsoluteAngle(atan2(dx, dy) - cameraAngle.z);
-						break;
-					case kSort_ZAxisRClock:
-						point = 2 * PI - NormalAbsoluteAngle(atan2(dx, dy) - cameraAngle.z);
-						break;
-					default:
-						point = 0;
-						break;
-					}
-
-					if (point >= 0)
-					{
-						vec.emplace_back(point, actorHandle);
-					}
-				}
-			}
-		}
-	}
-
-	if (vec.empty())
-	{
-		return result;
-	}
-
-	if (a_sortOrder < kSort_Invalid)
-	{
-		struct sort_pred
-		{
-			bool operator()(const std::pair<float, RE::ActorHandle>& l, const std::pair<float, RE::ActorHandle>& r)
-			{
-				return l.first < r.first;
-			}
-		};
-
-		std::sort(vec.begin(), vec.end(), sort_pred());
-	}
-
-	for (int i = 0; i < vec.size(); i++)
-	{
-		result.push_back(vec[i].second);
-	}
-
-	return result;
-}
-
-RE::ActorHandle DirectionalMovementHandler::FindTarget(float a_distance, TargetSortOrder a_sortOrder /*= kSort_Crosshair */)
-{
-	if (auto crosshairRef = Events::CrosshairRefManager::GetSingleton()->GetCachedRef())
-	{
+	if (auto crosshairRef = Events::CrosshairRefManager::GetSingleton()->GetCachedRef()) {
 		if (auto crosshairRefPtr = crosshairRef.get()) {
 			auto crosshairActor = RE::ActorPtr(crosshairRef.get()->As<RE::Actor>());
 			if (crosshairActor && crosshairActor != _target.get() && IsActorValidTarget(crosshairActor)) {
@@ -1432,48 +1413,379 @@ RE::ActorHandle DirectionalMovementHandler::FindTarget(float a_distance, TargetS
 		}
 	}
 
-	auto actors = FindCloseActor(a_distance, a_sortOrder);
-	for (auto actor : actors)
-	{
-		if (actor && actor != _target)
-		{
-			return actor;
+	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+	RE::NiPoint3 playerPosition;
+	if (!GetTorsoPos(playerCharacter, playerPosition)) {
+		return RE::ActorHandle();
+	}
+	auto playerCamera = RE::PlayerCamera::GetSingleton();
+	auto& currentCameraState = playerCamera->currentState;
+	if (!currentCameraState) {
+		return RE::ActorHandle();
+	}
+
+	auto& actorHandles = RE::ProcessLists::GetSingleton()->highActorHandles;
+	if (actorHandles.size() == 0) {
+		return RE::ActorHandle();
+	}
+
+	RE::NiPoint3 forwardVector(0.f, 1.f, 0.f);
+	//RE::NiPoint3 cameraPosition = playerCamera->pos;
+	//RE::NiPoint3 cameraAngle = GetCameraRotation();
+	
+	RE::ActorHandle bestTarget;
+	float bestDistance = FLT_MAX;
+	float bestDot = -1.f;
+	float bestCombined = FLT_MAX;
+
+	auto getDot = [&](RE::NiPoint3 a_directionVector) {
+		RE::NiQuaternion cameraRotation;
+		currentCameraState->GetRotation(cameraRotation);
+		auto cameraForwardVector = RotateVector(forwardVector, cameraRotation);
+		cameraForwardVector.z = 0.f;
+		cameraForwardVector.Unitize();
+
+		return cameraForwardVector.Dot(a_directionVector);
+	};
+
+	for (auto& actorHandle : actorHandles) {
+		auto actor = actorHandle.get();
+		if (IsActorValidTarget(actor)) {
+			float targetLockMaxDistance = Settings::fTargetLockDistance * GetTargetLockDistanceRaceSizeMultiplier(actor->GetRace());
+			
+			auto targetPoint = GetBestTargetPoint(actorHandle);
+
+			RE::NiPoint3 actorPosition = targetPoint ? targetPoint->world.translate : actor->GetLookingAtLocation();
+			RE::NiPoint3 directionVector = actorPosition - playerPosition;
+
+			float distance = directionVector.Unitize();
+			
+			if (distance <= targetLockMaxDistance) {
+				switch (a_mode) {
+				case TargetLockSelectionMode::kClosest:
+					if (distance < bestDistance) {
+						bestDistance = distance;
+						bestTarget = actorHandle;
+					}
+					break;
+				case TargetLockSelectionMode::kCenter:
+					{
+						float dot = getDot(directionVector);
+						if (dot > bestDot) {
+							bestDot = dot;
+							bestTarget = actorHandle;
+						}
+						break;
+					}					
+				case TargetLockSelectionMode::kCombined:
+					{
+						float dot = getDot(directionVector);
+						float combined = distance * (1.f - dot);
+						if (combined < bestCombined) {
+							bestCombined = combined;
+							bestTarget = actorHandle;
+						}
+						break;
+					}
+				}
+			}
 		}
 	}
 
-	return RE::ActorHandle();
+	return bestTarget;
 }
 
-RE::ActorHandle DirectionalMovementHandler::FindNextTarget(float a_distance, bool bRight)
+void DirectionalMovementHandler::SwitchTarget(Direction a_direction)
 {
-	auto actors = FindCloseActor(a_distance, bRight ? kSort_ZAxisClock : kSort_ZAxisRClock);
-	for (auto actor : actors) 
-	{
-		if (actor && actor != _target) 
-		{
-			return actor;
-		}
+	if (a_direction == _lastTargetSwitchDirection && _lastTargetSwitchTimer > 0.f) {
+		return;  // too soon
 	}
 
-	return RE::ActorHandle();
+	//RE::ActorHandle actor = GetClosestTarget(FindTargetsByDirection(a_direction), _target);
+
+	if (SwitchTargetPoint(a_direction)) {
+		if (g_trueHUD) {
+			g_trueHUD->SetTarget(SKSE::GetPluginHandle(), _target);
+
+			if (Settings::bEnableTargetLockReticle) {
+				if (_target) {
+					if (auto widget = _targetLockReticle.lock()) {
+						widget->ChangeTarget(_target, _currentTargetPoint);
+					} else {
+						AddTargetLockReticle(_target, _currentTargetPoint);
+					}
+				} else {
+					RemoveTargetLockReticle();
+				}
+			}
+		}
+
+		_lastTargetSwitchDirection = a_direction;
+		_lastTargetSwitchTimer = 0.25f;
+
+	} else {
+		RE::ActorHandle actor = SwitchScreenTarget(a_direction);
+
+		if (actor) {
+			SetTarget(actor);
+			_lastTargetSwitchDirection = a_direction;
+			_lastTargetSwitchTimer = 0.25f;
+		}
+	}
 }
 
-RE::ActorHandle DirectionalMovementHandler::FindClosestTarget(float a_distance)
+bool DirectionalMovementHandler::SwitchTargetPoint(Direction a_direction)
 {
-	auto actors = FindCloseActor(a_distance, kSort_CameraDistance);
-	for (auto actor : actors) 
-	{
-		if (actor && actor != _target) 
-		{
-			return actor;
+	if (!_target) {
+		return false;
+	}
+
+	auto targetPoints = GetTargetPoints(_target);
+	if (targetPoints.empty()) {
+		return false;
+	}
+
+	if (!_currentTargetPoint) {
+		return false;
+	}
+
+	RE::NiPoint3 currentTargetPos = _currentTargetPoint->world.translate;
+
+	float bestScreenDistance = FLT_MAX;
+	bool bChangedTargetPoint = false;
+
+	constexpr RE::NiPoint2 upVector{ 0.f, 1.f };
+	constexpr RE::NiPoint2 downVector{ 0.f, -1.f };
+	constexpr RE::NiPoint2 leftVector{ -1.f, 0.f };
+	constexpr RE::NiPoint2 rightVector{ 1.f, 0.f };
+
+	for (auto& targetPoint : targetPoints) {
+		if (!targetPoint || targetPoint == _currentTargetPoint) {
+			continue;
+		}
+
+		RE::NiPoint3 newTargetPos = targetPoint->world.translate;
+
+		RE::NiPoint2 currentTargetScreenPosition;
+		float currentTargetDepth;
+		RE::NiPoint2 newTargetScreenPosition;
+		float newTargetDepth;
+		RE::NiCamera::WorldPtToScreenPt3((float(*)[4])g_worldToCamMatrix, *g_viewPort, currentTargetPos, currentTargetScreenPosition.x, currentTargetScreenPosition.y, currentTargetDepth, 1e-5f);
+		RE::NiCamera::WorldPtToScreenPt3((float(*)[4])g_worldToCamMatrix, *g_viewPort, newTargetPos, newTargetScreenPosition.x, newTargetScreenPosition.y, newTargetDepth, 1e-5f);
+
+		if (newTargetDepth < 0.f) {  // offscreen
+			continue;
+		}
+
+		bool bIsCorrectDirection = false;
+		RE::NiPoint2 directionVector;
+
+		switch (a_direction) {
+		case Direction::kLeft:
+			bIsCorrectDirection = newTargetScreenPosition.x < currentTargetScreenPosition.x;
+			directionVector = leftVector;
+			break;
+		case Direction::kRight:
+			bIsCorrectDirection = newTargetScreenPosition.x > currentTargetScreenPosition.x;
+			directionVector = rightVector;
+			break;
+		case Direction::kForward:
+		case Direction::kUp:
+			bIsCorrectDirection = newTargetScreenPosition.y > currentTargetScreenPosition.y;
+			directionVector = upVector;
+			break;
+		case Direction::kBack:
+		case Direction::kDown:
+			bIsCorrectDirection = newTargetScreenPosition.y < currentTargetScreenPosition.y;
+			directionVector = downVector;
+			break;
+		}
+
+		if (bIsCorrectDirection) {
+			RE::NiPoint2 distanceVector = newTargetScreenPosition - currentTargetScreenPosition;
+			float screenDistance = distanceVector.Unitize();
+			float directionMult = 2.f - directionVector.Dot(distanceVector);  // so targets that are closer to the desired direction are given better score than closer targets that aren't really in that direction
+
+			if (screenDistance * directionMult < bestScreenDistance) {
+				bestScreenDistance = screenDistance;
+				_currentTargetPoint = targetPoint;
+				bChangedTargetPoint = true;
+			}
+		}
+
+	}
+
+	return bChangedTargetPoint;
+}
+
+RE::ActorHandle DirectionalMovementHandler::SwitchScreenTarget(Direction a_direction)
+{
+	RE::ActorHandle newTarget;
+
+	auto& actorHandles = RE::ProcessLists::GetSingleton()->highActorHandles;
+	if (actorHandles.size() == 0) {
+		return newTarget;
+	}
+
+	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+	RE::NiPoint3 playerPosition;
+	if (!GetTorsoPos(playerCharacter, playerPosition)) {
+		return newTarget;
+	}
+
+	const RE::NiPoint3 currentTargetPosition = GetTargetPosition();
+
+	float bestScreenDistance = FLT_MAX;
+
+	constexpr RE::NiPoint2 upVector{ 0.f, 1.f };
+	constexpr RE::NiPoint2 downVector{ 0.f, -1.f };
+	constexpr RE::NiPoint2 leftVector{ -1.f, 0.f };
+	constexpr RE::NiPoint2 rightVector{ 1.f, 0.f };
+
+	for (auto& actorHandle : actorHandles) {
+		if (actorHandle == _target) {
+			continue;
+		}
+
+		auto actor = actorHandle.get();
+		if (IsActorValidTarget(actor)) {
+			auto actorTargetPoint = GetBestTargetPoint(actorHandle);
+
+			float targetLockMaxDistance = Settings::fTargetLockDistance * GetTargetLockDistanceRaceSizeMultiplier(actor->GetRace());
+			RE::NiPoint3 newTargetPosition = actorTargetPoint ? actorTargetPoint->world.translate : actor->GetLookingAtLocation();
+			float distance = playerPosition.GetDistance(newTargetPosition);
+
+			if (distance <= targetLockMaxDistance) {
+				RE::NiPoint2 currentTargetScreenPosition;
+				float currentTargetDepth;
+				RE::NiPoint2 newTargetScreenPosition;
+				float newTargetDepth;
+				RE::NiCamera::WorldPtToScreenPt3((float(*)[4])g_worldToCamMatrix, *g_viewPort, currentTargetPosition, currentTargetScreenPosition.x, currentTargetScreenPosition.y, currentTargetDepth, 1e-5f);
+				RE::NiCamera::WorldPtToScreenPt3((float(*)[4])g_worldToCamMatrix, *g_viewPort, newTargetPosition, newTargetScreenPosition.x, newTargetScreenPosition.y, newTargetDepth, 1e-5f);
+
+				if (newTargetDepth < 0.f) {  // offscreen
+					continue;
+				}
+
+				bool bIsCorrectDirection = false;
+				RE::NiPoint2 directionVector;
+
+				switch (a_direction) {
+				case Direction::kLeft:
+					bIsCorrectDirection = newTargetScreenPosition.x < currentTargetScreenPosition.x;
+					directionVector = leftVector;
+					break;
+				case Direction::kRight:
+					bIsCorrectDirection = newTargetScreenPosition.x > currentTargetScreenPosition.x;
+					directionVector = rightVector;
+					break;
+				case Direction::kForward:
+				case Direction::kUp:
+					bIsCorrectDirection = newTargetScreenPosition.y > currentTargetScreenPosition.y;
+					directionVector = upVector;
+					break;
+				case Direction::kBack:
+				case Direction::kDown:
+					bIsCorrectDirection = newTargetScreenPosition.y < currentTargetScreenPosition.y;
+					directionVector = downVector;
+					break;
+				}
+
+				if (bIsCorrectDirection) {
+					RE::NiPoint2 distanceVector = newTargetScreenPosition - currentTargetScreenPosition;
+					float screenDistance = distanceVector.Unitize();
+					float directionMult = 2.f - directionVector.Dot(distanceVector); // so targets that are closer to the desired direction are given better score than closer targets that aren't really in that direction
+
+					if (screenDistance * directionMult < bestScreenDistance) {
+						bestScreenDistance = screenDistance;
+						newTarget = actorHandle;
+					}
+				}
+			}
 		}
 	}
 
-	return RE::ActorHandle();
+	return newTarget;
+}
+
+std::vector<RE::NiPointer<RE::NiAVObject>> DirectionalMovementHandler::GetTargetPoints(RE::ActorHandle a_actorHandle) const
+{
+	std::vector<RE::NiPointer<RE::NiAVObject>> ret;
+
+	if (!a_actorHandle) {
+		return ret;
+	}
+
+	auto actor = a_actorHandle.get().get();
+	if (!actor) {
+		return ret;
+	}
+
+	auto race = actor->GetRace();
+	if (!race) {
+		return ret;
+	}
+
+	RE::BGSBodyPartData* bodyPartData = race->bodyPartData;
+	if (!bodyPartData) {
+		return ret;
+	}
+
+	auto actor3D = actor->Get3D2();
+	if (!actor3D) {
+		return ret;
+	}
+
+	auto it = Settings::targetPoints.find(bodyPartData);
+	if (it != Settings::targetPoints.end()) {
+		auto& targetPoints = it->second;
+		for (auto& targetPoint : targetPoints) {
+			auto node = NiAVObject_LookupBoneNodeByName(actor3D, targetPoint, true);
+			if (node) {
+				ret.push_back(RE::NiPointer<RE::NiAVObject>(node));
+			}
+		}
+		return ret;
+	}
+
+	// no custom target points found, fallback to the default target point
+	RE::BGSBodyPart* bodyPart = Settings::uReticleAnchor == WidgetAnchor::kBody ? bodyPartData->parts[RE::BGSBodyPartDefs::LIMB_ENUM::kTorso] : bodyPartData->parts[RE::BGSBodyPartDefs::LIMB_ENUM::kHead];
+	if (!bodyPart) {
+		return ret;
+	}
+
+	auto node = NiAVObject_LookupBoneNodeByName(actor3D, bodyPart->targetName, true);
+	ret.push_back(RE::NiPointer<RE::NiAVObject>(node));
+	return ret;
+}
+
+RE::NiPointer<RE::NiAVObject> DirectionalMovementHandler::GetBestTargetPoint(RE::ActorHandle a_actorHandle) const
+{
+	if (!a_actorHandle) {
+		return nullptr;
+	}
+
+	auto actor = a_actorHandle.get().get();
+	if (!actor) {
+		return nullptr;
+	}
+
+	auto targetPoints = GetTargetPoints(a_actorHandle);
+	if (targetPoints.empty()) {
+		return nullptr;
+	}
+
+	// just return the first target point on the list
+	return targetPoints[0];
 }
 
 bool DirectionalMovementHandler::SetDesiredAngleToMagnetismTarget()
 {
+	if (_bYawControlledByPlugin) {
+		_bMagnetismActive = false;
+		return false;
+	}
+
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	if (!playerCharacter || _bCurrentlyTurningToCrosshair) {
 		_bMagnetismActive = false;
@@ -1559,17 +1871,19 @@ void DirectionalMovementHandler::SetTarget(RE::ActorHandle a_target)
 {
 	_target = a_target;
 
+	SetTargetPoint(GetBestTargetPoint(a_target));
+
 	SetHeadtrackTarget(4, nullptr);
 
 	if (g_trueHUD) {
-		g_trueHUD->SetTarget(SKSE::GetPluginHandle(), _target);
+		g_trueHUD->SetTarget(SKSE::GetPluginHandle(), a_target);
 
 		if (Settings::bEnableTargetLockReticle) {
 			if (a_target) {
 				if (auto widget = _targetLockReticle.lock()) {
-					widget->ChangeTarget(a_target);
+					widget->ChangeTarget(a_target, _currentTargetPoint);
 				} else {
-					AddTargetLockReticle(_target);
+					AddTargetLockReticle(a_target, _currentTargetPoint);
 				}
 			} else {
 				RemoveTargetLockReticle();
@@ -1601,13 +1915,38 @@ void DirectionalMovementHandler::SetSoftTarget(RE::ActorHandle a_softTarget)
 	}
 }
 
-void DirectionalMovementHandler::AddTargetLockReticle(RE::ActorHandle a_target)
+void DirectionalMovementHandler::SetTargetPoint(RE::NiPointer<RE::NiAVObject> a_targetPoint)
+{
+	_currentTargetPoint = a_targetPoint;
+}
+
+RE::NiAVObject* DirectionalMovementHandler::GetProjectileTargetPoint(RE::ObjectRefHandle a_projectileHandle) const
+{
+	auto it = _projectileTargets.find(a_projectileHandle);
+	if (it != _projectileTargets.end() && it->second) {
+		return it->second.get();
+	}
+
+	return nullptr;
+}
+
+void DirectionalMovementHandler::AddProjectileTarget(RE::ObjectRefHandle a_projectileHandle, RE::NiPointer<RE::NiAVObject> a_targetPoint)
+{
+	_projectileTargets.emplace(a_projectileHandle, a_targetPoint);
+}
+
+void DirectionalMovementHandler::RemoveProjectileTarget(RE::ObjectRefHandle a_projectileHandle)
+{
+	_projectileTargets.erase(a_projectileHandle);
+}
+
+void DirectionalMovementHandler::AddTargetLockReticle(RE::ActorHandle a_target, RE::NiPointer<RE::NiAVObject> a_targetPoint)
 {
 	auto reticleStyle = Settings::uReticleStyle;
 	if (reticleStyle == ReticleStyle::kCrosshair && !IsCrosshairVisible()) {
 		reticleStyle = ReticleStyle::kCrosshairNoTransform;
 	}
-	auto widget = std::make_shared<Scaleform::TargetLockReticle>(a_target.native_handle(), a_target, reticleStyle);
+	auto widget = std::make_shared<Scaleform::TargetLockReticle>(a_target.native_handle(), a_target, a_targetPoint, reticleStyle);
 	_targetLockReticle = widget;
 
 	g_trueHUD->AddWidget(SKSE::GetPluginHandle(), 'LOCK', 0, "TDM_TargetLockReticle", widget);
@@ -1621,39 +1960,6 @@ void DirectionalMovementHandler::ReticleRemoved()
 void DirectionalMovementHandler::RemoveTargetLockReticle()
 {
 	g_trueHUD->RemoveWidget(SKSE::GetPluginHandle(), 'LOCK', 0, TRUEHUD_API::WidgetRemovalMode::Normal);
-}
-
-void DirectionalMovementHandler::SwitchTarget(Directions a_direction)
-{
-	if (a_direction == _lastTargetSwitchDirection && _lastTargetSwitchTimer > 0.f)
-	{
-		return; // too soon
-	}
-
-	RE::ActorHandle actor;
-
-	switch (a_direction)
-	{
-	case Directions::kLeft:
-		actor = FindNextTarget(Settings::fTargetLockDistance, false);
-		break;
-	case Directions::kRight:
-		actor = FindNextTarget(Settings::fTargetLockDistance, true);
-		break;
-	case Directions::kBack:
-		actor = FindClosestTarget(Settings::fTargetLockDistance);
-		break;
-	default:
-		break;
-	}
-
-	if (actor)
-	{
-		SetTarget(actor);
-
-		_lastTargetSwitchDirection = a_direction;
-		_lastTargetSwitchTimer = 0.25f;
-	}
 }
 
 void DirectionalMovementHandler::SetHeadtrackTarget(int32_t a_headtrackPriority, RE::TESObjectREFR* a_target)
@@ -1730,77 +2036,87 @@ void DirectionalMovementHandler::SetCurrentHorseAimAngle(float a_angle)
 	}
 }
 
+bool DirectionalMovementHandler::GetCurrentlyMountedAiming() const
+{
+	return _currentlyMountedAiming;
+}
+
+void DirectionalMovementHandler::SetCurrentlyMountedAiming(bool a_aiming)
+{
+	_currentlyMountedAiming = a_aiming;
+}
+
 void DirectionalMovementHandler::UpdateHorseAimDirection()
 {
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 
-	if (_currentHorseAimDirection == Directions::kForward) {
+	if (_currentHorseAimDirection == Direction::kForward) {
 		if (_horseAimAngle > 3 * PI8 || _horseAimAngle < 3 * -PI8) {
 			SetNewHorseAimDirection(_horseAimAngle);
 			switch (_currentHorseAimDirection) {
-			case Directions::kRight:
+			case Direction::kRight:
 				playerCharacter->NotifyAnimationGraph("TDM_HorseAimTurn_ForwardToRight");
 				logger::debug("HorseAimTurn - Forward To Right");
 				return;
-			case Directions::kBack:
+			case Direction::kBack:
 				playerCharacter->NotifyAnimationGraph("TDM_HorseAimTurn_ForwardToBack");
 				logger::debug("HorseAimTurn - Forward To Back");
 				return;
-			case Directions::kLeft:
+			case Direction::kLeft:
 				playerCharacter->NotifyAnimationGraph("TDM_HorseAimTurn_ForwardToLeft");
 				logger::debug("HorseAimTurn - Forward To Left");
 				return;
 			}
 		}
-	} else if (_currentHorseAimDirection == Directions::kRight) {
+	} else if (_currentHorseAimDirection == Direction::kRight) {
 		if (_horseAimAngle > 7 * PI8 || _horseAimAngle < PI8) {
 			SetNewHorseAimDirection(_horseAimAngle);
 			switch (_currentHorseAimDirection) {
-			case Directions::kForward:
+			case Direction::kForward:
 				playerCharacter->NotifyAnimationGraph("TDM_HorseAimTurn_RightToForward");
 				logger::debug("HorseAimTurn - Right To Forward");
 				return;
-			case Directions::kBack:
+			case Direction::kBack:
 				playerCharacter->NotifyAnimationGraph("TDM_HorseAimTurn_RightToBack");
 				logger::debug("HorseAimTurn - Right To Back");
 				return;
-			case Directions::kLeft:
+			case Direction::kLeft:
 				playerCharacter->NotifyAnimationGraph("TDM_HorseAimTurn_RightToLeft");
 				logger::debug("HorseAimTurn - Right To Left");
 				return;
 			}
 		}
-	} else if (_currentHorseAimDirection == Directions::kBack) {
+	} else if (_currentHorseAimDirection == Direction::kBack) {
 		if (_horseAimAngle > 5 * -PI8 || _horseAimAngle < 5 * PI8) {
 			SetNewHorseAimDirection(_horseAimAngle);
 			switch (_currentHorseAimDirection) {
-			case Directions::kForward:
+			case Direction::kForward:
 				playerCharacter->NotifyAnimationGraph("TDM_HorseAimTurn_BackToForward");
 				logger::debug("HorseAimTurn - Back To Forward");
 				return;
-			case Directions::kRight:
+			case Direction::kRight:
 				playerCharacter->NotifyAnimationGraph("TDM_HorseAimTurn_BackToRight");
 				logger::debug("HorseAimTurn - Back To Right");
 				return;
-			case Directions::kLeft:
+			case Direction::kLeft:
 				playerCharacter->NotifyAnimationGraph("TDM_HorseAimTurn_BackToLeft");
 				logger::debug("HorseAimTurn - Back To Left");
 				return;
 			}
 		}
-	} else if (_currentHorseAimDirection == Directions::kLeft) {
+	} else if (_currentHorseAimDirection == Direction::kLeft) {
 		if (_horseAimAngle > -PI8 || _horseAimAngle < 7 * -PI8) {
 			SetNewHorseAimDirection(_horseAimAngle);
 			switch (_currentHorseAimDirection) {
-			case Directions::kForward:
+			case Direction::kForward:
 				playerCharacter->NotifyAnimationGraph("TDM_HorseAimTurn_LeftToForward");
 				logger::debug("HorseAimTurn - Left To Forward");
 				return;
-			case Directions::kRight:
+			case Direction::kRight:
 				playerCharacter->NotifyAnimationGraph("TDM_HorseAimTurn_LeftToRight");
 				logger::debug("HorseAimTurn - Left To Right");
 				return;
-			case Directions::kBack:
+			case Direction::kBack:
 				playerCharacter->NotifyAnimationGraph("TDM_HorseAimTurn_LeftToBack");
 				logger::debug("HorseAimTurn - Left To Back");
 				return;
@@ -1812,13 +2128,13 @@ void DirectionalMovementHandler::UpdateHorseAimDirection()
 void DirectionalMovementHandler::SetNewHorseAimDirection(float a_angle)
 {
 	if (a_angle >= -PI4 && a_angle < PI4) {
-		_currentHorseAimDirection = Directions::kForward;
+		_currentHorseAimDirection = Direction::kForward;
 	} else if (a_angle >= PI4 && a_angle < 3 * PI4) {
-		_currentHorseAimDirection = Directions::kRight;
+		_currentHorseAimDirection = Direction::kRight;
 	} else if (a_angle >= 3 * PI4 || a_angle < 3 * -PI4) {
-		_currentHorseAimDirection = Directions::kBack;
+		_currentHorseAimDirection = Direction::kBack;
 	} else if (a_angle >= 3 * -PI4 && a_angle < -PI4) {
-		_currentHorseAimDirection = Directions::kLeft;
+		_currentHorseAimDirection = Direction::kLeft;
 	}
 }
 
@@ -1906,10 +2222,11 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 		return;
 	}
 
-	RE::NiPoint3 targetPos;
-	if (!GetTargetPos(a_target, targetPos)) {
+	if (!_currentTargetPoint && !a_target) {
 		return;
 	}
+
+	RE::NiPoint3 targetPos = _currentTargetPoint ? _currentTargetPoint->world.translate : _target.get()->GetLookingAtLocation();
 
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	auto playerCamera = RE::PlayerCamera::GetSingleton();
@@ -1926,7 +2243,7 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	}
 
 	RE::NiPoint3 playerPos;
-	if (!GetTargetPos(playerCharacter->GetHandle(), playerPos)) {
+	if (!GetTorsoPos(playerCharacter, playerPos)) {
 		return;
 	}
 
@@ -2211,7 +2528,17 @@ bool DirectionalMovementHandler::IsBehaviorPatchInstalled(RE::TESObjectREFR* a_r
 	}
 
 	bool bOut;
-	return a_ref->GetGraphVariableBool("tdmDummy", bOut);
+	return a_ref->GetGraphVariableBool("tdmHeadtrackingSKSE", bOut);
+}
+
+bool DirectionalMovementHandler::IsMountedArcheryPatchInstalled(RE::TESObjectREFR* a_ref)
+{
+	if (!a_ref) {
+		return false;
+	}
+
+	bool bOut;
+	return a_ref->GetGraphVariableBool("360HorseGen", bOut);
 }
 
 bool DirectionalMovementHandler::GetPlayerIsNPC() const
@@ -2250,6 +2577,11 @@ bool DirectionalMovementHandler::GetForceDisableHeadtracking() const
 	return _bForceDisableHeadtracking;
 }
 
+bool DirectionalMovementHandler::GetYawControl() const
+{
+	return _bYawControlledByPlugin;
+}
+
 void DirectionalMovementHandler::SetForceDisableDirectionalMovement(bool a_disable)
 {
 	_bForceDisableDirectionalMovement = a_disable;
@@ -2258,6 +2590,20 @@ void DirectionalMovementHandler::SetForceDisableDirectionalMovement(bool a_disab
 void DirectionalMovementHandler::SetForceDisableHeadtracking(bool a_disable)
 {
 	_bForceDisableHeadtracking = a_disable;
+}
+
+void DirectionalMovementHandler::SetYawControl(bool a_enable, float a_yawRotationSpeedMultiplier /*= 0*/)
+{
+	_bYawControlledByPlugin = a_enable;
+	_controlledYawRotationSpeedMultiplier = _controlledYawRotationSpeedMultiplier < 0.f ? 0.f : a_yawRotationSpeedMultiplier;
+	if (a_enable) {
+		ResetDesiredAngle();
+	}
+}
+
+void DirectionalMovementHandler::SetPlayerYaw(float a_yaw)
+{
+	_desiredAngle = NormalAbsoluteAngle(a_yaw);
 }
 
 DirectionalMovementHandler::DirectionalMovementHandler() :

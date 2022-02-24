@@ -5,6 +5,7 @@
     "boost-stl-interfaces",
     "rsm-binary-io",
     "simpleini",
-    "spdlog"
+    "spdlog",
+    "tomlplusplus"
   ]
 }

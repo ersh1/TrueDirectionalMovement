@@ -59,6 +59,7 @@ struct Settings
 	static inline float fMeleeMagnetismAngle = 60.f;
 
 	// Directional Movement related
+	static inline bool bFaceCrosshairWhileMoving = false;
 	static inline bool bFaceCrosshairWhileAttacking = false;
 	static inline bool bFaceCrosshairWhileShouting = true;
 	static inline bool bFaceCrosshairWhileBlocking = true;
@@ -81,6 +82,7 @@ struct Settings
 	static inline bool bDisableAttackRotationMultipliersForTransformations = true;
 	static inline float fSwimmingPitchSpeed = 3.f;
 	static inline bool bThumbstickBounceFix = false;
+	static inline float fControllerBufferDepth = 0.02f;
 
 	// Headtracking
 	static inline bool bHeadtracking = true;
@@ -130,6 +132,8 @@ struct Settings
 	static inline uint32_t uSwitchTargetRightKey = static_cast<uint32_t>(-1);
 
 	// Non-MCM
+	static inline std::unordered_map<RE::BGSBodyPartData*, std::vector<std::string>> targetPoints;
+
 	static inline RE::BGSKeyword* kywd_magicWard = nullptr;
 	static inline RE::SpellItem* spel_targetLockSpell = nullptr;
 	static inline RE::TESGlobal* glob_directionalMovement = nullptr;

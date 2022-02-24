@@ -18,7 +18,8 @@
 	// Available True Directional Movement interface versions
 	enum class InterfaceVersion : uint8_t
 	{
-		V1
+		V1,
+		V2
 	};
 
 	// Error types that may be returned by the True Directional Movement API
@@ -120,6 +121,33 @@
 		virtual APIResult ReleaseDisableHeadtracking(PluginHandle a_myPluginHandle) noexcept = 0;
 	};
 
+	class IVTDM2 : public IVTDM1
+	{
+		/// <summary>
+		/// Request the control over the player character's yaw.
+		/// If granted, you may use the SetPlayerYaw function and TDM will not adjust the yaw for the duration of your control.
+		/// </summary>
+		/// <param name="a_myPluginHandle">Your assigned plugin handle</param>
+		/// <param name="a_yawRotationSpeedMultiplier">The speed multiplier to use when smoothly rotating to the desired yaw. 0 is instant.</param>
+		/// <returns>OK, MustKeep, AlreadyGiven, AlreadyTaken</returns>
+		[[nodiscard]] virtual APIResult RequestYawControl(PluginHandle a_myPluginHandle, float a_yawRotationSpeedMultiplier) noexcept = 0;
+
+		/// <summary>
+		/// Tries to set the player character's desired yaw. Will only do so if granted control.
+		/// </summary>
+		/// <param name="a_myPluginHandle">Your assigned plugin handle</param>
+		/// <param name="a_desiredYaw">The desired yaw</param>
+		/// <returns>OK, NotOwner</returns>
+		virtual APIResult SetPlayerYaw(PluginHandle a_myPluginHandle, float a_desiredYaw) noexcept = 0;
+
+		/// <summary>
+		/// Release your control over the player character's yaw.
+		/// </summary>
+		/// <param name="a_myPluginHandle">Your assigned plugin handle</param>
+		/// <returns>OK, NotOwner</returns>
+		virtual APIResult ReleaseYawControl(PluginHandle a_myPluginHandle) noexcept = 0;
+	};
+
 	struct InterfaceRequest
 	{
 		// Version to request
@@ -167,7 +195,7 @@
 	/// <param name="version">The interface version to request</param>
 	/// <returns>If any plugin was listening for this request, true. See skse/PluginAPI.h</returns>
 	[[nodiscard]] inline bool RequestInterface(const SKSE::MessagingInterface* a_skseMessaging,
-		InterfaceVersion a_version = InterfaceVersion::V1) noexcept
+		InterfaceVersion a_version = InterfaceVersion::V2) noexcept
 	{
 		InterfaceRequest req = {};
 		req.interfaceVersion = a_version;

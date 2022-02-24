@@ -1,4 +1,5 @@
 #include "Utils.h"
+#include "Offsets.h"
 
 void GetAngle(const RE::NiPoint3& a_from, const RE::NiPoint3& a_to, AngleZX& angle)
 {
@@ -74,80 +75,63 @@ float NormalRelativeAngle(float a_angle)
 	//return fmod(a_angle, TWO_PI) >= 0 ? (a_angle < PI) ? a_angle : a_angle - TWO_PI : (a_angle >= -PI) ? a_angle : a_angle + TWO_PI;
 }
 
-// get world coordinates of nodeName for actor
-static bool GetNodePosition(RE::ActorPtr a_actor, const char* a_nodeName, RE::NiPoint3& point)
+// acquire actor's torso position
+bool GetTorsoPos(RE::Actor* a_actor, RE::NiPoint3& point)
 {
-	bool bResult = false;
-
-	if (a_nodeName[0]) {
-		RE::NiAVObject* object = a_actor->Get3D2();
-		if (object)
-		{
-			object = object->GetObjectByName(a_nodeName);
-			if (object) 
-			{
-				point.x = object->world.translate.x;
-				point.y = object->world.translate.y;
-				point.z = object->world.translate.z;
-				bResult = true;
-			}
-		}
+	if (!a_actor) {
+		return false;
 	}
 
-	return bResult;
-}
-
-// acquire actor's torso position
-static bool GetTorsoPos(RE::ActorPtr a_actor, RE::NiPoint3& point)
-{
 	RE::TESRace* race = a_actor->race;
-	if (!race)
-	{
+	if (!race) {
+		return false;
+	}
+
+	RE::NiAVObject* object = a_actor->Get3D2();
+	if (!object) {
 		return false;
 	}
 
 	RE::BGSBodyPartData* bodyPartData = race->bodyPartData;
-	if (!bodyPartData)
-	{
+	if (!bodyPartData) {
 		return false;
 	}
 
-	// bodyPart->part[0] body
-	// bodyPart->part[1] head
-	RE::BGSBodyPart* bodyPart = bodyPartData->parts[0];
-	if (!bodyPart) 
-	{
+	RE::BGSBodyPart* bodyPart = bodyPartData->parts[RE::BGSBodyPartDefs::LIMB_ENUM::kTorso];
+	if (!bodyPart) {
+		return false;
+	}	
+
+	auto node = NiAVObject_LookupBoneNodeByName(object, bodyPart->targetName, true);
+	if (!node) {
 		return false;
 	}
 
-	return GetNodePosition(a_actor, bodyPart->targetName.c_str(), point);
+	point = node->world.translate;
+	return true;
 }
 
-bool GetTargetPos(RE::ObjectRefHandle a_target, RE::NiPoint3& pos, bool bGetTorsoPos /*= true*/)
+bool GetTargetPointPosition(RE::ObjectRefHandle a_target, std::string_view a_targetPoint, RE::NiPoint3& a_outPos)
 {
 	auto target = a_target.get();
 	if (!target) {
 		return false;
 	}
 
-	if (target->Get3D2() == nullptr) {
+	auto object = target->Get3D2();
+	if (!object) {
 		return false;
 	}
 
-	if (target->formType == RE::FormType::ActorCharacter) 
-	{
-		auto actorPtr = RE::ActorPtr(target->As<RE::Actor>());
-		if (!bGetTorsoPos || !GetTorsoPos(actorPtr, pos))
-		{
-			pos = target->GetLookingAtLocation();
-		}
-	} 
-	else
-	{
-		pos = target->GetPosition();
+	RE::BSFixedString targetPointName = a_targetPoint;
+	auto node = NiAVObject_LookupBoneNodeByName(object, a_targetPoint, true);
+
+	if (node) {
+		a_outPos = node->world.translate;
+		return true;
 	}
 
-	return true;
+	return false;
 }
 
 void SetRotationMatrix(RE::NiMatrix3& a_matrix, float sacb, float cacb, float sb)

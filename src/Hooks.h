@@ -204,11 +204,18 @@ namespace Hooks
 
 			auto& trampoline = SKSE::GetTrampoline();
 #ifdef IS_SKYRIM_AE
-			REL::Relocation<uintptr_t> hook{ REL::ID(44222) };  // 7821A0  // manual
-			trampoline.write_call<6>(hook.address() + 0x6FF, Func183);  // 78289F // vfunc call
+			REL::Relocation<uintptr_t> hook1{ REL::ID(44222) };  // 7821A0  // manual
+			trampoline.write_call<6>(hook1.address() + 0x6FF, Func183);  // 78289F // vfunc call
+
+			REL::Relocation<uintptr_t> hook2{ REL::ID(44222) };  // 7821A0
+			_InitProjectile = trampoline.write_call<5>(hook2.address() + 0x78A, InitProjectile);
 #else
-			REL::Relocation<uintptr_t> hook{ REL::ID(43030) };  // 754820
-			trampoline.write_call<6>(hook.address() + 0x318, Func183);  // 754B24 // vfunc call
+			REL::Relocation<uintptr_t> hook1{ REL::ID(43030) };  // 754820
+			trampoline.write_call<6>(hook1.address() + 0x318, Func183);  // 754B24 // vfunc call
+
+			REL::Relocation<uintptr_t> hook2{ REL::ID(43030) };  // 754820
+			_InitProjectile = trampoline.write_call<5>(hook2.address() + 0x3B8, InitProjectile); 
+
 #endif
 		}
 	private:
@@ -217,10 +224,12 @@ namespace Hooks
 		static void GetLinearVelocityArrow(RE::Projectile* a_this, RE::NiPoint3& a_outVelocity);
 		static void GetLinearVelocityMissile(RE::Projectile* a_this, RE::NiPoint3& a_outVelocity);
 		static void Func183(RE::Projectile* a_this);
+		static void InitProjectile(RE::Projectile* a_this);
 
 		static inline REL::Relocation<decltype(GetLinearVelocityProjectile)> _GetLinearVelocityProjectile;
 		static inline REL::Relocation<decltype(GetLinearVelocityArrow)> _GetLinearVelocityArrow;
 		static inline REL::Relocation<decltype(GetLinearVelocityMissile)> _GetLinearVelocityMissile;
+		static inline REL::Relocation<decltype(InitProjectile)> _InitProjectile;
 	};
 
 	class PlayerCharacterHook

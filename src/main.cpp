@@ -6,6 +6,7 @@
 #include "Settings.h"
 #include "SmoothCamAPI.h"
 #include "TrueHUDAPI.h"
+#include "Raycast.h"
 
 void MessageHandler(SKSE::MessagingInterface::Message* a_msg)
 {

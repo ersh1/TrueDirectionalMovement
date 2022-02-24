@@ -15,6 +15,7 @@ unsigned long Messaging::TDMInterface::GetTDMThreadId() const noexcept
 
 bool Messaging::TDMInterface::GetDirectionalMovementState() noexcept
 {
+	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 	if (directionalMovementHandler) {
 		return directionalMovementHandler->IsFreeCamera();
 	}
@@ -23,6 +24,7 @@ bool Messaging::TDMInterface::GetDirectionalMovementState() noexcept
 
 bool Messaging::TDMInterface::GetTargetLockState() noexcept
 {
+	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 	if (directionalMovementHandler) {
 		return directionalMovementHandler->HasTargetLocked();
 	}
@@ -31,6 +33,7 @@ bool Messaging::TDMInterface::GetTargetLockState() noexcept
 
 RE::ActorHandle Messaging::TDMInterface::GetCurrentTarget() noexcept
 {
+	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 	if (directionalMovementHandler) {
 		return directionalMovementHandler->GetTarget();
 	}
@@ -52,6 +55,7 @@ Messaging::APIResult Messaging::TDMInterface::RequestDisableDirectionalMovement(
 	if (!directionalMovementOwner.compare_exchange_strong(expected, a_modHandle, std::memory_order::memory_order_acq_rel))
 		return APIResult::AlreadyTaken;
 
+	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 	if (directionalMovementHandler) {
 		directionalMovementHandler->SetForceDisableDirectionalMovement(true);
 	}
@@ -59,11 +63,11 @@ Messaging::APIResult Messaging::TDMInterface::RequestDisableDirectionalMovement(
 	return APIResult::OK;
 }
 
-Messaging::APIResult Messaging::TDMInterface::RequestDisableHeadtracking(SKSE::PluginHandle modHandle) noexcept
+Messaging::APIResult Messaging::TDMInterface::RequestDisableHeadtracking(SKSE::PluginHandle a_modHandle) noexcept
 {
 	const auto owner = headtrackingOwner.load(std::memory_order::memory_order_acquire);
 	if (owner != SKSE::kInvalidPluginHandle)
-		if (owner == modHandle)
+		if (owner == a_modHandle)
 			return APIResult::AlreadyGiven;
 		else
 			return APIResult::AlreadyTaken;
@@ -71,9 +75,10 @@ Messaging::APIResult Messaging::TDMInterface::RequestDisableHeadtracking(SKSE::P
 	if (needsHeadtrackingControl)
 		return APIResult::MustKeep;
 	auto expected = static_cast<SKSE::PluginHandle>(SKSE::kInvalidPluginHandle);
-	if (!headtrackingOwner.compare_exchange_strong(expected, modHandle, std::memory_order::memory_order_acq_rel))
+	if (!headtrackingOwner.compare_exchange_strong(expected, a_modHandle, std::memory_order::memory_order_acq_rel))
 		return APIResult::AlreadyTaken;
 
+	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 	if (directionalMovementHandler) {
 		directionalMovementHandler->SetForceDisableHeadtracking(true);
 	}
@@ -91,12 +96,13 @@ SKSE::PluginHandle Messaging::TDMInterface::GetDisableHeadtrackingOwner() const 
 	return headtrackingOwner;
 }
 
-Messaging::APIResult Messaging::TDMInterface::ReleaseDisableDirectionalMovement(SKSE::PluginHandle modHandle) noexcept
+Messaging::APIResult Messaging::TDMInterface::ReleaseDisableDirectionalMovement(SKSE::PluginHandle a_modHandle) noexcept
 {
-	if (directionalMovementOwner != modHandle)
+	if (directionalMovementOwner != a_modHandle)
 		return APIResult::NotOwner;
 	directionalMovementOwner.store(SKSE::kInvalidPluginHandle, std::memory_order::memory_order_release);
 
+	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 	if (directionalMovementHandler) {
 		directionalMovementHandler->SetForceDisableDirectionalMovement(false);
 	}
@@ -104,12 +110,13 @@ Messaging::APIResult Messaging::TDMInterface::ReleaseDisableDirectionalMovement(
 	return APIResult::OK;
 }
 
-Messaging::APIResult Messaging::TDMInterface::ReleaseDisableHeadtracking(SKSE::PluginHandle modHandle) noexcept
+Messaging::APIResult Messaging::TDMInterface::ReleaseDisableHeadtracking(SKSE::PluginHandle a_modHandle) noexcept
 {
-	if (headtrackingOwner != modHandle)
+	if (headtrackingOwner != a_modHandle)
 		return APIResult::NotOwner;
 	headtrackingOwner.store(SKSE::kInvalidPluginHandle, std::memory_order::memory_order_release);
 
+	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 	if (directionalMovementHandler) {
 		directionalMovementHandler->SetForceDisableHeadtracking(false);
 	}
@@ -117,9 +124,54 @@ Messaging::APIResult Messaging::TDMInterface::ReleaseDisableHeadtracking(SKSE::P
 	return APIResult::OK;
 }
 
-void Messaging::TDMInterface::SetDirectionalMovementHandler(DirectionalMovementHandler* a_directionalMovementHandler)
+Messaging::APIResult Messaging::TDMInterface::RequestYawControl(SKSE::PluginHandle a_modHandle, float a_yawRotationSpeedMultiplier) noexcept
 {
-	directionalMovementHandler = a_directionalMovementHandler;
+	const auto owner = yawOwner.load(std::memory_order::memory_order_acquire);
+	if (owner != SKSE::kInvalidPluginHandle)
+		if (owner == a_modHandle)
+			return APIResult::AlreadyGiven;
+		else
+			return APIResult::AlreadyTaken;
+
+	if (needsYawControl)
+		return APIResult::MustKeep;
+	auto expected = static_cast<SKSE::PluginHandle>(SKSE::kInvalidPluginHandle);
+	if (!yawOwner.compare_exchange_strong(expected, a_modHandle, std::memory_order::memory_order_acq_rel))
+		return APIResult::AlreadyTaken;
+
+	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+	if (directionalMovementHandler) {
+		directionalMovementHandler->SetYawControl(true, a_yawRotationSpeedMultiplier);
+	}
+
+	return APIResult::OK;
+}
+
+Messaging::APIResult Messaging::TDMInterface::SetPlayerYaw(SKSE::PluginHandle a_modHandle, float a_desiredYaw) noexcept
+{
+	if (yawOwner != a_modHandle)
+		return APIResult::NotOwner;
+
+	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+	if (directionalMovementHandler) {
+		directionalMovementHandler->SetPlayerYaw(a_desiredYaw);
+	}
+
+	return APIResult::OK;
+}
+
+Messaging::APIResult Messaging::TDMInterface::ReleaseYawControl(SKSE::PluginHandle a_modHandle) noexcept
+{
+	if (yawOwner != a_modHandle)
+		return APIResult::NotOwner;
+	yawOwner.store(SKSE::kInvalidPluginHandle, std::memory_order::memory_order_release);
+
+	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+	if (directionalMovementHandler) {
+		directionalMovementHandler->SetYawControl(false);
+	}
+
+	return APIResult::OK;
 }
 
 void Messaging::TDMInterface::SetNeedsDirectionalMovementControl(bool a_needsControl) noexcept
@@ -132,6 +184,11 @@ void Messaging::TDMInterface::SetNeedsHeadtrackingControl(bool a_needsControl) n
 	needsHeadtrackingControl = a_needsControl;
 }
 
+void Messaging::TDMInterface::SetNeedsYawControl(bool a_needsControl) noexcept
+{
+	needsYawControl = a_needsControl;
+}
+
 bool Messaging::TDMInterface::IsDirectionalMovementControlTaken() const noexcept
 {
 	return directionalMovementOwner.load(std::memory_order::memory_order_acquire) != SKSE::kInvalidPluginHandle;
@@ -140,6 +197,11 @@ bool Messaging::TDMInterface::IsDirectionalMovementControlTaken() const noexcept
 bool Messaging::TDMInterface::IsHeadtrackingControlTaken() const noexcept
 {
 	return headtrackingOwner.load(std::memory_order::memory_order_acquire) != SKSE::kInvalidPluginHandle;
+}
+
+bool Messaging::TDMInterface::IsYawControlTaken() const noexcept
+{
+	return yawOwner.load(std::memory_order::memory_order_acquire) != SKSE::kInvalidPluginHandle;
 }
 
 void Messaging::TDMInterface::RegisterConsumer(const char* a_modName) noexcept
@@ -178,7 +240,9 @@ void Messaging::HandleInterfaceRequest(SKSE::MessagingInterface::Message* a_msg)
 	}
 
 	const auto request = reinterpret_cast<const TDM_API::InterfaceRequest*>(cmd->messageData);
-	if (!(request->interfaceVersion == TDM_API::InterfaceVersion::V1)) {
+	if (!(request->interfaceVersion == TDM_API::InterfaceVersion::V1 ||
+		request->interfaceVersion == TDM_API::InterfaceVersion::V2)) 
+	{
 		DispatchToPlugin(&packet, a_msg->sender);
 		return;
 	}
@@ -194,6 +258,8 @@ void Messaging::HandleInterfaceRequest(SKSE::MessagingInterface::Message* a_msg)
 
 	switch (request->interfaceVersion) {
 	case TDM_API::InterfaceVersion::V1:
+		[[fallthrough]];
+	case TDM_API::InterfaceVersion::V2:
 		container.interfaceInstance = static_cast<void*>(api);
 		break;
 	default:

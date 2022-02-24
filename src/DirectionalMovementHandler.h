@@ -14,6 +14,16 @@ namespace std
 			return nativeHandle;
 		}
 	};
+
+	template <>
+	struct hash<RE::ObjectRefHandle>
+	{
+		uint32_t operator()(const RE::ObjectRefHandle& a_handle) const
+		{
+			uint32_t nativeHandle = const_cast<RE::ObjectRefHandle*>(&a_handle)->native_handle();
+			return nativeHandle;
+		}
+	};
 }
 
 class DirectionalMovementHandler
@@ -38,7 +48,10 @@ public:
 	void UpdateFacingCrosshair();
 	void UpdateDodgingState();
 	void UpdateSwimmingPitchOffset();
+	void UpdateMountedArchery();
 	void ProgressTimers();
+	
+	void UpdateProjectileTargetMap();
 
 	void UpdateLeaning();
 
@@ -84,8 +97,9 @@ public:
 	float GetYawDelta() const;
 	void ResetYawDelta();
 
+	RE::NiPoint2 GetActualInputDirection() const;
 
-	enum class Directions
+	enum class Direction
 	{
 		kInvalid = 0,
 		kLeft = 1 << 0,
@@ -96,21 +110,19 @@ public:
 		kDown = 1 << 5
 	};
 
-	SKSE::stl::enumeration<Directions, std::uint8_t> _pressedDirections;
-
-	enum TargetSortOrder : std::uint32_t
+	enum class TargetLockSelectionMode : std::uint32_t
 	{
-		kSort_CameraDistance = 0,					// descending order of distance from camera
-		kSort_CharacterDistanceAndCrosshair = 1,    // descending order of distance from character and crosshair
-		kSort_Crosshair = 2,						// descending order of distance from crosshair
-		kSort_Combined = 3,                         // descending order of combined angle to character and distance and crosshair
-		kSort_ZAxisClock = 4,						// z axis clockwise
-		kSort_ZAxisRClock = 5,						// z axis counterclockwise
-		kSort_Invalid = 6
+		kClosest = 0,
+		kCenter = 1,
+		kCombined = 2
 	};
 
+	SKSE::stl::enumeration<Direction, std::uint8_t> _pressedDirections;
+
 	bool ToggleTargetLock(bool bEnable, bool bPressedManually = false);
-	RE::ActorHandle GetTarget();
+	RE::ActorHandle GetTarget() const;
+	RE::NiPointer<RE::NiAVObject> GetTargetPoint() const;
+	RE::NiPoint3 GetTargetPosition() const;
 	void ClearTargets();
 
 	void OverrideControllerBufferDepth(bool a_override);
@@ -121,10 +133,12 @@ public:
 
 	bool IsActorValidTarget(RE::ActorPtr a_actor, bool a_bCheckDistance = false) const;
 
-	std::vector<RE::ActorHandle> FindCloseActor(float a_distance, TargetSortOrder a_sortOrder);
-	RE::ActorHandle FindTarget(float a_distance, TargetSortOrder a_sortOrder = kSort_Crosshair);
-	RE::ActorHandle FindNextTarget(float a_distance, bool bRight);
-	RE::ActorHandle FindClosestTarget(float a_distance);
+	RE::ActorHandle FindTarget(TargetLockSelectionMode a_mode);
+	void SwitchTarget(Direction a_direction);
+	bool SwitchTargetPoint(Direction a_direction);
+	RE::ActorHandle SwitchScreenTarget(Direction a_direction);
+	std::vector<RE::NiPointer<RE::NiAVObject>> GetTargetPoints(RE::ActorHandle a_actorHandle) const;
+	RE::NiPointer<RE::NiAVObject> GetBestTargetPoint(RE::ActorHandle a_actorHandle) const;
 
 	bool SetDesiredAngleToMagnetismTarget();
 	
@@ -133,12 +147,15 @@ public:
 
 	void SetTarget(RE::ActorHandle a_target);
 	void SetSoftTarget(RE::ActorHandle a_softTarget);
+	void SetTargetPoint(RE::NiPointer<RE::NiAVObject> a_targetPoint);
 
-	void AddTargetLockReticle(RE::ActorHandle a_target);
+	RE::NiAVObject* GetProjectileTargetPoint(RE::ObjectRefHandle a_projectileHandle) const;
+	void AddProjectileTarget(RE::ObjectRefHandle a_projectileHandle, RE::NiPointer<RE::NiAVObject> a_targetPoint);
+	void RemoveProjectileTarget(RE::ObjectRefHandle a_projectileHandle);
+
+	void AddTargetLockReticle(RE::ActorHandle a_target, RE::NiPointer<RE::NiAVObject> a_targetPoint);
 	void ReticleRemoved();
 	void RemoveTargetLockReticle();
-
-	void SwitchTarget(Directions a_direction);
 	
 	void SetHeadtrackTarget(int32_t a_headtrackPriority, RE::TESObjectREFR* a_target);
 
@@ -146,6 +163,8 @@ public:
 
 	void SetPreviousHorseAimAngle(float a_angle);
 	void SetCurrentHorseAimAngle(float a_angle);
+	bool GetCurrentlyMountedAiming() const;
+	void SetCurrentlyMountedAiming(bool a_aiming);
 	void UpdateHorseAimDirection();
 	void SetNewHorseAimDirection(float a_angle);
 	float GetCurrentHorseAimAngle() const;
@@ -178,6 +197,7 @@ public:
 	void InitCameraModsCompatibility();
 
 	static bool IsBehaviorPatchInstalled(RE::TESObjectREFR* a_ref);
+	static bool IsMountedArcheryPatchInstalled(RE::TESObjectREFR* a_ref);
 
 	bool GetPlayerIsNPC() const;
 	void SetPlayerIsNPC(bool a_enable);
@@ -190,8 +210,11 @@ public:
 
 	bool GetForceDisableDirectionalMovement() const;
 	bool GetForceDisableHeadtracking() const;
+	bool GetYawControl() const;
 	void SetForceDisableDirectionalMovement(bool a_disable);
 	void SetForceDisableHeadtracking(bool a_disable);
+	void SetYawControl(bool a_enable, float a_yawRotationSpeedMultiplier = 0);
+	void SetPlayerYaw(float a_yaw);
 
 private:
 	using Lock = std::recursive_mutex;
@@ -215,13 +238,14 @@ private:
 
 	RE::NiPoint3 _previousVelocity;
 		
-	float _freecamControllerBufferDepth = 0.02f;
 	float _defaultControllerBufferDepth = -1.f;
 	
 	bool _bMagnetismActive = false;
 	bool _bCurrentlyTurningToCrosshair = false;
 
 	float _desiredAngle = -1.f;
+
+	RE::NiPoint2 _actualInputDirection;
 
 	bool _bDirectionalMovement = false;
 	bool _bShouldFaceCrosshair = false;
@@ -238,11 +262,12 @@ private:
 	float _yawDelta = 0.f;
 	
 	float _desiredAIProcessRotationSpeed = 0.f;
-	Directions _lastTargetSwitchDirection = Directions::kInvalid;
+	Direction _lastTargetSwitchDirection = Direction::kInvalid;
 
 	float _previousHorseAimAngle = 0.f;
 	float _horseAimAngle = 0.f;
-	Directions _currentHorseAimDirection = Directions::kForward;
+	Direction _currentHorseAimDirection = Direction::kForward;
+	bool _currentlyMountedAiming = false;
 
 	RE::CameraStates::CameraState _cameraStateBeforeTween;
 
@@ -267,6 +292,7 @@ private:
 
 	float _currentAutoCameraRotationSpeed = 0.f;
 	
+	static constexpr float _lostSightAllowedDuration = 2.f;
 	static constexpr float _meleeMagnetismRange = 250.f;
 	static constexpr float _faceCrosshairDuration = 0.4f;
 	static constexpr float _targetLockDistanceHysteresis = 1.05f;
@@ -286,16 +312,24 @@ private:
 
 	bool _bForceDisableDirectionalMovement = false;
 	bool _bForceDisableHeadtracking = false;
+	bool _bYawControlledByPlugin = false;
+	float _controlledYawRotationSpeedMultiplier = 0;
 
 	RE::ActorHandle _target;
 	RE::ActorHandle _softTarget;
 	RE::ObjectRefHandle _dialogueSpeaker;
+	RE::NiPointer<RE::NiAVObject> _currentTargetPoint;
+	
+	std::unordered_map<RE::ObjectRefHandle, RE::NiPointer<RE::NiAVObject>> _projectileTargets;
 
 	// Compatibility
 	RE::TESGlobal* _IFPV_IsFirstPerson = nullptr;
 	bool* _ImprovedCamera_IsFirstPerson = nullptr;
 	bool _bACCInstalled = false;
 	bool _bControlsTrueHUDTarget = false;
+
+	bool _mountedArcheryRequestedSmoothCamCrosshair = false;
+	bool _targetLockRequestedSmoothCamCrosshair = false;
 
 	std::weak_ptr<Scaleform::TargetLockReticle> _targetLockReticle;
 };

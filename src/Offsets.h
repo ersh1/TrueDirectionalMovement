@@ -12,6 +12,7 @@ static float* g_fSprintStopThreshold = (float*)REL::ID(381942).address();       
 static float* g_fLThumbDeadzone = (float*)REL::ID(388471).address();                   // 1E9A278
 static float* g_fLThumbDeadzoneMax = (float*)REL::ID(388480).address();                // 1E9A2C0
 static float* g_fActivatePickLength = (float*)REL::ID(370109).address();               // 1E6BF68
+static float* g_f3PArrowTiltUpAngle = (float*)REL::ID(360295).address();               // 1E49338
 static uintptr_t g_worldToCamMatrix = REL::ID(406126).address();                       // 2FE75F0
 static RE::NiRect<float>* g_viewPort = (RE::NiRect<float>*)REL::ID(406160).address();  // 2FE8B98  // manually found
 static uintptr_t g_highActorCuller = REL::ID(403540).address();                        // 2FC1A50
@@ -28,6 +29,7 @@ static float* g_fSprintStopThreshold = (float*)REL::ID(509489).address();       
 static float* g_fLThumbDeadzone = (float*)REL::ID(511905).address();                   // 1E05DD0
 static float* g_fLThumbDeadzoneMax = (float*)REL::ID(511911).address();                // 1E05E18
 static float* g_fActivatePickLength = (float*)REL::ID(502527).address();               // 1DD7E88
+static float* g_f3PArrowTiltUpAngle = (float*)REL::ID(501506).address();               // 1DB52C8
 static uintptr_t g_worldToCamMatrix = REL::ID(519579).address();                       // 2F4C910
 static RE::NiRect<float>* g_viewPort = (RE::NiRect<float>*)REL::ID(519618).address();  // 2F4DED0
 static uintptr_t g_highActorCuller = REL::ID(517032).address();                        // 2F26F80
@@ -97,4 +99,25 @@ typedef float(__fastcall* tTESObjectREFR_GetSubmergeLevel)(RE::TESObjectREFR* a_
 static REL::Relocation<tTESObjectREFR_GetSubmergeLevel> TESObjectREFR_GetSubmergeLevel{ REL::ID(37448) };
 #else
 static REL::Relocation<tTESObjectREFR_GetSubmergeLevel> TESObjectREFR_GetSubmergeLevel{ REL::ID(36452) };
+#endif
+
+typedef RE::NiAVObject*(__fastcall* tNiAVObject_LookupBoneNodeByName)(RE::NiAVObject* a_this, const RE::BSFixedString& a_name, bool a3);
+#ifdef IS_SKYRIM_AE
+static REL::Relocation<tNiAVObject_LookupBoneNodeByName> NiAVObject_LookupBoneNodeByName{ REL::ID(76207) };
+#else
+static REL::Relocation<tNiAVObject_LookupBoneNodeByName> NiAVObject_LookupBoneNodeByName{ REL::ID(74481) };
+#endif
+
+typedef void*(__fastcall* tCastRay)(RE::hkpWorld* a_this, RE::bhkWorld::RAYCAST_DATA& a_input, RE::hkpRayHitCollector& a_collector);
+#ifdef IS_SKYRIM_AE
+static REL::Relocation<tCastRay> CastRay{ REL::ID(61400) };
+#else
+static REL::Relocation<tCastRay> CastRay{ REL::ID(60552) };
+#endif
+
+typedef void*(__fastcall* tLinearCast)(RE::hkpWorld* world, const RE::hkpCollidable* collA, const RE::hkpLinearCastInput* input, RE::hkpCdPointCollector* castCollector, RE::hkpCdPointCollector* startCollector);
+#ifdef IS_SKYRIM_AE
+static REL::Relocation<tLinearCast> LinearCast{ REL::ID(61402) };
+#else
+static REL::Relocation<tLinearCast> LinearCast{ REL::ID(60554) };
 #endif

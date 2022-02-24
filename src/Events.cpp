@@ -66,14 +66,14 @@ namespace Events
 				if (key == Settings::uSwitchTargetLeftKey) {
 					auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 					if (directionalMovementHandler->HasTargetLocked() && !directionalMovementHandler->ShouldFaceCrosshair()) {
-						directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Directions::kLeft);
+						directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kLeft);
 					}
 				}
 
 				if (key == Settings::uSwitchTargetRightKey) {
 					auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 					if (directionalMovementHandler->HasTargetLocked() && !directionalMovementHandler->ShouldFaceCrosshair()){
-						directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Directions::kRight);
+						directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kRight);
 					}
 				}
 			}
@@ -84,16 +84,16 @@ namespace Events
 			{
 				auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 				if (button->IsHeld()) {
-					directionalMovementHandler->_pressedDirections.set(DirectionalMovementHandler::Directions::kUp);
+					directionalMovementHandler->_pressedDirections.set(DirectionalMovementHandler::Direction::kUp);
 				} else {
-					directionalMovementHandler->_pressedDirections.reset(DirectionalMovementHandler::Directions::kUp);
+					directionalMovementHandler->_pressedDirections.reset(DirectionalMovementHandler::Direction::kUp);
 				}
 			} else if (userEvent == userEvents->sneak) {
 				auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 				if (button->IsHeld()) {
-					directionalMovementHandler->_pressedDirections.set(DirectionalMovementHandler::Directions::kDown);
+					directionalMovementHandler->_pressedDirections.set(DirectionalMovementHandler::Direction::kDown);
 				} else {
-					directionalMovementHandler->_pressedDirections.reset(DirectionalMovementHandler::Directions::kDown);
+					directionalMovementHandler->_pressedDirections.reset(DirectionalMovementHandler::Direction::kDown);
 				}
 			}
 		}

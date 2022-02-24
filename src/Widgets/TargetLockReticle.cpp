@@ -65,10 +65,11 @@ namespace Scaleform
 		}
 	}
 
-	void TargetLockReticle::ChangeTarget(RE::ObjectRefHandle a_refHandle)
+	void TargetLockReticle::ChangeTarget(RE::ObjectRefHandle a_refHandle, RE::NiPointer<RE::NiAVObject> a_targetPoint)
 	{
 		AddWidgetTask([=]() {
 			_refHandle = a_refHandle;
+			_targetPoint = a_targetPoint;	
 
 			if (_widgetState >= WidgetState::kPendingRemoval) {
 				SetWidgetState(WidgetState::kActive);
@@ -96,8 +97,9 @@ namespace Scaleform
 			_desiredScreenPos.x = rect.right * 0.5f;
 			_desiredScreenPos.y = rect.bottom * 0.5f;
 		} else {
-			RE::NiPoint3 targetWorldPos;
-			GetTargetPos(_refHandle, targetWorldPos, Settings::uReticleAnchor == WidgetAnchor::kBody);
+			RE::NiPoint3 targetWorldPos = _targetPoint ? _targetPoint->world.translate : _refHandle.get()->GetLookingAtLocation();
+			//GetTargetPos(_refHandle, targetWorldPos, Settings::uReticleAnchor == WidgetAnchor::kBody);
+			//GetTargetPointPosition(_refHandle, _targetPoint, targetWorldPos);
 
 			RE::NiCamera::WorldPtToScreenPt3((float(*)[4])g_worldToCamMatrix, *g_viewPort, targetWorldPos, _desiredScreenPos.x, _desiredScreenPos.y, _depth, 1e-5f);
 

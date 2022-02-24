@@ -21,14 +21,16 @@ namespace Scaleform
 			kTargetToCrosshair
 		};
 
-		TargetLockReticle(uint32_t a_widgetID, RE::ObjectRefHandle a_refHandle) :
-			WidgetBase(a_widgetID),
-			_refHandle(a_refHandle)
-		{}
-
-		TargetLockReticle(uint32_t a_widgetID, RE::ObjectRefHandle a_refHandle, ReticleStyle a_reticleStyle) :
+		TargetLockReticle(uint32_t a_widgetID, RE::ObjectRefHandle a_refHandle, RE::NiPointer<RE::NiAVObject> a_targetPoint) :
 			WidgetBase(a_widgetID),
 			_refHandle(a_refHandle),
+			_targetPoint(a_targetPoint)
+		{}
+
+		TargetLockReticle(uint32_t a_widgetID, RE::ObjectRefHandle a_refHandle, RE::NiPointer<RE::NiAVObject> a_targetPoint, ReticleStyle a_reticleStyle) :
+			WidgetBase(a_widgetID),
+			_refHandle(a_refHandle),
+			_targetPoint(a_targetPoint),
 			_reticleStyle(a_reticleStyle)
 		{}
 
@@ -37,9 +39,10 @@ namespace Scaleform
 		virtual void Dispose() override;
 
 		virtual void SetWidgetState(WidgetState a_widgetState);
-		virtual void ChangeTarget(RE::ObjectRefHandle a_refHandle);
+		virtual void ChangeTarget(RE::ObjectRefHandle a_refHandle, RE::NiPointer<RE::NiAVObject> a_targetPoint);
 
 		RE::ObjectRefHandle _refHandle;
+		RE::NiPointer<RE::NiAVObject> _targetPoint;
 		ReticleStyle _reticleStyle;
 
 	protected:
