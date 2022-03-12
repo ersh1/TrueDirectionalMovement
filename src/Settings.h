@@ -54,18 +54,17 @@ struct Settings
 	static void Initialize();
 	static void ReadSettings();
 	static void OnPostLoadGame();
+	static void UpdateGlobals();
 
 	static void ReadBoolSetting(CSimpleIniA& a_ini, const char* a_sectionName, const char* a_settingName, bool& a_setting);
 	static void ReadFloatSetting(CSimpleIniA& a_ini, const char* a_sectionName, const char* a_settingName, float& a_setting);
 	static void ReadUInt32Setting(CSimpleIniA& a_ini, const char* a_sectionName, const char* a_settingName, uint32_t& a_setting);
 
-	// General
+	// Directional Movement related
 	static inline DirectionalMovementMode uDirectionalMovementSheathed = DirectionalMovementMode::kDirectional;
 	static inline DirectionalMovementMode uDirectionalMovementDrawn = DirectionalMovementMode::kDirectional;
 	static inline DialogueMode uDialogueMode = DialogueMode::kFaceSpeaker;
-	static inline float fMeleeMagnetismAngle = 60.f;
-
-	// Directional Movement related
+	static inline float fMeleeMagnetismAngle = 60.f;	
 	static inline bool bFaceCrosshairWhileAttacking = false;
 	static inline bool bFaceCrosshairWhileShouting = true;
 	static inline bool bFaceCrosshairWhileBlocking = true;
@@ -87,8 +86,14 @@ struct Settings
 	static inline bool bIgnoreSlowTime = false;
 	static inline bool bDisableAttackRotationMultipliersForTransformations = true;
 	static inline float fSwimmingPitchSpeed = 3.f;
-	static inline bool bThumbstickBounceFix = false;
 	static inline float fControllerBufferDepth = 0.02f;
+
+	// Leaning
+	static inline bool bEnableLeaning = true;
+	static inline bool bEnableLeaningNPC = true;
+	static inline float fLeaningMult = 2.f;
+	static inline float fLeaningSpeed = 4.f;
+	static inline float fMaxLeaningStrength = 10.f;
 
 	// Headtracking
 	static inline bool bHeadtracking = true;
@@ -132,6 +137,12 @@ struct Settings
 	static inline bool bReticleUseHUDOpacity = true;
 	static inline float fReticleOpacity = 1.f;
 
+	// Controller
+	static inline bool bOverrideControllerDeadzone = true;
+	static inline float fControllerRadialDeadzone = 0.24f;
+	static inline float fControllerAxialDeadzone = 0.12f;
+	static inline bool bThumbstickBounceFix = false;
+
 	// Keys
 	static inline uint32_t uTargetLockKey = 258;
 	static inline uint32_t uSwitchTargetLeftKey = static_cast<uint32_t>(-1);
@@ -145,4 +156,7 @@ struct Settings
 	static inline RE::TESGlobal* glob_directionalMovement = nullptr;
 	static inline RE::TESGlobal* glob_targetLockHint = nullptr;
 	static inline RE::TESGlobal* glob_trueHUD = nullptr;
+	static inline RE::TESGlobal* glob_nemesisHeadtracking = nullptr;
+	static inline RE::TESGlobal* glob_nemesisMountedArchery = nullptr;
+	static inline RE::TESGlobal* glob_nemesisLeaning = nullptr;
 };

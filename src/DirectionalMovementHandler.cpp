@@ -30,6 +30,8 @@ void DirectionalMovementHandler::Update()
 		return;
 	}
 
+	Settings::UpdateGlobals();
+
 	ProgressTimers();
 
 	UpdateTargetLock();
@@ -153,6 +155,26 @@ void DirectionalMovementHandler::Update()
 	}
 
 	UpdateProjectileTargetMap();
+
+#ifndef NDEBUG
+	if (g_trueHUD) {
+		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+
+		auto playerAngle = playerCharacter->data.angle.z;
+		auto playerPos = playerCharacter->GetPosition() + RE::NiPoint3{ 0.f, 0.f, 50.f };
+
+		RE::NiPoint3 forwardVector{ 0.f, 1.f, 0.f };
+
+		RE::NiPoint3 dir = RotateAngleAxis(forwardVector, -playerAngle, { 0.f, 0.f, 1.f });
+		g_trueHUD->DrawArrow(playerPos, playerPos + dir * 20.f);
+
+		if (_desiredAngle != -1.f) {
+			playerPos += RE::NiPoint3{ 0.f, 0.f, 10.f };
+			dir = RotateAngleAxis(forwardVector, -_desiredAngle, { 0.f, 0.f, 1.f });
+			g_trueHUD->DrawArrow(playerPos, playerPos + dir * 25.f, 10.f, 0.f, 0xFFFF00FF, 1.5f);
+		}
+	}
+#endif
 }
 
 void DirectionalMovementHandler::UpdateDirectionalMovement()
@@ -174,7 +196,11 @@ void DirectionalMovementHandler::UpdateDirectionalMovement()
 		(Settings::uDialogueMode != DialogueMode::kDisable || !RE::MenuTopicManager::GetSingleton()->speaker)) {
 		_bDirectionalMovement = true;
 		if (Settings::glob_directionalMovement) {
-			Settings::glob_directionalMovement->value = 1;
+			if (_bShouldFaceCrosshair || _bCurrentlyTurningToCrosshair) {
+				Settings::glob_directionalMovement->value = 0;
+			} else {
+				Settings::glob_directionalMovement->value = 1;
+			}			
 		}
 	} else {
 		_bDirectionalMovement = false;
@@ -223,7 +249,7 @@ void DirectionalMovementHandler::UpdateFacingState()
 
 	bool bShouldFaceCrosshairWhileMoving = (playerCharacter->GetWeaponState() == RE::WEAPON_STATE::kSheathed ? Settings::uDirectionalMovementSheathed : Settings::uDirectionalMovementDrawn) == DirectionalMovementMode::kVanilla;
 
-	if (bShouldFaceCrosshairWhileMoving && playerAttackState == RE::ATTACK_STATE_ENUM::kNone && HasMovementInput() && !HasTargetLocked()) {
+	if (bShouldFaceCrosshairWhileMoving && HasMovementInput() && !HasTargetLocked()) {
 		_bShouldFaceCrosshair = true;
 		_faceCrosshairTimer = 0.f;
 		_bShouldFaceTarget = true;
@@ -233,14 +259,10 @@ void DirectionalMovementHandler::UpdateFacingState()
 	bool bIsAttacking = playerAttackState > RE::ATTACK_STATE_ENUM::kNone && playerAttackState < RE::ATTACK_STATE_ENUM::kBowDraw;
 
 	if (Settings::bFaceCrosshairWhileAttacking && bIsAttacking && !HasTargetLocked() && !_bMagnetismActive) {
-		if (_attackState > AttackState::kNone && _attackState < AttackState::kEnd) {
-			_bShouldFaceCrosshair = true;
-			_faceCrosshairTimer = 0.f;
-			_bShouldFaceTarget = true;
-			return;
-		} else {
-			ResetDesiredAngle();
-		}
+		_bShouldFaceCrosshair = true;
+		_faceCrosshairTimer = 0.1f;
+		_bShouldFaceTarget = true;
+		return;
 	}
 
 	if (Settings::bFaceCrosshairWhileShouting && playerCharacter->currentProcess && playerCharacter->currentProcess->high && playerCharacter->currentProcess->high->currentShout) {
@@ -354,6 +376,10 @@ void DirectionalMovementHandler::UpdateFacingState()
 
 	SetIsAiming(false);
 
+	if (_aimingTimer <= 0.f) {
+		_bIsAiming = false;
+	}
+
 	if (_faceCrosshairTimer <= 0.f) {
 		_bShouldFaceCrosshair = false;
 		_bShouldFaceTarget = false;
@@ -369,7 +395,7 @@ void DirectionalMovementHandler::UpdateFacingCrosshair()
 		if (playerCharacter && playerCamera && playerCamera->currentState && playerCamera->currentState->id == RE::CameraStates::kThirdPerson)
 		{
 			auto thirdPersonState = static_cast<RE::ThirdPersonState*>(playerCamera->currentState.get());
-			if (playerCharacter->IsSprinting()) {
+			if (playerCharacter->IsSprinting() && (!Settings::bFaceCrosshairDuringAutoMove || !RE::PlayerControls::GetSingleton()->data.autoMove)) {
 				_bCurrentlyTurningToCrosshair = true;
 				return;
 			}
@@ -455,6 +481,9 @@ void DirectionalMovementHandler::ProgressTimers()
 	if (_faceCrosshairTimer > 0.f) {
 		_faceCrosshairTimer -= *g_deltaTime;
 	}
+	if (_aimingTimer > 0.f) {
+		_aimingTimer -= *g_deltaTime;
+	}
 	if (_cameraHeadtrackTimer > 0.f) {
 		_cameraHeadtrackTimer -= *g_deltaTime;
 	}
@@ -479,58 +508,83 @@ void DirectionalMovementHandler::UpdateProjectileTargetMap()
 	}
 }
 
-void DirectionalMovementHandler::UpdateLeaning()
+void DirectionalMovementHandler::UpdateLeaning(RE::Actor* a_actor, [[maybe_unused]] float a_deltaTime)
 {
-	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
-	if (!playerCharacter)
-	{
+	if (!Settings::bEnableLeaning) {
 		return;
 	}
 
-	auto characterController = playerCharacter->GetCharController();
+	if (!a_actor) {
+		return;
+	}
+
+	if (!a_actor->currentProcess || !a_actor->currentProcess->InHighProcess()) {
+		return;
+	}
+
+	if (!Settings::bEnableLeaningNPC && !a_actor->IsPlayerRef()) {
+		return;
+	}
+
+	auto characterController = a_actor->GetCharController();
 	if (!characterController) {
 		return;
 	}
 
-	float quad[4];
-	_mm_store_ps(quad, characterController->outVelocity.quad);
-	RE::NiPoint3 worldVelocity{ quad[0], quad[1], quad[2] };
-	RE::NiPoint3 upVector{ 0, 0, 1 };
-
-	auto velocity = worldVelocity;
-
-	/*_velocityBuffer.push_front(worldVelocity);
-	if (_velocityBuffer.size() > _velocityBufferSize)
-	{
-		_velocityBuffer.pop_back();
+	RE::NiPoint3 previousVelocity;
+	bool bFound = a_actor->GetGraphVariableFloat("TDM_VelocityX", previousVelocity.x);
+	if (!bFound) {
+		return;
 	}
-	
-	RE::NiPoint3 avgVelocity;
-	for (auto& vel : _velocityBuffer)
-	{
-		avgVelocity += vel;
+	a_actor->GetGraphVariableFloat("TDM_VelocityY", previousVelocity.y);
+
+	float desiredPitch = 0.f;
+	float desiredRoll = 0.f;
+
+	if (a_actor->actorState1.meleeAttackState == RE::ATTACK_STATE_ENUM::kNone) {
+		float quad[4];
+		_mm_store_ps(quad, characterController->forwardVec.quad);
+		RE::NiPoint3 worldVelocity{ -quad[0], -quad[1], 0.f };
+		RE::NiPoint3 upVector{ 0.f, 0.f, 1.f };
+
+		worldVelocity *= characterController->speedPct * Settings::fLeaningMult;
+
+		a_actor->SetGraphVariableFloat("TDM_VelocityX", worldVelocity.x);
+		a_actor->SetGraphVariableFloat("TDM_VelocityY", worldVelocity.y);
+
+		// calculate acceleration
+		RE::NiPoint3 worldAcceleration = (worldVelocity - previousVelocity) / *g_deltaTime;
+
+		worldAcceleration *= worldAcceleration.Dot(worldVelocity) > 0 ? 1.f : 0.5f;
+		worldAcceleration = ClampSizeMax(worldAcceleration, Settings::fMaxLeaningStrength);  // clamp to sane values
+		auto acceleration = RotateAngleAxis(worldAcceleration, a_actor->data.angle.z, upVector);
+
+		// get desired lean
+		desiredPitch = acceleration.y;
+		desiredRoll = acceleration.x;
+
+//#ifndef NDEBUG
+//		if (g_trueHUD) {
+//			RE::NiPoint3 rootPos = a_actor->GetPosition();
+//			RE::NiPoint3 pos = rootPos + RE::NiPoint3{ 0.f, 0.f, 50.f };
+//			g_trueHUD->DrawArrow(rootPos, rootPos + worldVelocity);
+//			g_trueHUD->DrawArrow(pos, pos + worldAcceleration, 10.f, 0.f, 0xFFFF00FF);
+//		}
+//#endif
 	}
-	avgVelocity /= (float)_velocityBuffer.size();*/
 
-	// calculate acceleration
-	auto worldAcceleration = (velocity - _previousVelocity) / *g_deltaTime;
-	_previousVelocity = velocity;
-
-	worldAcceleration = ClampSizeMax(worldAcceleration, worldAcceleration.Dot(velocity) > 0 ? 1500.f : 2048.f);
-	auto acceleration = RotateAngleAxis(worldAcceleration, playerCharacter->data.angle.z, upVector);
-
-	// get desired lean
-	LeanAmount desiredLean;
-	desiredLean.FB = acceleration.y;
-	desiredLean.LR = -acceleration.x;
+	float pitch, roll;
+	a_actor->GetGraphVariableFloat("TDM_Pitch", pitch);
+	a_actor->GetGraphVariableFloat("TDM_Roll", roll);
 
 	// interpolate
-	_leanAmount.LR = InterpTo(_leanAmount.LR, desiredLean.LR, *g_deltaTime, _leanInterpSpeed);
-	_leanAmount.FB = InterpTo(_leanAmount.FB, desiredLean.FB, *g_deltaTime, _leanInterpSpeed);
+	roll = InterpTo(roll, desiredRoll, *g_deltaTime, Settings::fLeaningSpeed);
+	pitch = InterpTo(pitch, desiredPitch, *g_deltaTime, Settings::fLeaningSpeed);
 
 	// update angles
-	characterController->pitchAngle = _leanAmount.FB / 100;
-	characterController->rollAngle = _leanAmount.LR / 100;
+	a_actor->SetGraphVariableFloat("TDM_Pitch", pitch);
+	a_actor->SetGraphVariableFloat("TDM_Roll", roll);
+	a_actor->SetGraphVariableFloat("TDM_SpineTurn", roll);
 }
 
 void DirectionalMovementHandler::UpdateCameraAutoRotation()
@@ -555,16 +609,19 @@ void DirectionalMovementHandler::UpdateCameraAutoRotation()
 
 		float desiredSpeed = 0.f;
 
-		float speedPct = cameraTarget->GetCharController()->speedPct;
-		if (speedPct > 0.f && abs(thirdPersonState->freeRotation.x) > _cameraAutoRotationAngleDeadzone) {
-			bool bOnlyDuringSprint = Settings::uAdjustCameraYawDuringMovement == CameraAdjustMode::kDuringSprint;
-			bool bIsSprinting = cameraTarget->IsSprinting();
-			if (bOnlyDuringSprint && !bIsSprinting) {
-				desiredSpeed = 0.f;
-			} else {
-				desiredSpeed = -sin(thirdPersonState->freeRotation.x) * speedPct * Settings::fCameraAutoAdjustSpeedMult;
+		auto characterController = cameraTarget->GetCharController();
+		if (characterController) {
+			float speedPct = characterController->speedPct;
+			if (speedPct > 0.f) {
+				bool bOnlyDuringSprint = Settings::uAdjustCameraYawDuringMovement == CameraAdjustMode::kDuringSprint;
+				bool bIsSprinting = cameraTarget->IsSprinting();
+				if (bOnlyDuringSprint && !bIsSprinting) {
+					desiredSpeed = 0.f;
+				} else {
+					desiredSpeed = -sin(thirdPersonState->freeRotation.x) * speedPct * Settings::fCameraAutoAdjustSpeedMult;
+				}
 			}
-		}
+		}		
 
 		_currentAutoCameraRotationSpeed = InterpTo(_currentAutoCameraRotationSpeed, desiredSpeed, *g_deltaTimeRealTime, 5.f);
 		thirdPersonState->freeRotation.x += _currentAutoCameraRotationSpeed * *g_deltaTimeRealTime;
@@ -658,8 +715,9 @@ bool DirectionalMovementHandler::IsAiming() const
 
 void DirectionalMovementHandler::SetIsAiming(bool a_bIsAiming)
 {
-	if (_bIsAiming != a_bIsAiming) {
-		_bIsAiming = a_bIsAiming;
+	if (a_bIsAiming) {
+		_bIsAiming = true;
+		_aimingTimer = _aimingDuration;
 	}
 }
 
@@ -711,8 +769,8 @@ bool DirectionalMovementHandler::ProcessInput(RE::NiPoint2& a_inputDirection, RE
 
 	if (Settings::bThumbstickBounceFix && inputLength < 0.25f && DetectInputAnalogStickBounce()) {
 		a_playerControlsData->prevMoveVec = a_playerControlsData->moveInputVec;
-		a_playerControlsData->moveInputVec.x = 0;
-		a_playerControlsData->moveInputVec.y = 0;
+		a_playerControlsData->moveInputVec.x = 0.f;
+		a_playerControlsData->moveInputVec.y = 0.f;
 		SetLastInputDirection(a_playerControlsData->moveInputVec);
 		ResetDesiredAngle();
 		return true;

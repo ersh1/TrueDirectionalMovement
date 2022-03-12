@@ -53,7 +53,7 @@ public:
 	
 	void UpdateProjectileTargetMap();
 
-	void UpdateLeaning();
+	void UpdateLeaning(RE::Actor* a_actor, float a_deltaTime);
 
 	void UpdateCameraAutoRotation();
 	void ResetCameraRotationDelay();
@@ -205,7 +205,7 @@ public:
 	void UpdatePlayerPitch();	
 
 	SmoothCamAPI::IVSmoothCam3* g_SmoothCam = nullptr;
-	TRUEHUD_API::IVTrueHUD1* g_trueHUD = nullptr;
+	TRUEHUD_API::IVTrueHUD3* g_trueHUD = nullptr;
 	std::atomic_bool _bReticleRemoved{ false };
 
 	bool GetForceDisableDirectionalMovement() const;
@@ -230,14 +230,6 @@ private:
 
 	mutable Lock _lock;
 
-	struct LeanAmount
-	{
-		float LR;
-		float FB;
-	} _leanAmount;
-
-	RE::NiPoint3 _previousVelocity;
-		
 	float _defaultControllerBufferDepth = -1.f;
 	
 	bool _bMagnetismActive = false;
@@ -280,6 +272,7 @@ private:
 	float _lastLOSTimer = 0.f;
 	float _dialogueHeadtrackTimer = 0.f;
 	float _faceCrosshairTimer = 0.f;
+	float _aimingTimer = 0.f;
 	float _cameraHeadtrackTimer = 0.f;
 	float _cameraRotationDelayTimer = 0.f;
 	float _tutorialHintTimer = 0.f;
@@ -295,13 +288,9 @@ private:
 	static constexpr float _lostSightAllowedDuration = 2.f;
 	static constexpr float _meleeMagnetismRange = 250.f;
 	static constexpr float _faceCrosshairDuration = 0.4f;
+	static constexpr float _aimingDuration = 0.1f;
 	static constexpr float _targetLockDistanceHysteresis = 1.05f;
-	static constexpr float _cameraAutoRotationAngleDeadzone = 0.2f;
 	static constexpr float _hintDuration = 5.f;
-
-	static constexpr float _leanInterpSpeed = 4.f;
-	//static constexpr size_t _velocityBufferSize = 10;
-	//std::deque<RE::NiPoint3> _velocityBuffer;
 
 	bool _playerIsNPC = false;
 

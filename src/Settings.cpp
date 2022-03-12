@@ -14,6 +14,9 @@ void Settings::Initialize()
 		glob_directionalMovement = dataHandler->LookupForm<RE::TESGlobal>(0x807, "TrueDirectionalMovement.esp");
 		glob_targetLockHint = dataHandler->LookupForm<RE::TESGlobal>(0x808, "TrueDirectionalMovement.esp");
 		glob_trueHUD = dataHandler->LookupForm<RE::TESGlobal>(0x810, "TrueDirectionalMovement.esp");
+		glob_nemesisHeadtracking = dataHandler->LookupForm<RE::TESGlobal>(0x811, "TrueDirectionalMovement.esp");
+		glob_nemesisMountedArchery = dataHandler->LookupForm<RE::TESGlobal>(0x812, "TrueDirectionalMovement.esp");
+		glob_nemesisLeaning	= dataHandler->LookupForm<RE::TESGlobal>(0x813, "TrueDirectionalMovement.esp");
 	}
 
 	logger::info("...success");
@@ -92,13 +95,11 @@ void Settings::ReadSettings()
 
 		mcm.LoadFile(path.string().c_str());
 
-		// General
-		ReadUInt32Setting(mcm, "General", "uDirectionalMovementSheathed", (uint32_t&)uDirectionalMovementSheathed);
-		ReadUInt32Setting(mcm, "General", "uDirectionalMovementDrawn", (uint32_t&)uDirectionalMovementDrawn);
-		ReadUInt32Setting(mcm, "General", "uDialogueMode", (uint32_t&)uDialogueMode);
-		ReadFloatSetting(mcm, "General", "fMeleeMagnetismAngle", fMeleeMagnetismAngle);
-
 		// Directional Movement related
+		ReadUInt32Setting(mcm, "DirectionalMovement", "uDirectionalMovementSheathed", (uint32_t&)uDirectionalMovementSheathed);
+		ReadUInt32Setting(mcm, "DirectionalMovement", "uDirectionalMovementDrawn", (uint32_t&)uDirectionalMovementDrawn);
+		ReadUInt32Setting(mcm, "DirectionalMovement", "uDialogueMode", (uint32_t&)uDialogueMode);
+		ReadFloatSetting(mcm, "DirectionalMovement", "fMeleeMagnetismAngle", fMeleeMagnetismAngle);
 		ReadBoolSetting(mcm, "DirectionalMovement", "bFaceCrosshairWhileAttacking", bFaceCrosshairWhileAttacking);
 		ReadBoolSetting(mcm, "DirectionalMovement", "bFaceCrosshairWhileShouting", bFaceCrosshairWhileShouting);
 		ReadBoolSetting(mcm, "DirectionalMovement", "bFaceCrosshairWhileBlocking", bFaceCrosshairWhileBlocking);
@@ -120,8 +121,14 @@ void Settings::ReadSettings()
 		ReadBoolSetting(mcm, "DirectionalMovement", "bIgnoreSlowTime", bIgnoreSlowTime);
 		ReadBoolSetting(mcm, "DirectionalMovement", "bDisableAttackRotationMultipliersForTransformations", bDisableAttackRotationMultipliersForTransformations);
 		ReadFloatSetting(mcm, "DirectionalMovement", "fSwimmingPitchSpeed", fSwimmingPitchSpeed);
-		ReadBoolSetting(mcm, "DirectionalMovement", "bThumbstickBounceFix", bThumbstickBounceFix);
 		ReadFloatSetting(mcm, "DirectionalMovement", "fControllerBufferDepth", fControllerBufferDepth);
+
+		// Leaning
+		ReadBoolSetting(mcm, "Leaning", "bEnableLeaning", bEnableLeaning);
+		ReadBoolSetting(mcm, "Leaning", "bEnableLeaningNPC", bEnableLeaningNPC);
+		ReadFloatSetting(mcm, "Leaning", "fLeaningMult", fLeaningMult);
+		ReadFloatSetting(mcm, "Leaning", "fLeaningSpeed", fLeaningSpeed);
+		ReadFloatSetting(mcm, "Leaning", "fMaxLeaningStrength", fMaxLeaningStrength);
 
 		// Headtracking
 		ReadBoolSetting(mcm, "Headtracking", "bHeadtracking", bHeadtracking);
@@ -164,6 +171,12 @@ void Settings::ReadSettings()
 		ReadBoolSetting(mcm, "HUD", "bReticleUseHUDOpacity", bReticleUseHUDOpacity);
 		ReadFloatSetting(mcm, "HUD", "fReticleOpacity", fReticleOpacity);
 
+		// Controller
+		ReadBoolSetting(mcm, "Controller", "bOverrideControllerDeadzone", bOverrideControllerDeadzone);
+		ReadFloatSetting(mcm, "Controller", "fControllerRadialDeadzone", fControllerRadialDeadzone);
+		ReadFloatSetting(mcm, "Controller", "fControllerAxialDeadzone", fControllerAxialDeadzone);
+		ReadBoolSetting(mcm, "Controller", "bThumbstickBounceFix", bThumbstickBounceFix);
+
 		// Keys
 		ReadUInt32Setting(mcm, "Keys", "uTargetLockKey", uTargetLockKey);
 		ReadUInt32Setting(mcm, "Keys", "uSwitchTargetLeftKey", uSwitchTargetLeftKey);
@@ -182,8 +195,36 @@ void Settings::ReadSettings()
 
 void Settings::OnPostLoadGame()
 {
+	UpdateGlobals();
+}
+
+void Settings::UpdateGlobals()
+{
 	if (glob_trueHUD) {
 		glob_trueHUD->value = DirectionalMovementHandler::GetSingleton()->g_trueHUD != nullptr ? 1.f : 0.f;
+	}
+
+	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+	RE::BSTSmartPointer<RE::BSAnimationGraphManager> animationGraphManagerPtr;
+	playerCharacter->GetAnimationGraphManager(animationGraphManagerPtr);
+	if (animationGraphManagerPtr) {
+		RE::BShkbAnimationGraph* animationGraph = animationGraphManagerPtr->graphs[0].get();
+		if (animationGraph) {
+			if (glob_nemesisHeadtracking) {
+				bool bDummy;
+				glob_nemesisHeadtracking->value = animationGraph->GetGraphVariableBool("tdmHeadtrackingSKSE", bDummy);
+			}
+
+			if (glob_nemesisMountedArchery) {
+				bool bDummy;
+				glob_nemesisMountedArchery->value = playerCharacter->GetGraphVariableBool("360HorseGen", bDummy);
+			}
+
+			if (glob_nemesisLeaning) {
+				float dummy;
+				glob_nemesisLeaning->value = animationGraph->GetGraphVariableFloat("TDM_VelocityX", dummy);
+			}
+		}
 	}
 }
 

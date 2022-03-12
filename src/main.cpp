@@ -33,8 +33,8 @@ void MessageHandler(SKSE::MessagingInterface::Message* a_msg)
 
 		if (!TRUEHUD_API::RegisterInterfaceLoaderCallback(SKSE::GetMessagingInterface(),
 				[](void* interfaceInstance, TRUEHUD_API::InterfaceVersion interfaceVersion) {
-					if (interfaceVersion == TRUEHUD_API::InterfaceVersion::V1) {
-						DirectionalMovementHandler::GetSingleton()->g_trueHUD = reinterpret_cast<TRUEHUD_API::IVTrueHUD1*>(interfaceInstance);
+					if (interfaceVersion >= TRUEHUD_API::InterfaceVersion::V1) {
+						DirectionalMovementHandler::GetSingleton()->g_trueHUD = reinterpret_cast<TRUEHUD_API::IVTrueHUD3*>(interfaceInstance);
 						logger::info("Obtained TrueHUD API");
 					} else {
 						logger::error("Unable to acquire requested TrueHUD API interface version");
@@ -75,6 +75,7 @@ void MessageHandler(SKSE::MessagingInterface::Message* a_msg)
 		DirectionalMovementHandler::GetSingleton()->OnPreLoadGame();
 		break;
 	case SKSE::MessagingInterface::kPostLoadGame:
+	case SKSE::MessagingInterface::kNewGame:
 		Settings::OnPostLoadGame();
 	}
 }

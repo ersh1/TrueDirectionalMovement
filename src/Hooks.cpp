@@ -76,6 +76,7 @@ namespace Hooks
 		logger::trace("Hooking...");
 
 		MovementHook::Hook();
+		GamepadHook::Hook();
 		LookHook::Hook();
 		TogglePOVHook::Hook();
 		FirstPersonStateHook::Hook();
@@ -86,6 +87,7 @@ namespace Hooks
 		PlayerCameraTransitionStateHook::Hook();
 		MovementHandlerAgentPlayerControlsHook::Hook();
 		ProjectileHook::Hook();
+		CharacterHook::Hook();
 		PlayerCharacterHook::Hook();
 		PlayerControlsHook::Hook();
 		AIProcess_SetRotationSpeedZHook::Hook();
@@ -177,6 +179,52 @@ namespace Hooks
 				directionalMovementHandler->SetLastInputDirection(a_data->moveInputVec);
 			}
 			
+		}
+	}
+
+	void GamepadHook::ProcessInput(RE::BSWin32GamepadDevice* a_this, int32_t a_rawX, int32_t a_rawY, float a_deadzoneMin, float a_deadzoneMax, float& a_outX, float& a_outY)
+	{
+		_ProcessInput(a_this, a_rawX, a_rawY, a_deadzoneMin, a_deadzoneMax, a_outX, a_outY);
+
+		if (!Settings::bOverrideControllerDeadzone) {			
+			return;
+		}
+
+		a_this->ProcessRawInput(a_rawX, a_rawY, a_outX, a_outY);
+
+		RE::NiPoint2 normalizedInputDirection{ a_outX, a_outY };
+		float inputLength = normalizedInputDirection.Unitize();
+
+		// deadzone
+		if (inputLength < Settings::fControllerRadialDeadzone) {
+			a_outX = 0.f;
+			a_outY = 0.f;
+			return;
+		}
+
+		// radial deadzone
+		a_outX = normalizedInputDirection.x * Remap(inputLength, Settings::fControllerRadialDeadzone, 1.f, 0.f, 1.f);
+		a_outY = normalizedInputDirection.y * Remap(inputLength, Settings::fControllerRadialDeadzone, 1.f, 0.f, 1.f);
+
+		// axial deadzone
+		float absX = fabs(a_outX);
+		float absY = fabs(a_outY);
+
+		RE::NiPoint2 deadzone;
+		deadzone.x = Settings::fControllerAxialDeadzone * absY;
+		deadzone.y = Settings::fControllerAxialDeadzone * absX;
+		RE::NiPoint2 sign;
+		sign.x = a_outX < 0.f ? -1.f : 1.f;
+		sign.y = a_outY < 0.f ? -1.f : 1.f;
+		if (absX > deadzone.x) {
+			a_outX = sign.x * Remap(absX, deadzone.x, 1.f, 0.f, 1.f);
+		} else {
+			a_outX = 0.f;
+		}
+		if (absY > deadzone.y) {
+			a_outY = sign.y * Remap(absY, deadzone.y, 1.f, 0.f, 1.f);
+		} else {
+			a_outY = 0.f;
 		}
 	}
 
@@ -900,6 +948,7 @@ namespace Hooks
 				if (playerCamera->currentState && playerCamera->currentState->id == RE::CameraState::kMount) {
 					auto horseCameraState = static_cast<RE::HorseCameraState*>(playerCamera->currentState.get());
 					constexpr RE::NiPoint3 forwardVector{ 0.f, 1.f, 0.f };
+					constexpr RE::NiPoint3 upVector{ 0.f, 0.f, 1.f };
 					RE::NiQuaternion cameraRotation;
 					horseCameraState->GetRotation(cameraRotation);
 					auto cameraForwardVector = RotateVector(forwardVector, cameraRotation);
@@ -911,6 +960,12 @@ namespace Hooks
 					RE::NiPoint3 rayStart = cameraPos;
 					RE::NiPoint3 rayEnd = cameraPos + cameraForwardVector * 5000.f;
 					RE::NiPoint3 hitPos = rayEnd;
+
+					RE::NiPoint3 cameraToPlayer = playerCamera->cameraTarget.get()->GetPosition() - cameraPos;
+					RE::NiPoint3 cameraToTarget = rayEnd - cameraPos;
+					RE::NiPoint3 projected = Project(cameraToPlayer, cameraToTarget);
+					RE::NiPoint3 projectedPos = RE::NiPoint3(projected.x + cameraPos.x, projected.y + cameraPos.y, projected.z + cameraPos.z);
+					rayStart = projectedPos;
 
 					uint16_t playerCollisionGroup = 0;
 
@@ -967,12 +1022,21 @@ namespace Hooks
 					}
 
 					float velocityScalar = a_this->linearVelocity.Length();
-					direction = RotateAngleAxis(direction, AngleToRadian(*g_f3PArrowTiltUpAngle), { 1.f, 0.f, 0.f });
+
+					RE::NiPoint3 rightVector = direction.Cross(upVector);
+					direction = RotateAngleAxis(direction, AngleToRadian(*g_f3PArrowTiltUpAngle), rightVector);
 
 					a_this->linearVelocity = direction * velocityScalar;
 				}
 			}
 		}
+	}
+
+	void CharacterHook::Update(RE::Actor* a_this, float a_delta)
+	{
+		_Update(a_this, a_delta);
+
+		DirectionalMovementHandler::GetSingleton()->UpdateLeaning(a_this, a_delta);
 	}
 
 	void PlayerCharacterHook::UpdateAnimation(RE::Actor* a_this, float a_delta)
@@ -991,7 +1055,7 @@ namespace Hooks
 			directionalMovementHandler->UpdateHorseAimDirection();
 		}
 
-		//directionalMovementHandler->UpdateLeaning();
+		directionalMovementHandler->UpdateLeaning(a_this, a_delta);
 	}
 
 	void PlayerCharacterHook::ProcessTracking(RE::Actor* a_this, float a_delta, RE::NiAVObject* a_obj3D)
@@ -1701,9 +1765,5 @@ namespace Hooks
 	//		_Pick(a_this, a_bhkWorld, a_sourcePoint, a_sourceRotation);
 	//	}
 	//}
-
-	
-
-	
 
 }

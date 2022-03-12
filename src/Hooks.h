@@ -20,6 +20,27 @@ namespace Hooks
 		static inline REL::Relocation<decltype(ProcessButton)> _ProcessButton;
 	};
 
+	class GamepadHook
+	{
+	public:
+		static void Hook()
+		{
+			auto& trampoline = SKSE::GetTrampoline();
+#ifdef IS_SKYRIM_AE
+			REL::Relocation<uintptr_t> hook{ REL::ID(68808) };                // C40F80
+			_ProcessInput = trampoline.write_call<5>(hook.address() + 0x13F, ProcessInput);  // C410BF
+#else
+			REL::Relocation<uintptr_t> hook{ REL::ID(67497) };                // C1AB40
+			_ProcessInput = trampoline.write_call<5>(hook.address() + 0x13F, ProcessInput);  // C1AC7F
+#endif
+		}
+
+	private:
+		static void ProcessInput(RE::BSWin32GamepadDevice* a_this, int32_t a_rawX, int32_t a_rawY, float a_deadzoneMin, float a_deadzoneMax, float& a_outX, float& a_outY);
+
+		static inline REL::Relocation<decltype(ProcessInput)> _ProcessInput;
+	};
+
 	class LookHook
 	{
 	public:
@@ -230,6 +251,21 @@ namespace Hooks
 		static inline REL::Relocation<decltype(GetLinearVelocityArrow)> _GetLinearVelocityArrow;
 		static inline REL::Relocation<decltype(GetLinearVelocityMissile)> _GetLinearVelocityMissile;
 		static inline REL::Relocation<decltype(InitProjectile)> _InitProjectile;
+	};
+
+	class CharacterHook
+	{
+	public:
+		static void Hook()
+		{
+			REL::Relocation<std::uintptr_t> CharacterVtbl{ RE::VTABLE_Character[0] };
+			_Update = CharacterVtbl.write_vfunc(0xAD, Update);
+		}
+
+	private:
+		static void Update(RE::Actor* a_this, float a_delta);
+
+		static inline REL::Relocation<decltype(Update)> _Update;
 	};
 
 	class PlayerCharacterHook

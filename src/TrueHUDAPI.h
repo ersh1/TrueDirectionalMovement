@@ -14,7 +14,8 @@ namespace TRUEHUD_API
 	enum class InterfaceVersion : uint8_t
 	{
 		V1,
-		V2
+		V2,
+		V3
 	};
 
 	// Error types that may be returned by the True HUD
@@ -357,6 +358,21 @@ namespace TRUEHUD_API
 		virtual void RevertSpecialBarColor(RE::ActorHandle a_actorHandle, BarColorType a_colorType) noexcept = 0;
 	};
 
+	class IVTrueHUD3 : public IVTrueHUD2
+	{
+	public:
+		virtual void DrawLine(const RE::NiPoint3& a_start, const RE::NiPoint3& a_end, float a_duration = 0.f, uint32_t a_color = 0xFF0000FF, float a_thickness = 1.f) noexcept = 0;
+		virtual void DrawPoint(const RE::NiPoint3& a_position, float a_size, float a_duration = 0.f, uint32_t a_color = 0xFF0000FF) noexcept = 0;
+		virtual void DrawArrow(const RE::NiPoint3& a_start, const RE::NiPoint3& a_end, float a_size = 10.f, float a_duration = 0.f, uint32_t a_color = 0xFF0000FF, float a_thickness = 1.f) noexcept = 0;
+		virtual void DrawBox(const RE::NiPoint3& a_center, const RE::NiPoint3& a_extent, const RE::NiQuaternion& a_rotation, float a_duration = 0.f, uint32_t a_color = 0xFF0000FF, float a_thickness = 1.f) noexcept = 0;
+		virtual void DrawCircle(const RE::NiPoint3& a_center, const RE::NiPoint3& a_x, const RE::NiPoint3& a_y, float a_radius, uint32_t a_segments, float a_duration = 0.f, uint32_t a_color = 0xFF0000FF, float a_thickness = 1.f) noexcept = 0;
+		virtual void DrawHalfCircle(const RE::NiPoint3& a_center, const RE::NiPoint3& a_x, const RE::NiPoint3& a_y, float a_radius, uint32_t a_segments, float a_duration = 0.f, uint32_t a_color = 0xFF0000FF, float a_thickness = 1.f) noexcept = 0;
+		virtual void DrawSphere(const RE::NiPoint3& a_origin, float a_radius, uint32_t a_segments = 16, float a_duration = 0.f, uint32_t a_color = 0xFF0000FF, float a_thickness = 1.f) noexcept = 0;
+		virtual void DrawCylinder(const RE::NiPoint3& a_start, const RE::NiPoint3& a_end, float a_radius, uint32_t a_segments, float a_duration = 0.f, uint32_t a_color = 0xFF0000FF, float a_thickness = 1.f) noexcept = 0;
+		virtual void DrawCone(const RE::NiPoint3& a_origin, const RE::NiPoint3& a_direction, float a_length, float a_angleWidth, float a_angleHeight, uint32_t a_segments, float a_duration = 0.f, uint32_t a_color = 0xFF0000FF, float a_thickness = 1.f) noexcept = 0;
+		virtual void DrawCapsule(const RE::NiPoint3& a_origin, float a_halfHeight, float a_radius, const RE::NiQuaternion& a_rotation, float a_duration = 0.f, uint32_t a_color = 0xFF0000FF, float a_thickness = 1.f) noexcept = 0;
+	};
+
 	struct InterfaceRequest
 	{
 		// Version to request
@@ -403,7 +419,7 @@ namespace TRUEHUD_API
 	/// <param name="version">The interface version to request</param>
 	/// <returns>If any plugin was listening for this request, true. See skse/PluginAPI.h</returns>
 	[[nodiscard]] inline bool RequestInterface(const SKSE::MessagingInterface* a_skseMessaging,
-		InterfaceVersion a_version = InterfaceVersion::V2) noexcept
+		InterfaceVersion a_version = InterfaceVersion::V3) noexcept
 	{
 		InterfaceRequest req = {};
 		req.interfaceVersion = a_version;
