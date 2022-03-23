@@ -17,6 +17,105 @@ DirectionalMovementHandler* DirectionalMovementHandler::GetSingleton()
 	return std::addressof(singleton);
 }
 
+void DirectionalMovementHandler::Register()
+{
+	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+	bool bSuccess = playerCharacter->AddAnimationGraphEventSink(DirectionalMovementHandler::GetSingleton());
+	if (bSuccess) {
+		logger::info("Registered {}"sv, typeid(RE::BSAnimationGraphEvent).name());
+	} else {
+		RE::BSAnimationGraphManagerPtr graphManager;
+		playerCharacter->GetAnimationGraphManager(graphManager);
+		bool bSinked = false;
+		if (graphManager) {			
+			for (auto& animationGraph : graphManager->graphs) {
+				if (bSinked) {
+					break;
+				}
+				auto eventSource = animationGraph->GetEventSource<RE::BSAnimationGraphEvent>();
+				for (auto& sink : eventSource->sinks) {
+					if (sink == DirectionalMovementHandler::GetSingleton()) {
+						bSinked = true;
+						break;
+					}
+				}
+			}
+		}
+		
+		if (!bSinked) {
+			logger::info("Failed to register {}"sv, typeid(RE::BSAnimationGraphEvent).name());
+		}		
+	}
+}
+
+constexpr uint32_t hash(const char* data, size_t const size) noexcept
+{
+	uint32_t hash = 5381;
+
+	for (const char* c = data; c < data + size; ++c) {
+		hash = ((hash << 5) + hash) + (unsigned char)*c;
+	}
+
+	return hash;
+}
+
+constexpr uint32_t operator"" _h(const char* str, size_t size) noexcept
+{
+	return hash(str, size);
+}
+
+DirectionalMovementHandler::EventResult DirectionalMovementHandler::ProcessEvent(const RE::BSAnimationGraphEvent* a_event, RE::BSTEventSource<RE::BSAnimationGraphEvent>*)
+{
+	if (a_event) {
+		std::string_view eventTag = a_event->tag.data();
+
+		switch (hash(eventTag.data(), eventTag.size())) {
+		// Start phase
+		case "CastOKStart"_h:
+		case "preHitFrame"_h:
+		case "TDM_AttackStart"_h:
+			SetAttackState(DirectionalMovementHandler::AttackState::kStart);
+			break;
+
+		// Mid phase. Ignore vanilla events if we're tracing already
+		case "weaponSwing"_h:
+		case "weaponLeftSwing"_h:
+			if (GetAttackState() != DirectionalMovementHandler::AttackState::kTracing) {
+				SetAttackState(DirectionalMovementHandler::AttackState::kMid);
+			}
+			break;
+		case "TDM_AttackMid"_h:
+		case "MeleeTrace_Right_Start"_h:
+		case "MeleeTrace_Left_Start"_h:
+			SetAttackState(DirectionalMovementHandler::AttackState::kMid);
+			break;
+
+		// End phase. Ignore vanilla events if we're tracing already
+		case "HitFrame"_h:
+		case "attackWinStart"_h:
+		case "SkySA_AttackWinStart"_h:
+			if (GetAttackState() != DirectionalMovementHandler::AttackState::kTracing) {
+				SetAttackState(DirectionalMovementHandler::AttackState::kEnd);
+			}
+			break;
+		case "TDM_AttackEnd"_h:
+		case "MeleeTrace_Right_Stop"_h:
+		case "MeleeTrace_Left_Stop"_h:
+			SetAttackState(DirectionalMovementHandler::AttackState::kEnd);
+			break;
+
+		// Back to none
+		case "attackStop"_h:
+		case "TDM_AttackStop"_h:
+		case "SkySA_AttackWinEnd"_h:
+			SetAttackState(DirectionalMovementHandler::AttackState::kNone);
+			break;
+		}
+	}
+
+	return EventResult::kContinue;
+}
+
 void DirectionalMovementHandler::ResetControls()
 {
 	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
@@ -45,6 +144,8 @@ void DirectionalMovementHandler::Update()
 	UpdateDirectionalMovement();
 
 	UpdateDodgingState();
+
+	UpdateJumpingState();
 
 	UpdateMountedArchery();
 
@@ -156,6 +257,16 @@ void DirectionalMovementHandler::Update()
 
 	UpdateProjectileTargetMap();
 
+	if (Settings::bOverrideAcrobatics) {
+		auto playerController = RE::PlayerCharacter::GetSingleton()->GetCharController();
+		if (playerController) {
+			if (_defaultAcrobatics == -1.f) {
+				_defaultAcrobatics = playerController->acrobatics;
+			}
+			playerController->acrobatics = Settings::fAcrobatics;
+		}		
+	}
+
 #ifndef NDEBUG
 	if (g_trueHUD) {
 		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
@@ -196,11 +307,7 @@ void DirectionalMovementHandler::UpdateDirectionalMovement()
 		(Settings::uDialogueMode != DialogueMode::kDisable || !RE::MenuTopicManager::GetSingleton()->speaker)) {
 		_bDirectionalMovement = true;
 		if (Settings::glob_directionalMovement) {
-			if (_bShouldFaceCrosshair || _bCurrentlyTurningToCrosshair) {
-				Settings::glob_directionalMovement->value = 0;
-			} else {
-				Settings::glob_directionalMovement->value = 1;
-			}			
+			Settings::glob_directionalMovement->value = Is360Movement();
 		}
 	} else {
 		_bDirectionalMovement = false;
@@ -227,6 +334,15 @@ void DirectionalMovementHandler::UpdateFacingState()
 	if (_faceCrosshairTimer > 0.f) {
 		_bShouldFaceCrosshair = true;
 		_bShouldFaceTarget = true;
+	}
+
+	if (_aimingTimer <= 0.f) {
+		_bIsAiming = false;
+	}
+
+	if (_faceCrosshairTimer <= 0.f) {
+		_bShouldFaceCrosshair = false;
+		_bShouldFaceTarget = false;
 	}
 
 	if (!playerCharacter) {
@@ -430,6 +546,16 @@ void DirectionalMovementHandler::UpdateDodgingState()
 	}
 }
 
+void DirectionalMovementHandler::UpdateJumpingState()
+{
+	auto playerController = RE::PlayerCharacter::GetSingleton()->GetCharController();
+	if (playerController && Is360Movement()) {
+		if (playerController->wantState == RE::hkpCharacterStateType::kJumping) {
+			UpdateRotation(true);
+		}
+	}
+}
+
 void DirectionalMovementHandler::UpdateSwimmingPitchOffset()
 {
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
@@ -621,7 +747,7 @@ void DirectionalMovementHandler::UpdateCameraAutoRotation()
 					desiredSpeed = -sin(thirdPersonState->freeRotation.x) * speedPct * Settings::fCameraAutoAdjustSpeedMult;
 				}
 			}
-		}		
+		}
 
 		_currentAutoCameraRotationSpeed = InterpTo(_currentAutoCameraRotationSpeed, desiredSpeed, *g_deltaTimeRealTime, 5.f);
 		thirdPersonState->freeRotation.x += _currentAutoCameraRotationSpeed * *g_deltaTimeRealTime;
@@ -813,12 +939,14 @@ bool DirectionalMovementHandler::ProcessInput(RE::NiPoint2& a_inputDirection, RE
 
 	_desiredAngle = NormalAbsoluteAngle(-GetAngle(characterDirection, cameraRelativeInputDirection));
 
-	float dot = characterDirection.Dot(normalizedWorldRelativeInputDirection);	
-	
-	bool bPivoting = dot < 0.f;
+	bool bPivoting = false;
 
-	if (dot < -0.8f) {
-		playerCharacter->NotifyAnimationGraph("TDM_Turn_180");
+	if (!playerCharacter->IsInMidair() || !Settings::bOverrideAcrobatics) {
+		float dot = characterDirection.Dot(normalizedWorldRelativeInputDirection);
+		bPivoting = dot < 0.f;
+		if (dot < -0.8f) {
+			playerCharacter->NotifyAnimationGraph("TDM_Turn_180");
+		}
 	}
 
 	bool bShouldStop = Settings::bStopOnDirectionChange && RE::BSTimer::GetCurrentGlobalTimeMult() == 1;
@@ -892,7 +1020,7 @@ void DirectionalMovementHandler::SetDesiredAngleToTarget(RE::PlayerCharacter* a_
 	_desiredAngle = NormalAbsoluteAngle(GetAngle(forwardVector, directionToTarget));
 }
 
-void DirectionalMovementHandler::UpdateRotation()
+void DirectionalMovementHandler::UpdateRotation(bool bForceInstant /*= false */)
 {
 	if (_desiredAngle < 0.f) {
 		return;
@@ -910,7 +1038,7 @@ void DirectionalMovementHandler::UpdateRotation()
 
 	float angleDelta = NormalRelativeAngle(_desiredAngle - playerCharacter->data.angle.z);
 
-	bool bInstantRotation = (_bShouldFaceCrosshair && Settings::bFaceCrosshairInstantly) || (_bShouldFaceCrosshair && !_bCurrentlyTurningToCrosshair) || (_bJustDodged && !playerCharacter->IsAnimationDriven()) || (_bYawControlledByPlugin && _controlledYawRotationSpeedMultiplier <= 0.f);
+	bool bInstantRotation = bForceInstant || (_bShouldFaceCrosshair && Settings::bFaceCrosshairInstantly) || (_bShouldFaceCrosshair && !_bCurrentlyTurningToCrosshair) || (_bJustDodged && !playerCharacter->IsAnimationDriven()) || (_bYawControlledByPlugin && _controlledYawRotationSpeedMultiplier <= 0.f);
 
 	if (!bInstantRotation) {
 		if (IsPlayerAnimationDriven() || _bIsDodging) {
@@ -957,7 +1085,9 @@ void DirectionalMovementHandler::UpdateRotation()
 			RE::ATTACK_STATE_ENUM playerAttackState = playerCharacter->GetAttackState();
 			bool bIsAttacking = playerAttackState > RE::ATTACK_STATE_ENUM::kNone && playerAttackState < RE::ATTACK_STATE_ENUM::kBowDraw;
 			if (playerCharacter->IsInMidair()) {
-				rotationSpeedMult *= Settings::fAirRotationSpeedMult;
+				bool bGliding = false;
+				playerCharacter->GetGraphVariableBool("bParaGliding", bGliding);
+				rotationSpeedMult *= bGliding ? Settings::fGlidingRotationSpeedMult : Settings::fAirRotationSpeedMult;
 				bRelativeSpeed = false;
 			} else if (!bSkipAttackRotationMultipliers && bIsAttacking) {
 				if (_attackState == AttackState::kStart) {
@@ -1121,6 +1251,11 @@ bool DirectionalMovementHandler::IsImprovedCameraInstalled() const
 bool DirectionalMovementHandler::IsFreeCamera() const
 {
 	return _bDirectionalMovement;
+}
+
+bool DirectionalMovementHandler::Is360Movement() const
+{
+	return _bDirectionalMovement && !_bShouldFaceCrosshair && !_bCurrentlyTurningToCrosshair;
 }
 
 bool DirectionalMovementHandler::GetFreeCameraEnabled() const
@@ -2496,6 +2631,13 @@ void DirectionalMovementHandler::OnSettingsUpdated()
 	if (auto widget = _targetLockReticle.lock()) {
 		if (widget->_object.IsDisplayObject()) {
 			widget->Initialize();
+		}
+	}
+	if (!Settings::bOverrideAcrobatics && _defaultAcrobatics != -1.f) {
+		auto playerController = RE::PlayerCharacter::GetSingleton()->GetCharController();
+		if (playerController) {
+			playerController->acrobatics = _defaultAcrobatics;
+			_defaultAcrobatics = -1.f;
 		}
 	}
 }

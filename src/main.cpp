@@ -31,45 +31,18 @@ void MessageHandler(SKSE::MessagingInterface::Message* a_msg)
 			logger::warn("SmoothCamAPI::RegisterInterfaceLoaderCallback reported an error");
 		}
 
-		if (!TRUEHUD_API::RegisterInterfaceLoaderCallback(SKSE::GetMessagingInterface(),
-				[](void* interfaceInstance, TRUEHUD_API::InterfaceVersion interfaceVersion) {
-					if (interfaceVersion >= TRUEHUD_API::InterfaceVersion::V1) {
-						DirectionalMovementHandler::GetSingleton()->g_trueHUD = reinterpret_cast<TRUEHUD_API::IVTrueHUD3*>(interfaceInstance);
-						logger::info("Obtained TrueHUD API");
-					} else {
-						logger::error("Unable to acquire requested TrueHUD API interface version");
-					}
-				})) {
-			logger::warn("TRUEHUD_API::RegisterInterfaceLoaderCallback reported an error");
+		DirectionalMovementHandler::GetSingleton()->g_trueHUD = reinterpret_cast<TRUEHUD_API::IVTrueHUD3*>(TRUEHUD_API::RequestPluginAPI(TRUEHUD_API::InterfaceVersion::V3));
+		if (DirectionalMovementHandler::GetSingleton()->g_trueHUD) {
+			logger::info("Obtained TrueHUD API - {0:x}", (uintptr_t)DirectionalMovementHandler::GetSingleton()->g_trueHUD);
+		} else {
+			logger::warn("Failed to obtain TrueHUD API");
 		}
-
-		//// Register the special callback that will handle both types of messages
-		//if (!Messaging::RegisterInterfaceListenerCallback(SKSE::GetMessagingInterface(), TRUEHUD_API::TrueHUDPluginName,
-		//		[](void* interfaceInstance, uint8_t interfaceVersion) {
-		//			if (static_cast<TRUEHUD_API::InterfaceVersion>(interfaceVersion) == TRUEHUD_API::InterfaceVersion::V1) {
-		//				DirectionalMovementHandler::GetSingleton()->g_trueHUD = reinterpret_cast<TRUEHUD_API::IVTrueHUD1*>(interfaceInstance);
-		//				logger::info("Obtained TrueHUD V1 API");
-		//			} else {
-		//				logger::error("Unable to acquire requested TrueHUD API interface version");
-		//			}
-		//		})) {
-		//	logger::warn("Failed to register a callback for TrueHUD");
-		//}
-
-		// Register interface request listener for other plugins
-		SKSE::GetMessagingInterface()->RegisterListener(nullptr, Messaging::HandleInterfaceRequest);
-
 		break;
-
 	case SKSE::MessagingInterface::kPostPostLoad:
 		if (!SmoothCamAPI::RequestInterface(
 				SKSE::GetMessagingInterface(),
 				SmoothCamAPI::InterfaceVersion::V3))
 			logger::warn("SmoothCamAPI::RequestInterface reported an error");
-		if (!TRUEHUD_API::RequestInterface(
-				SKSE::GetMessagingInterface(),
-				TRUEHUD_API::InterfaceVersion::V1))
-			logger::warn("TrueHUD API::RequestInterface reported an error");
 		break;
 	case SKSE::MessagingInterface::kPreLoadGame:
 		DirectionalMovementHandler::GetSingleton()->OnPreLoadGame();
@@ -77,6 +50,8 @@ void MessageHandler(SKSE::MessagingInterface::Message* a_msg)
 	case SKSE::MessagingInterface::kPostLoadGame:
 	case SKSE::MessagingInterface::kNewGame:
 		Settings::OnPostLoadGame();
+		DirectionalMovementHandler::Register();
+		break;
 	}
 }
 
@@ -148,7 +123,7 @@ extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []() {
 extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_skse)
 {
 #ifndef NDEBUG
-	while (!IsDebuggerPresent()) {}
+	while (!IsDebuggerPresent()) { Sleep(100); }
 #endif
 
 	InitializeLog();
@@ -166,4 +141,22 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_s
 	Papyrus::Register();
 
 	return true;
+}
+
+extern "C" DLLEXPORT void* SKSEAPI RequestPluginAPI(const TDM_API::InterfaceVersion a_interfaceVersion)
+{
+	auto api = Messaging::TDMInterface::GetSingleton();
+
+	logger::info("TrueDirectionalMovement::RequestPluginAPI called, InterfaceVersion {}", a_interfaceVersion);
+
+	switch (a_interfaceVersion) {
+	case TDM_API::InterfaceVersion::V1:
+		[[fallthrough]];
+	case TDM_API::InterfaceVersion::V2:
+		logger::info("TrueDirectionalMovement::RequestPluginAPI returned the API singleton");
+		return static_cast<void*>(api);
+	}
+
+	logger::info("TrueDirectionalMovement::RequestPluginAPI requested the wrong interface version");
+	return nullptr;
 }

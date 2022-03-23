@@ -8,9 +8,6 @@ namespace Messaging
 	using APIResult = ::TDM_API::APIResult;
 	using InterfaceVersion1 = ::TDM_API::IVTDM1;
 	using InterfaceVersion2 = ::TDM_API::IVTDM2;
-	using InterfaceContainer = ::TDM_API::InterfaceContainer;
-
-	using InterfaceLoaderCallback = std::function<void(void* interfaceInstance, uint8_t interfaceVersion)>;
 
 	class TDMInterface : public InterfaceVersion2
 	{
@@ -19,10 +16,10 @@ namespace Messaging
 		virtual ~TDMInterface() noexcept;
 
 	public:
-		static TDMInterface* GetInstance() noexcept
+		static TDMInterface* GetSingleton() noexcept
 		{
-			static TDMInterface instance;
-			return &instance;
+			static TDMInterface singleton;
+			return std::addressof(singleton);
 		}
 
 		// InterfaceVersion1
@@ -57,14 +54,7 @@ namespace Messaging
 		// Does a mod have control over the player character's yaw?
 		bool IsYawControlTaken() const noexcept;
 
-	public:
-		using Consumers = std::vector<std::string>;
-
-		void RegisterConsumer(const char* modName) noexcept;
-		const Consumers& GetConsumers() const noexcept;
-
 	private:
-		Consumers consumers = {};
 		unsigned long apiTID = 0;
 
 		bool needsDirectionalMovementControl = false;
@@ -76,7 +66,4 @@ namespace Messaging
 		bool needsYawControl = false;
 		std::atomic<SKSE::PluginHandle> yawOwner = SKSE::kInvalidPluginHandle;
 	};
-
-	void HandleInterfaceRequest(SKSE::MessagingInterface::Message* a_msg) noexcept;
-	bool RegisterInterfaceListenerCallback(const SKSE::MessagingInterface* skseMessaging, const char* sender, InterfaceLoaderCallback&& callback) noexcept;
 }

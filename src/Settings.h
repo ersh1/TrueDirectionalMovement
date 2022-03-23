@@ -76,7 +76,8 @@ struct Settings
 	static inline float fAttackStartRotationSpeedMult = 5.f;
 	static inline float fAttackMidRotationSpeedMult = 1.f;
 	static inline float fAttackEndRotationSpeedMult = 0.f;
-	static inline float fAirRotationSpeedMult = 0.5f;
+	static inline float fAirRotationSpeedMult = 0.25f;
+	static inline float fGlidingRotationSpeedMult = 0.5f;
 	static inline float fWaterRotationSpeedMult = 0.5f;
 	static inline float fSwimmingRotationSpeedMult = 0.5f;
 	static inline float fFaceCrosshairRotationSpeedMultiplier = 2.f;
@@ -136,6 +137,10 @@ struct Settings
 	static inline float fReticleScale = 1.f;
 	static inline bool bReticleUseHUDOpacity = true;
 	static inline float fReticleOpacity = 1.f;
+
+	// Misc
+	static inline bool bOverrideAcrobatics = true;
+	static inline float fAcrobatics = 0.025f;
 
 	// Controller
 	static inline bool bOverrideControllerDeadzone = true;

@@ -276,8 +276,6 @@ namespace Hooks
 			REL::Relocation<std::uintptr_t> PlayerCharacterVtbl{ RE::VTABLE_PlayerCharacter[0] };					// 1665E0
 			_UpdateAnimation = PlayerCharacterVtbl.write_vfunc(0x7D, UpdateAnimation);
 			_ProcessTracking = PlayerCharacterVtbl.write_vfunc(0x122, ProcessTracking);
-			REL::Relocation<std::uintptr_t> PlayerCharacter_BSTEventSink_BSAnimationGraphEventVtbl{ RE::VTABLE_PlayerCharacter[2] };  // 1663F78
-			_ProcessEvent = PlayerCharacter_BSTEventSink_BSAnimationGraphEventVtbl.write_vfunc(0x1, ProcessEvent);
 			REL::Relocation<std::uintptr_t> PlayerCharacter_ActorStateVtbl{ RE::VTABLE_PlayerCharacter[6] };  // 16640E8
 			_GetAngle = PlayerCharacter_ActorStateVtbl.write_vfunc(0x4, GetAngle);
 
@@ -294,13 +292,11 @@ namespace Hooks
 	private:
 		static void UpdateAnimation(RE::Actor* a_this, float a_delta);
 		static void ProcessTracking(RE::Actor* a_this, float a_delta, RE::NiAVObject* a_obj3D);
-		static void ProcessEvent(RE::BSTEventSink<RE::BSAnimationGraphEvent>* a_this, const RE::BSAnimationGraphEvent* a_event, RE::BSTEventSource<RE::BSAnimationGraphEvent>* a_dispatcher);
 		static void GetAngle(RE::ActorState* a_this, RE::NiPoint3 &a_angle);
 		static void UpdateSprintState(RE::PlayerCharacter* a_this);
 
 		static inline REL::Relocation<decltype(UpdateAnimation)> _UpdateAnimation;
 		static inline REL::Relocation<decltype(ProcessTracking)> _ProcessTracking;
-		static inline REL::Relocation<decltype(ProcessEvent)> _ProcessEvent;
 		static inline REL::Relocation<decltype(GetAngle)> _GetAngle;
 		static inline REL::Relocation<decltype(UpdateSprintState)> _UpdateSprintState;
 	};
@@ -592,23 +588,6 @@ namespace Hooks
 		static inline REL::Relocation<decltype(Func)> _Func;
 		static inline REL::Relocation<decltype(GetYaw)> _GetYaw;
 	};
-
-	//class CrosshairPickHook
-	//{
-	//public:
-	//	static void Hook()
-	//	{
-	//		REL::Relocation<uintptr_t> hook{ REL::ID(39534) };  // 6B01E0, PickCrosshairReference
-
-	//		auto& trampoline = SKSE::GetTrampoline();
-	//		_Pick = trampoline.write_call<5>(hook.address() + 0x214, Pick);
-	//	}
-
-	//private:
-	//	static void Pick(uintptr_t a_this, RE::bhkWorld* a_bhkWorld, RE::NiPoint3& a_sourcePoint, RE::NiPoint3& a_sourceRotation);
-
-	//	static inline REL::Relocation<decltype(Pick)> _Pick;
-	//};
 
 	void Install();
 }

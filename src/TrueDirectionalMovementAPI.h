@@ -4,9 +4,6 @@
 
 /*
 * For modders: Copy this file into your own project if you wish to use this API
-* 
-* #define TDM_API_SKSE if using SKSE
-* #define TDM_API_COMMONLIB if using CommonLibSSE
 */
 	namespace TDM_API
 {
@@ -148,108 +145,21 @@
 		virtual APIResult ReleaseYawControl(PluginHandle a_myPluginHandle) noexcept = 0;
 	};
 
-	struct InterfaceRequest
-	{
-		// Version to request
-		InterfaceVersion interfaceVersion;
-	};
-
-	struct PluginMessage
-	{
-		// Command types available
-		enum class Type : uint8_t
-		{
-			Error,
-			RequestInterface,
-			InterfaceProvider
-		};
-
-		// Packet header
-		uint32_t header = 'TDMV';
-
-		// Command type to invoke
-		Type type;
-
-		// Pointer to data for the given message
-		void* messageData = nullptr;
-	};
-
-	struct InterfaceContainer
-	{
-		// Pointer to interface
-		void* interfaceInstance = nullptr;
-		// Contained version
-		InterfaceVersion interfaceVersion;
-	};
-
-	using InterfaceLoaderCallback = std::function<void(
-		void* interfaceInstance, InterfaceVersion interfaceVersion)>;
-
+	typedef void* (*_RequestPluginAPI)(const InterfaceVersion interfaceVersion);
 
 	/// <summary>
-	/// Initiate a request for the True Directional Movement API interface via SKSE's messaging system.
-	/// You must register a callback to obtain the response to this request.
-	/// Recommended: Send your request during SKSEMessagingInterface::kMessage_PostPostLoad
+	/// Request the True Directional Movement API interface.
+	/// Recommended: Send your request during or after SKSEMessagingInterface::kMessage_PostLoad to make sure the dll has already been loaded
 	/// </summary>
-	/// <param name="skseMessaging">SKSE's messaging interface</param>
-	/// <param name="version">The interface version to request</param>
-	/// <returns>If any plugin was listening for this request, true. See skse/PluginAPI.h</returns>
-	[[nodiscard]] inline bool RequestInterface(const SKSE::MessagingInterface* a_skseMessaging,
-		InterfaceVersion a_version = InterfaceVersion::V2) noexcept
+	/// <param name="a_interfaceVersion">The interface version to request</param>
+	/// <returns>The pointer to the API singleton, or nullptr if request failed</returns>
+	[[nodiscard]] inline void* RequestPluginAPI(const InterfaceVersion a_interfaceVersion = InterfaceVersion::V2)
 	{
-		InterfaceRequest req = {};
-		req.interfaceVersion = a_version;
-
-		PluginMessage msg = {};
-		msg.type = PluginMessage::Type::RequestInterface;
-		msg.messageData = &req;
-
-		return a_skseMessaging->Dispatch(
-			0,
-			&msg, sizeof(PluginMessage),
-			TDMPluginName);
-	}
-
-	/// <summary>
-	/// Register the callback for obtaining the True Directional Movement API interface. Call only once.
-	/// Recommended: Register your callback during SKSEMessagingInterface::kMessage_PostLoad
-	/// </summary>
-	/// <param name="skseMessaging">SKSE's messaging interface</param>
-	/// <param name="callback">A callback function receiving both the interface pointer and interface version</param>
-	/// <returns></returns>
-	[[nodiscard]] inline bool RegisterInterfaceLoaderCallback(const SKSE::MessagingInterface* a_skseMessaging,
-		InterfaceLoaderCallback&& a_callback) noexcept
-	{
-		static InterfaceLoaderCallback storedCallback = a_callback;
-
-		return a_skseMessaging->RegisterListener(
-			TDMPluginName,
-			[](SKSE::MessagingInterface::Message* msg) {
-				if (msg->sender && strcmp(msg->sender, TDMPluginName) != 0)
-					return;
-				if (msg->type != 0)
-					return;
-				if (msg->dataLen != sizeof(PluginMessage))
-					return;
-
-				const auto resp = reinterpret_cast<PluginMessage*>(msg->data);
-				switch (resp->type) {
-				case PluginMessage::Type::InterfaceProvider:
-					{
-						auto interfaceContainer = reinterpret_cast<InterfaceContainer*>(resp->messageData);
-						storedCallback(
-							interfaceContainer->interfaceInstance,
-							interfaceContainer->interfaceVersion);
-						break;
-					}
-				case PluginMessage::Type::Error:
-					{
-						SKSE::log::info("TrueDirectionalMovementAPI: Error obtaining interface");
-						break;
-					}
-				default:
-					return;
-				}
-			});
+		auto pluginHandle = GetModuleHandle("TrueDirectionalMovement.dll");
+		_RequestPluginAPI requestAPIFunction = (_RequestPluginAPI)GetProcAddress(pluginHandle, "RequestPluginAPI");
+		if (requestAPIFunction) {
+			return requestAPIFunction(a_interfaceVersion);
+		}
+		return nullptr;
 	}
 }

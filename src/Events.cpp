@@ -34,6 +34,9 @@ namespace Events
 				continue;
 			}
 
+			auto userEvent = event->QUserEvent();
+			auto userEvents = RE::UserEvents::GetSingleton();
+
 			auto button = static_cast<RE::ButtonEvent*>(event);
 			if (button->IsDown()) {
 				auto key = button->idCode;
@@ -58,9 +61,25 @@ namespace Events
 				}
 
 				if (key == Settings::uTargetLockKey) {
+					bool bIgnore = false;
+
+					if (userEvent == userEvents->togglePOV) {
+						switch (button->device.get()) {
+						case DeviceType::kKeyboard:
+							bIgnore = Settings::bTargetLockUsePOVSwitchKeyboard;
+							break;
+						case DeviceType::kGamepad:
+							bIgnore = Settings::bTargetLockUsePOVSwitchGamepad;
+							break;
+						}
+					}
+
+					if (bIgnore) {
+						break;
+					}
+
 					auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 					directionalMovementHandler->ToggleTargetLock(!directionalMovementHandler->HasTargetLocked(), true);
-					break;
 				}
 
 				if (key == Settings::uSwitchTargetLeftKey) {
@@ -77,9 +96,7 @@ namespace Events
 					}
 				}
 			}
-
-			auto userEvent = event->QUserEvent();
-			auto userEvents = RE::UserEvents::GetSingleton();
+						
 			if (userEvent == userEvents->jump)
 			{
 				auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();

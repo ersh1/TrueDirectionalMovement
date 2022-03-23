@@ -172,8 +172,6 @@ namespace TRUEHUD_API
 		/// <returns>OK, AlreadyGiven, AlreadyTaken</returns>
 		[[nodiscard]] virtual APIResult RequestTargetControl(SKSE::PluginHandle a_myPluginHandle) noexcept = 0;
 
-		[[deprecated]] virtual APIResult RequestPlayerWidgetBarColorsControl(SKSE::PluginHandle a_myPluginHandle) noexcept = 0;
-
 		/// <summary>
 		/// Request control over the special resource bars.
 		/// If granted, you may provide the functions that will be used to get the special bars' fill percent.
@@ -187,20 +185,20 @@ namespace TRUEHUD_API
 		/// </summary>
 		/// <param name="a_myPluginHandle">Your assigned plugin handle</param>
 		/// <returns>OK, NotOwner</returns>
-		virtual APIResult SetTarget(SKSE::PluginHandle a_myPluginHandle, RE::ActorHandle a_ActorHandle) noexcept = 0;
+		virtual APIResult SetTarget(SKSE::PluginHandle a_myPluginHandle, RE::ActorHandle a_actorHandle) noexcept = 0;
 
 		/// <summary>
 		/// Tries to set the current soft target to the given actor handle. Will only do so if granted target control.
 		/// </summary>
 		/// <param name="a_myPluginHandle">Your assigned plugin handle</param>
 		/// <returns>OK, NotOwner</returns>
-		virtual APIResult SetSoftTarget(SKSE::PluginHandle a_myPluginHandle, RE::ActorHandle a_ActorHandle) noexcept = 0;
+		virtual APIResult SetSoftTarget(SKSE::PluginHandle a_myPluginHandle, RE::ActorHandle a_actorHandle) noexcept = 0;
 
 		/// <summary>
 		/// Tries to create an info bar widget for the given actor handle.
 		/// </summary>
 		/// <param name="a_actorHandle">Actor handle</param>
-		virtual void AddActorInfoBar(RE::ActorHandle a_ActorHandle) noexcept = 0;
+		virtual void AddActorInfoBar(RE::ActorHandle a_actorHandle) noexcept = 0;
 
 		/// <summary>
 		/// Tries to remove an info bar widget for the given actor handle.
@@ -221,10 +219,6 @@ namespace TRUEHUD_API
 		/// <param name="a_actorHandle">Actor handle</param>
 		/// <param name="a_removalMode">How quickly should the widget be removed</param>
 		virtual void RemoveBoss(RE::ActorHandle a_actorHandle, WidgetRemovalMode a_removalMode) noexcept = 0;
-
-		[[deprecated("Use OverrideBarColor/OverrideSpecialBarColor instead")]] virtual APIResult OverridePlayerWidgetBarColor(SKSE::PluginHandle a_myPluginHandle, PlayerWidgetBarType a_playerWidgetBarType, BarColorType a_colorType, uint32_t a_color) noexcept = 0;
-
-		[[deprecated("Use RevertBarColor/RevertSpecialBarColor instead")]] virtual APIResult RevertPlayerWidgetBarColor(SKSE::PluginHandle a_myPluginHandle, PlayerWidgetBarType a_playerWidgetBarType, BarColorType a_colorType) noexcept = 0;
 
 		/// <summary>
 		/// Tries to send a visual flash event related to the given actor value on a widget related to the given actor handle (similar to vanilla stamina bar flashing when trying to sprint while it's empty). Will only succeed if such a target exists and is supported by the widget.
@@ -250,8 +244,9 @@ namespace TRUEHUD_API
 		/// <param name="a_getCurrentSpecialResource">Function that will return current special resource value</param>
 		/// <param name="a_getMaxSpecialResource">Function that will return max special resource value</param>
 		/// <param name="a_bSpecialMode">Whether the max value is default and 0 is the flash threshold (true), or the other way around (false)</param>
+		/// <param name="a_bDisplaySpecialForPlayer">Whether the special bar should be displayed for the player as well</param>
 		/// <returns>OK, NotOwner</returns>
-		virtual APIResult RegisterSpecialResourceFunctions(SKSE::PluginHandle a_myPluginHandle, SpecialResourceCallback&& a_getCurrentSpecialResource, SpecialResourceCallback&& a_getMaxSpecialResource, bool a_bSpecialMode) noexcept = 0;
+		virtual APIResult RegisterSpecialResourceFunctions(SKSE::PluginHandle a_myPluginHandle, SpecialResourceCallback&& a_getCurrentSpecialResource, SpecialResourceCallback&& a_getMaxSpecialResource, bool a_bSpecialMode, bool a_bDisplaySpecialForPlayer = true) noexcept = 0;
 
 		/// <summary>
 		/// Loads a custom widget swf. First step in registering a custom widget.
@@ -312,8 +307,6 @@ namespace TRUEHUD_API
 		/// <returns>OK, NotOwner</returns>
 		virtual APIResult ReleaseTargetControl(SKSE::PluginHandle a_myPluginHandle) noexcept = 0;
 
-		[[deprecated]] virtual APIResult ReleasePlayerWidgetBarColorsControl(SKSE::PluginHandle a_myPluginHandle) noexcept = 0;
-
 		/// <summary>
 		/// Release your control of the special resource bars.
 		/// </summary>
@@ -361,6 +354,7 @@ namespace TRUEHUD_API
 	class IVTrueHUD3 : public IVTrueHUD2
 	{
 	public:
+		// Debug drawing API functions
 		virtual void DrawLine(const RE::NiPoint3& a_start, const RE::NiPoint3& a_end, float a_duration = 0.f, uint32_t a_color = 0xFF0000FF, float a_thickness = 1.f) noexcept = 0;
 		virtual void DrawPoint(const RE::NiPoint3& a_position, float a_size, float a_duration = 0.f, uint32_t a_color = 0xFF0000FF) noexcept = 0;
 		virtual void DrawArrow(const RE::NiPoint3& a_start, const RE::NiPoint3& a_end, float a_size = 10.f, float a_duration = 0.f, uint32_t a_color = 0xFF0000FF, float a_thickness = 1.f) noexcept = 0;
@@ -371,109 +365,31 @@ namespace TRUEHUD_API
 		virtual void DrawCylinder(const RE::NiPoint3& a_start, const RE::NiPoint3& a_end, float a_radius, uint32_t a_segments, float a_duration = 0.f, uint32_t a_color = 0xFF0000FF, float a_thickness = 1.f) noexcept = 0;
 		virtual void DrawCone(const RE::NiPoint3& a_origin, const RE::NiPoint3& a_direction, float a_length, float a_angleWidth, float a_angleHeight, uint32_t a_segments, float a_duration = 0.f, uint32_t a_color = 0xFF0000FF, float a_thickness = 1.f) noexcept = 0;
 		virtual void DrawCapsule(const RE::NiPoint3& a_origin, float a_halfHeight, float a_radius, const RE::NiQuaternion& a_rotation, float a_duration = 0.f, uint32_t a_color = 0xFF0000FF, float a_thickness = 1.f) noexcept = 0;
+
+		/// <summary>
+		/// Get whether an info bar already exists for this actor.
+		/// </summary>
+		/// <param name="a_actorHandle">Actor handle</param>
+		/// <param name="a_bFloatingOnly">Only return true if the bar is a floating one</param>
+		/// <returns>Whether the bar exists or not</returns>
+		[[nodiscard]] virtual bool HasInfoBar(RE::ActorHandle a_actorHandle, bool a_bFloatingOnly = false) const noexcept = 0;
 	};
 
-	struct InterfaceRequest
-	{
-		// Version to request
-		InterfaceVersion interfaceVersion;
-	};
-
-	struct PluginMessage
-	{
-		// Command types available
-		enum class Type : uint8_t
-		{
-			Error,
-			RequestInterface,
-			InterfaceProvider
-		};
-
-		// Packet header
-		uint32_t header = 'THUD';
-
-		// Command type to invoke
-		Type type;
-
-		// Pointer to data for the given message
-		void* messageData = nullptr;
-	};
-
-	struct InterfaceContainer
-	{
-		// Pointer to interface
-		void* interfaceInstance = nullptr;
-		// Contained version
-		InterfaceVersion interfaceVersion;
-	};
-
-	using InterfaceLoaderCallback = std::function<void(
-		void* interfaceInstance, InterfaceVersion interfaceVersion)>;
+	typedef void* (*_RequestPluginAPI)(const InterfaceVersion interfaceVersion);
 
 	/// <summary>
-	/// Initiate a request for the True HUD API interface via SKSE's messaging system.
-	/// You must register a callback to obtain the response to this request.
-	/// Recommended: Send your request during SKSEMessagingInterface::kMessage_PostPostLoad
+	/// Request the True HUD API interface.
+	/// Recommended: Send your request during or after SKSEMessagingInterface::kMessage_PostLoad to make sure the dll has already been loaded
 	/// </summary>
-	/// <param name="skseMessaging">SKSE's messaging interface</param>
-	/// <param name="version">The interface version to request</param>
-	/// <returns>If any plugin was listening for this request, true. See skse/PluginAPI.h</returns>
-	[[nodiscard]] inline bool RequestInterface(const SKSE::MessagingInterface* a_skseMessaging,
-		InterfaceVersion a_version = InterfaceVersion::V3) noexcept
+	/// <param name="a_interfaceVersion">The interface version to request</param>
+	/// <returns>The pointer to the API singleton, or nullptr if request failed</returns>
+	[[nodiscard]] inline void* RequestPluginAPI(const InterfaceVersion a_interfaceVersion = InterfaceVersion::V3)
 	{
-		InterfaceRequest req = {};
-		req.interfaceVersion = a_version;
-
-		PluginMessage cmd = {};
-		cmd.type = PluginMessage::Type::RequestInterface;
-		cmd.messageData = &req;
-
-		return a_skseMessaging->Dispatch(
-			0,
-			&cmd, sizeof(PluginMessage),
-			TrueHUDPluginName);
-	}
-
-	/// <summary>
-	/// Register the callback for obtaining the True HUD API interface. Call only once.
-	/// Recommended: Register your callback during SKSEMessagingInterface::kMessage_PostLoad
-	/// </summary>
-	/// <param name="skseMessaging">SKSE's messaging interface</param>
-	/// <param name="callback">A callback function receiving both the interface pointer and interface version</param>
-	/// <returns></returns>
-	[[nodiscard]] inline bool RegisterInterfaceLoaderCallback(const SKSE::MessagingInterface* a_skseMessaging,
-		InterfaceLoaderCallback&& a_callback) noexcept
-	{
-		static InterfaceLoaderCallback storedCallback = a_callback;
-
-		return a_skseMessaging->RegisterListener(
-			TrueHUDPluginName,
-			[](SKSE::MessagingInterface::Message* msg) {
-				if (msg->sender && strcmp(msg->sender, TrueHUDPluginName) != 0)
-					return;
-				if (msg->type != 0)
-					return;
-				if (msg->dataLen != sizeof(PluginMessage))
-					return;
-
-				const auto resp = reinterpret_cast<PluginMessage*>(msg->data);
-				switch (resp->type) {
-				case PluginMessage::Type::InterfaceProvider:
-					{
-						auto interfaceContainer = reinterpret_cast<InterfaceContainer*>(resp->messageData);
-						storedCallback(
-							interfaceContainer->interfaceInstance,
-							interfaceContainer->interfaceVersion);
-						break;
-					}
-				case PluginMessage::Type::Error:
-					{
-						SKSE::log::info("TrueHUDAPI: Error obtaining interface");
-						break;
-					}
-				default:
-					return;
-				}
-			});
+		auto pluginHandle = GetModuleHandle("TrueHUD.dll");
+		_RequestPluginAPI requestAPIFunction = (_RequestPluginAPI)GetProcAddress(pluginHandle, "RequestPluginAPI");
+		if (requestAPIFunction) {
+			return requestAPIFunction(a_interfaceVersion);
+		}
+		return nullptr;
 	}
 }

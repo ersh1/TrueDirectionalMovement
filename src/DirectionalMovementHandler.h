@@ -26,7 +26,8 @@ namespace std
 	};
 }
 
-class DirectionalMovementHandler
+class DirectionalMovementHandler :
+	public RE::BSTEventSink<RE::BSAnimationGraphEvent>
 {
 public:
 	enum class AttackState : std::uint8_t
@@ -38,7 +39,13 @@ public:
 		kEnd = 4
 	};
 
+	using EventResult = RE::BSEventNotifyControl;
+
 	static DirectionalMovementHandler* GetSingleton();
+	static void Register();
+
+	// override BSTEventSink
+	virtual EventResult ProcessEvent(const RE::BSAnimationGraphEvent* a_event, RE::BSTEventSource<RE::BSAnimationGraphEvent>* a_eventSource) override;
 
 	static void ResetControls();
 
@@ -47,6 +54,7 @@ public:
 	void UpdateFacingState();
 	void UpdateFacingCrosshair();
 	void UpdateDodgingState();
+	void UpdateJumpingState();
 	void UpdateSwimmingPitchOffset();
 	void UpdateMountedArchery();
 	void ProgressTimers();
@@ -67,7 +75,7 @@ public:
 
 	bool ProcessInput(RE::NiPoint2& a_inputDirection, RE::PlayerControlsData* a_playerControlsData);
 	void SetDesiredAngleToTarget(RE::PlayerCharacter* a_playerCharacter, RE::ActorHandle a_target);
-	void UpdateRotation();
+	void UpdateRotation(bool bForceInstant = false);
 	void UpdateRotationLockedCam();
 	void UpdateTweeningState();
 	void UpdateAIProcessRotationSpeed(RE::Actor* a_actor);
@@ -78,8 +86,9 @@ public:
 	bool IsImprovedCameraInstalled() const;
 
 	bool IsFreeCamera() const;
+	bool Is360Movement() const;
 	bool GetFreeCameraEnabled() const;
-	bool HasMovementInput() const;
+	bool HasMovementInput() const;	
 
 	bool IsDodging() const;
 	bool IsMagnetismActive() const;
@@ -231,6 +240,7 @@ private:
 	mutable Lock _lock;
 
 	float _defaultControllerBufferDepth = -1.f;
+	float _defaultAcrobatics = -1.f;
 	
 	bool _bMagnetismActive = false;
 	bool _bCurrentlyTurningToCrosshair = false;

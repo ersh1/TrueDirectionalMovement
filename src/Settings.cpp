@@ -112,6 +112,7 @@ void Settings::ReadSettings()
 		ReadFloatSetting(mcm, "DirectionalMovement", "fAttackMidRotationSpeedMult", fAttackMidRotationSpeedMult);
 		ReadFloatSetting(mcm, "DirectionalMovement", "fAttackEndRotationSpeedMult", fAttackEndRotationSpeedMult);
 		ReadFloatSetting(mcm, "DirectionalMovement", "fAirRotationSpeedMult", fAirRotationSpeedMult);
+		ReadFloatSetting(mcm, "DirectionalMovement", "fGlidingRotationSpeedMult", fGlidingRotationSpeedMult);
 		ReadFloatSetting(mcm, "DirectionalMovement", "fWaterRotationSpeedMult", fWaterRotationSpeedMult);
 		ReadFloatSetting(mcm, "DirectionalMovement", "fSwimmingRotationSpeedMult", fSwimmingRotationSpeedMult);
 		ReadFloatSetting(mcm, "DirectionalMovement", "fFaceCrosshairRotationSpeedMultiplier", fFaceCrosshairRotationSpeedMultiplier);
@@ -170,6 +171,10 @@ void Settings::ReadSettings()
 		ReadFloatSetting(mcm, "HUD", "fReticleScale", fReticleScale);
 		ReadBoolSetting(mcm, "HUD", "bReticleUseHUDOpacity", bReticleUseHUDOpacity);
 		ReadFloatSetting(mcm, "HUD", "fReticleOpacity", fReticleOpacity);
+
+		// Misc
+		ReadBoolSetting(mcm, "Misc", "bOverrideAcrobatics", bOverrideAcrobatics);
+		ReadFloatSetting(mcm, "Misc", "fAcrobatics", fAcrobatics);
 
 		// Controller
 		ReadBoolSetting(mcm, "Controller", "bOverrideControllerDeadzone", bOverrideControllerDeadzone);

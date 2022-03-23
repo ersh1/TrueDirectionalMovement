@@ -98,7 +98,6 @@ namespace Hooks
 		PlayerCameraHook::Hook();
 		MainUpdateHook::Hook();
 		HorseAimHook::Hook();
-		//CrosshairPickHook::Hook();
 
 		logger::trace("...success");
 	}
@@ -131,7 +130,7 @@ namespace Hooks
 		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 		if (a_event && directionalMovementHandler->IsFreeCamera() && playerCharacter && !playerCharacter->IsOnMount())
 		{
-			auto userEvent = a_event->QUserEvent();
+			auto& userEvent = a_event->QUserEvent();
 			auto userEvents = RE::UserEvents::GetSingleton();
 
 			bool bRelevant = false;
@@ -348,7 +347,7 @@ namespace Hooks
 	void TogglePOVHook::ProcessButton(RE::TogglePOVHandler* a_this, RE::ButtonEvent* a_event, RE::PlayerControlsData* a_data)
 	{
 		if (a_event && BSInputDeviceManager_IsUsingGamepad(RE::BSInputDeviceManager::GetSingleton()) ? Settings::bTargetLockUsePOVSwitchGamepad : Settings::bTargetLockUsePOVSwitchKeyboard) {
-			auto userEvent = a_event->QUserEvent();
+			auto& userEvent = a_event->QUserEvent();
 			auto userEvents = RE::UserEvents::GetSingleton();
 
 			if (userEvent == userEvents->togglePOV)
@@ -395,7 +394,6 @@ namespace Hooks
 			}
 		}
 
-		logger::info("value: {}, helddownsecs: {}", a_event->value, a_event->heldDownSecs);
 		_ProcessButton(a_this, a_event, a_data);
 	}
 
@@ -438,7 +436,7 @@ namespace Hooks
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 		if (a_event && directionalMovementHandler->HasTargetLocked() && Settings::bTargetLockUseScrollWheel)
 		{
-			auto userEvent = a_event->QUserEvent();
+			auto& userEvent = a_event->QUserEvent();
 			auto userEvents = RE::UserEvents::GetSingleton();
 
 			if (userEvent == userEvents->zoomIn) {
@@ -451,7 +449,7 @@ namespace Hooks
 		}
 
 		if (a_event && BSInputDeviceManager_IsUsingGamepad(RE::BSInputDeviceManager::GetSingleton()) ? Settings::bTargetLockUsePOVSwitchGamepad : Settings::bTargetLockUsePOVSwitchKeyboard) {
-			auto userEvent = a_event->QUserEvent();
+			auto& userEvent = a_event->QUserEvent();
 			auto userEvents = RE::UserEvents::GetSingleton();
 
 			if (userEvent == userEvents->togglePOV && a_event->IsUp() && a_event->HeldDuration() < Settings::fTargetLockPOVHoldDuration) {
@@ -561,7 +559,7 @@ namespace Hooks
 	{
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 		if (a_event && directionalMovementHandler->HasTargetLocked() && Settings::bTargetLockUseScrollWheel) {
-			auto userEvent = a_event->QUserEvent();
+			auto& userEvent = a_event->QUserEvent();
 			auto userEvents = RE::UserEvents::GetSingleton();
 
 			if (userEvent == userEvents->zoomIn) {
@@ -575,7 +573,7 @@ namespace Hooks
 
 		if (a_event && BSInputDeviceManager_IsUsingGamepad(RE::BSInputDeviceManager::GetSingleton()) ? Settings::bTargetLockUsePOVSwitchGamepad : Settings::bTargetLockUsePOVSwitchKeyboard)
 		{
-			auto userEvent = a_event->QUserEvent();
+			auto& userEvent = a_event->QUserEvent();
 			auto userEvents = RE::UserEvents::GetSingleton();
 
 			if (userEvent == userEvents->togglePOV && a_event->IsUp() && a_event->HeldDuration() < Settings::fTargetLockPOVHoldDuration) {
@@ -671,7 +669,7 @@ namespace Hooks
 	{
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 		if (a_event && directionalMovementHandler->HasTargetLocked() && Settings::bTargetLockUseScrollWheel) {
-			auto userEvent = a_event->QUserEvent();
+			auto& userEvent = a_event->QUserEvent();
 			auto userEvents = RE::UserEvents::GetSingleton();
 
 			if (userEvent == userEvents->zoomIn) {
@@ -684,7 +682,7 @@ namespace Hooks
 		}
 
 		if (a_event && BSInputDeviceManager_IsUsingGamepad(RE::BSInputDeviceManager::GetSingleton()) ? Settings::bTargetLockUsePOVSwitchGamepad : Settings::bTargetLockUsePOVSwitchKeyboard) {
-			auto userEvent = a_event->QUserEvent();
+			auto& userEvent = a_event->QUserEvent();
 			auto userEvents = RE::UserEvents::GetSingleton();
 
 			if (userEvent == userEvents->togglePOV && a_event->IsUp() && a_event->HeldDuration() < Settings::fTargetLockPOVHoldDuration) {
@@ -1204,104 +1202,6 @@ namespace Hooks
 		}
 	}
 
-	/*std::string time_in_HH_MM_SS_MMM()
-	{
-		using namespace std::chrono;
-
-		// get current time
-		auto now = system_clock::now();
-
-		// get number of milliseconds for the current second
-		// (remainder after division into seconds)
-		auto ms = duration_cast<milliseconds>(now.time_since_epoch()) % 1000;
-
-		// convert to std::time_t in order to convert to std::tm (broken time)
-		auto timer = system_clock::to_time_t(now);
-
-		// convert to broken time
-		std::tm bt;
-		localtime_s(&bt, &timer);
-
-		std::ostringstream oss;
-
-		oss << std::put_time(&bt, "%H:%M:%S");	// HH:MM:SS
-		oss << '.' << std::setfill('0') << std::setw(3) << ms.count();
-
-		return oss.str();
-	}*/
-
-	constexpr uint32_t hash(const char* data, size_t const size) noexcept
-	{
-		uint32_t hash = 5381;
-
-		for (const char* c = data; c < data + size; ++c) {
-			hash = ((hash << 5) + hash) + (unsigned char)*c;
-		}
-
-		return hash;
-	}
-
-	constexpr uint32_t operator"" _h(const char* str, size_t size) noexcept
-	{
-		return hash(str, size);
-	}
-
-	void PlayerCharacterHook::ProcessEvent(RE::BSTEventSink<RE::BSAnimationGraphEvent>* a_this, const RE::BSAnimationGraphEvent* a_event, RE::BSTEventSource<RE::BSAnimationGraphEvent>* a_dispatcher)
-	{
-		if (a_event)
-		{
-			std::string_view eventTag = a_event->tag.data();
-
-			switch (hash(eventTag.data(), eventTag.size())) {
-			// Start phase
-			case "CastOKStart"_h:
-			case "preHitFrame"_h:
-			case "TDM_AttackStart"_h:
-				DirectionalMovementHandler::GetSingleton()->SetAttackState(DirectionalMovementHandler::AttackState::kStart);
-				break;
-
-			// Mid phase. Ignore vanilla events if we're tracing already
-			case "weaponSwing"_h:
-			case "weaponLeftSwing"_h:
-				if (DirectionalMovementHandler::GetSingleton()->GetAttackState() != DirectionalMovementHandler::AttackState::kTracing)
-				{
-					DirectionalMovementHandler::GetSingleton()->SetAttackState(DirectionalMovementHandler::AttackState::kMid);
-				}
-				break;
-			case "TDM_AttackMid"_h:
-			case "MeleeTrace_Right_Start"_h:
-			case "MeleeTrace_Left_Start"_h:
-				DirectionalMovementHandler::GetSingleton()->SetAttackState(DirectionalMovementHandler::AttackState::kMid);
-				break;
-
-			// End phase. Ignore vanilla events if we're tracing already
-			case "HitFrame"_h:
-			case "attackWinStart"_h:
-			case "SkySA_AttackWinStart"_h:
-				if (DirectionalMovementHandler::GetSingleton()->GetAttackState() != DirectionalMovementHandler::AttackState::kTracing)
-				{
-					DirectionalMovementHandler::GetSingleton()->SetAttackState(DirectionalMovementHandler::AttackState::kEnd);
-				}
-				break;
-			case "TDM_AttackEnd"_h:
-			case "MeleeTrace_Right_Stop"_h:
-			case "MeleeTrace_Left_Stop"_h:
-				DirectionalMovementHandler::GetSingleton()->SetAttackState(DirectionalMovementHandler::AttackState::kEnd);
-				break;
-
-			// Back to none
-			case "attackStop"_h:
-			case "TDM_AttackStop"_h:
-			case "SkySA_AttackWinEnd"_h:
-				DirectionalMovementHandler::GetSingleton()->SetAttackState(DirectionalMovementHandler::AttackState::kNone);
-				break;
-			}
-			
-			//logger::info("{} - {}", time_in_HH_MM_SS_MMM(), a_event->tag);
-		}
-		_ProcessEvent(a_this, a_event, a_dispatcher);
-	}
-
 	static void ApplyYawDelta(RE::ActorState* a_actorState, RE::NiPoint3& a_angle)
 	{
 		auto actor = static_cast<RE::Actor*>(a_actorState);
@@ -1742,28 +1642,4 @@ namespace Hooks
 		}
 		return DirectionalMovementHandler::GetSingleton()->GetCurrentHorseAimAngle() + angleOffset;
 	}
-
-	//void CrosshairPickHook::Pick(uintptr_t a_this, RE::bhkWorld* a_bhkWorld, RE::NiPoint3& a_sourcePoint, RE::NiPoint3& a_sourceRotation)
-	//{
-	//	if (DirectionalMovementHandler::GetSingleton()->IsFreeCamera()) {
-	//		auto playerCamera = RE::PlayerCamera::GetSingleton();
-	//		
-	//		RE::NiPoint3 playerPos = a_sourcePoint;
-
-	//		// Set the source point to camera location instead of player location
-	//		playerCamera->currentState->GetTranslation(a_sourcePoint);
-
-	//		// Increase the pick length temporarily by the distance between player and camera
-	//		float originalPickLength = *g_fActivatePickLength;
-	//		*g_fActivatePickLength += playerPos.GetDistance(a_sourcePoint);
-
-	//		_Pick(a_this, a_bhkWorld, a_sourcePoint, a_sourceRotation);
-
-	//		// Restore original value
-	//		*g_fActivatePickLength = originalPickLength;
-	//	} else {
-	//		_Pick(a_this, a_bhkWorld, a_sourcePoint, a_sourceRotation);
-	//	}
-	//}
-
 }
