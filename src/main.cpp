@@ -106,7 +106,7 @@ extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Query(const SKSE::QueryInterface* a
 	return true;
 }
 
-#ifdef IS_SKYRIM_AE
+#ifdef SKYRIM_SUPPORT_AE
 extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []() {
 	SKSE::PluginVersionData v;
 

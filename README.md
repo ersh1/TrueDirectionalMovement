@@ -7,9 +7,9 @@
 	* Add the environment variable `VCPKG_ROOT` with the value as the path to the folder containing vcpkg
 * [Visual Studio Community 2022](https://visualstudio.microsoft.com/)
 	* Desktop development with C++
-* [CommonLibSSE](https://github.com/ersh1/CommonLibSSE/tree/dev)
-	* You need to build from the ersh1/dev branch, or ersh1/dev-ae branch if you're building for post-AE versions of Skyrim.
-	* Add the environment variable `CommonLibSSEPath_SE` and/or `CommonLibSSEPath_AE` with the value as the path to the folder containing the correct CommonLibSSE version
+* [CommonLibSSE](https://github.com/powerof3/CommonLibSSE)
+	* You need to build from the powerof3/dev branch
+	* Add the environment variable `CommonLibSSEPath` with the value as the path to the folder containing CommonLibSSE
 
 ## User Requirements
 * [Address Library for SKSE](https://www.nexusmods.com/skyrimspecialedition/mods/32444)

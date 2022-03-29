@@ -26,13 +26,8 @@ namespace Hooks
 		static void Hook()
 		{
 			auto& trampoline = SKSE::GetTrampoline();
-#ifdef IS_SKYRIM_AE
-			REL::Relocation<uintptr_t> hook{ REL::ID(68808) };                // C40F80
-			_ProcessInput = trampoline.write_call<5>(hook.address() + 0x13F, ProcessInput);  // C410BF
-#else
-			REL::Relocation<uintptr_t> hook{ REL::ID(67497) };                // C1AB40
-			_ProcessInput = trampoline.write_call<5>(hook.address() + 0x13F, ProcessInput);  // C1AC7F
-#endif
+			REL::Relocation<uintptr_t> hook{ RELOCATION_ID(67497, 68808) };                  // C1AB40, C40F80
+			_ProcessInput = trampoline.write_call<5>(hook.address() + 0x13F, ProcessInput);  // C1AC7F, C410BF
 		}
 
 	private:
@@ -224,20 +219,16 @@ namespace Hooks
 			_GetLinearVelocityMissile = MissileProjectileVtbl.write_vfunc(0x86, GetLinearVelocityMissile);
 
 			auto& trampoline = SKSE::GetTrampoline();
-#ifdef IS_SKYRIM_AE
-			REL::Relocation<uintptr_t> hook1{ REL::ID(44222) };  // 7821A0  // manual
-			trampoline.write_call<6>(hook1.address() + 0x6FF, Func183);  // 78289F // vfunc call
+			REL::Relocation<uintptr_t> hook{ RELOCATION_ID(43030, 44222) };  // 754820, 7821A0
 
-			REL::Relocation<uintptr_t> hook2{ REL::ID(44222) };  // 7821A0
-			_InitProjectile = trampoline.write_call<5>(hook2.address() + 0x78A, InitProjectile);
+#ifdef SKYRIM_SUPPORT_AE
+			trampoline.write_call<6>(hook.address() + 0x6FF, Func183);  // 78289F // vfunc call
+			_InitProjectile = trampoline.write_call<5>(hook.address() + 0x78A, InitProjectile);
 #else
-			REL::Relocation<uintptr_t> hook1{ REL::ID(43030) };  // 754820
-			trampoline.write_call<6>(hook1.address() + 0x318, Func183);  // 754B24 // vfunc call
-
-			REL::Relocation<uintptr_t> hook2{ REL::ID(43030) };  // 754820
-			_InitProjectile = trampoline.write_call<5>(hook2.address() + 0x3B8, InitProjectile); 
-
+			trampoline.write_call<6>(hook.address() + 0x318, Func183);  // 754B24 // vfunc call
+			_InitProjectile = trampoline.write_call<5>(hook.address() + 0x3B8, InitProjectile);
 #endif
+
 		}
 	private:
 		static void ProjectileAimSupport(RE::Projectile* a_this);
@@ -280,11 +271,11 @@ namespace Hooks
 			_GetAngle = PlayerCharacter_ActorStateVtbl.write_vfunc(0x4, GetAngle);
 
 			auto& trampoline = SKSE::GetTrampoline();
-#ifdef IS_SKYRIM_AE
-			REL::Relocation<uintptr_t> hook{ REL::ID(40447) };  // 6C6440
+			REL::Relocation<uintptr_t> hook{ RELOCATION_ID(39375, 40447) };  // 69E580, 6C6440
+
+#ifdef SKYRIM_SUPPORT_AE
 			_UpdateSprintState = trampoline.write_call<5>(hook.address() + 0x140B, UpdateSprintState);
 #else
-			REL::Relocation<uintptr_t> hook{ REL::ID(39375) };  // 69E580
 			_UpdateSprintState = trampoline.write_call<5>(hook.address() + 0xDAE, UpdateSprintState);
 #endif
 		}
@@ -309,21 +300,20 @@ namespace Hooks
 			REL::Relocation<std::uintptr_t> PlayerControlsVtbl{ RE::VTABLE_PlayerControls[0] };  // 166E838
 			_Handle = PlayerControlsVtbl.write_vfunc(0x1, Handle);
 
-			auto& trampoline = SKSE::GetTrampoline();
-#ifdef IS_SKYRIM_AE
-			REL::Relocation<uintptr_t> hook{ REL::ID(42338) };  // 72E720
+			auto& trampoline = SKSE::GetTrampoline();			
+			REL::Relocation<uintptr_t> hook{ RELOCATION_ID(41288, 42338) };  // 706AF0, 72E720
+#ifdef SKYRIM_SUPPORT_AE
 			_CheckIsInSyncAnim = trampoline.write_call<5>(hook.address() + 0x153, CheckIsInSyncAnim);
 			_Check2 = trampoline.write_call<5>(hook.address() + 0x106, Check2);
 			_Check3 = trampoline.write_call<5>(hook.address() + 0x12A, Check3);
 #else
-			//REL::Relocation<uintptr_t> hook{ REL::ID(41259) };  // 704DE0
-			REL::Relocation<uintptr_t> hook{ REL::ID(41288) };  // 706AF0
 			_CheckIsInSyncAnim = trampoline.write_call<5>(hook.address() + 0xD8, CheckIsInSyncAnim);
 			_Check2 = trampoline.write_call<5>(hook.address() + 0x99, Check2);
 			_Check3 = trampoline.write_call<5>(hook.address() + 0xB9, Check3);
+
+			//REL::Relocation<uintptr_t> hook{ REL::ID(41259) };  // 704DE0
 			//_CanProcessControls = trampoline.write_call<5>(hook.address() + 0x2E, CanProcessControls);  // 704E0E  // had to be revamped for AE
 #endif
-			
 		}
 
 	private:
@@ -346,17 +336,14 @@ namespace Hooks
 		static void Hook()
 		{
 			auto& trampoline = SKSE::GetTrampoline();
-#ifdef IS_SKYRIM_AE
-			REL::Relocation<uintptr_t> hook1{ REL::ID(37356) };  // 5FD7E0
-			REL::Relocation<uintptr_t> hook2{ REL::ID(42373) };  // 731330
+			REL::Relocation<uintptr_t> hook1{ RELOCATION_ID(36365, 37356) };  // 5D87F0, 5FD7E0
+			REL::Relocation<uintptr_t> hook2{ RELOCATION_ID(41293, 42373) };  // 707210, 731330
 
+#ifdef SKYRIM_SUPPORT_AE
 			_AIProcess_SetRotationSpeedZ1 = trampoline.write_call<5>(hook1.address() + 0x3EF, AIProcess_SetRotationSpeedZ1);
 			_AIProcess_SetRotationSpeedZ2 = trampoline.write_call<5>(hook1.address() + 0x632, AIProcess_SetRotationSpeedZ2);
 			_AIProcess_SetRotationSpeedZ3 = trampoline.write_branch<5>(hook2.address() + 0x49, AIProcess_SetRotationSpeedZ3);
 #else
-			REL::Relocation<uintptr_t> hook1{ REL::ID(36365) };  // 5D87F0
-			REL::Relocation<uintptr_t> hook2{ REL::ID(41293) };  // 707210
-
 			_AIProcess_SetRotationSpeedZ1 = trampoline.write_call<5>(hook1.address() + 0x356, AIProcess_SetRotationSpeedZ1);
 			_AIProcess_SetRotationSpeedZ2 = trampoline.write_call<5>(hook1.address() + 0x5E4, AIProcess_SetRotationSpeedZ2);
 			_AIProcess_SetRotationSpeedZ3 = trampoline.write_branch<5>(hook2.address() + 0x49, AIProcess_SetRotationSpeedZ3);
@@ -378,17 +365,13 @@ namespace Hooks
 		static void Hook()
 		{
 			auto& trampoline = SKSE::GetTrampoline();
+			REL::Relocation<uintptr_t> hook1{ RELOCATION_ID(32042, 32796) };  // 4EC300, 504B30  // synchronized anims
+			REL::Relocation<uintptr_t> hook2{ RELOCATION_ID(36365, 37356) };  // 5D87F0, 5FD7E0
+
 #ifdef IS_SKYRIM_AE
-			REL::Relocation<uintptr_t> hook1{ REL::ID(32796) };  // 504B30  // synchronized anims
-			REL::Relocation<uintptr_t> hook2{ REL::ID(37356) };  // 5FD7E0
-
-			_Actor_SetRotationX = trampoline.write_call<5>(hook1.address() + 0x667, Actor_SetRotationX);  // 4EC7DC
-			_Actor_SetRotationZ = trampoline.write_call<5>(hook2.address() + 0xA87, Actor_SetRotationZ);  // 5FE267
-
+			_Actor_SetRotationX = trampoline.write_call<5>(hook1.address() + 0x667, Actor_SetRotationX); // 505197
+			_Actor_SetRotationZ = trampoline.write_call<5>(hook2.address() + 0xA87, Actor_SetRotationZ); // 5FE267
 #else
-			REL::Relocation<uintptr_t> hook1{ REL::ID(32042) };  // 4EC300  // synchronized anims
-			REL::Relocation<uintptr_t> hook2{ REL::ID(36365) };  // 5D87F0
-
 			_Actor_SetRotationX = trampoline.write_call<5>(hook1.address() + 0x4DC, Actor_SetRotationX); // 4EC7DC
 			_Actor_SetRotationZ = trampoline.write_call<5>(hook2.address() + 0x9C7, Actor_SetRotationZ); // 5D91B7 
 #endif
@@ -406,7 +389,7 @@ namespace Hooks
 	public:
 		static void Hook()
 		{
-			REL::Relocation<std::uintptr_t> EnemyHealthVtbl{ RE::VTABLE_EnemyHealth[0] };  // 16B2A50
+			REL::Relocation<std::uintptr_t> EnemyHealthVtbl{ RE::VTABLE_EnemyHealth[0] };
 			_ProcessMessage = EnemyHealthVtbl.write_vfunc(0x2, ProcessMessage);
 		}
 
@@ -421,27 +404,20 @@ namespace Hooks
 		static void Hook()
 		{
 			auto& trampoline = SKSE::GetTrampoline();
+			REL::Relocation<uintptr_t> hook1{ RELOCATION_ID(36984, 38009) };                                    // 60D300, 635270
+			REL::Relocation<uintptr_t> hook2{ RELOCATION_ID(36376, 37367) };                                    // 5D9BF0, 5FF320
+			REL::Relocation<uintptr_t> hook3{ RELOCATION_ID(36220, 37200) };                                    // 5CFD60, 5F4320
+			REL::Relocation<uintptr_t> hook4{ RELOCATION_ID(36540, 37541) };                                    // 5E8070, 60E050
 
-#ifdef IS_SKYRIM_AE
-			REL::Relocation<uintptr_t> hook1{ REL::ID(38009) };  // 635270
-			REL::Relocation<uintptr_t> hook2{ REL::ID(37367) };  // 5FF320
-			REL::Relocation<uintptr_t> hook3{ REL::ID(37200) };  // 5F4320
-			REL::Relocation<uintptr_t> hook4{ REL::ID(37541) };  // 60E050
-
-			_SetHeadtrackTarget0 = trampoline.write_call<5>(hook1.address() + 0x594, SetHeadtrackTarget0); // 635804
-			_SetHeadtrackTarget4A = trampoline.write_call<5>(hook2.address() + 0xA3, SetHeadtrackTarget4A);  // 5FF3C3
-			_SetHeadtrackTarget4B = trampoline.write_call<5>(hook3.address() + 0x470, SetHeadtrackTarget4B); // 5F4790
-			_SetHeadtrackTarget4C = trampoline.write_call<5>(hook3.address() + 0x5D3, SetHeadtrackTarget4C); // 5F48F3
-			_SetHeadtrackTarget4D = trampoline.write_call<5>(hook4.address() + 0x181, SetHeadtrackTarget4D); // 60E1D1
-
+#ifdef SKYRIM_SUPPORT_AE
+			_SetHeadtrackTarget0 = trampoline.write_call<5>(hook1.address() + 0x594, SetHeadtrackTarget0);    // 635804
+			_SetHeadtrackTarget4A = trampoline.write_call<5>(hook2.address() + 0xA3, SetHeadtrackTarget4A);   // 5FF3C3
+			_SetHeadtrackTarget4B = trampoline.write_call<5>(hook3.address() + 0x470, SetHeadtrackTarget4B);  // 5F4790
+			_SetHeadtrackTarget4C = trampoline.write_call<5>(hook3.address() + 0x5D3, SetHeadtrackTarget4C);  // 5F48F3
+			_SetHeadtrackTarget4D = trampoline.write_call<5>(hook4.address() + 0x181, SetHeadtrackTarget4D);  // 60E1D1
 #else
-			REL::Relocation<uintptr_t> hook1{ REL::ID(36984) };  // 60D300
-			REL::Relocation<uintptr_t> hook2{ REL::ID(36376) };  // 5D9BF0
-			REL::Relocation<uintptr_t> hook3{ REL::ID(36220) };  // 5CFD60
-			REL::Relocation<uintptr_t> hook4{ REL::ID(36540) };  // 5E8070
-
-			_SetHeadtrackTarget0 = trampoline.write_call<5>(hook1.address() + 0x592, SetHeadtrackTarget0); // 60D892
-			_SetHeadtrackTarget4A = trampoline.write_call<5>(hook2.address() + 0xA3, SetHeadtrackTarget4A);  // 5D9C93
+			_SetHeadtrackTarget0 = trampoline.write_call<5>(hook1.address() + 0x592, SetHeadtrackTarget0);    // 60D892
+			_SetHeadtrackTarget4A = trampoline.write_call<5>(hook2.address() + 0xA3, SetHeadtrackTarget4A);   // 5D9C93
 			_SetHeadtrackTarget4B = trampoline.write_call<5>(hook3.address() + 0x45C, SetHeadtrackTarget4B);  // 5D01BC
 			_SetHeadtrackTarget4C = trampoline.write_call<5>(hook3.address() + 0x5BF, SetHeadtrackTarget4C);  // 5D031F
 			_SetHeadtrackTarget4D = trampoline.write_call<5>(hook4.address() + 0x17E, SetHeadtrackTarget4D);  // 5E81EE
@@ -468,23 +444,13 @@ namespace Hooks
 		{
 			auto& trampoline = SKSE::GetTrampoline();
 
-#ifdef IS_SKYRIM_AE
-			REL::Relocation<uintptr_t> hook1{ REL::ID(56225) };  // 9BF1F0, bool papyrus wrapper
-			//REL::Relocation<uintptr_t> hook{ REL::ID(32885) };  // 5096B0
-			REL::Relocation<uintptr_t> hook2{ REL::ID(56226) };  // 9BF2B0, int papyrus wrapper
+			REL::Relocation<uintptr_t> hook1{ RELOCATION_ID(55694, 56225) };  // 996FD0, 9BF1F0, bool papyrus wrapper
+			//REL::Relocation<uintptr_t> hook{ RELOCATION_ID(32141, 32885) }; // 4F06E0, 5096B0
+			REL::Relocation<uintptr_t> hook2{ RELOCATION_ID(55695, 56226) };  // 997090, 9BF2B0, int papyrus wrapper
 
 			_SetBool = trampoline.write_call<5>(hook1.address() + 0x4C, SetBool);
 			//_SetBool = trampoline.write_call<5>(hook.address() + 0xE, SetBool);
 			_SetInt = trampoline.write_call<5>(hook2.address() + 0x4B, SetInt);
-#else
-			REL::Relocation<uintptr_t> hook1{ REL::ID(55694) };  // 996FD0, bool papyrus wrapper
-			//REL::Relocation<uintptr_t> hook{ REL::ID(32141) };  // 4F06E0
-			REL::Relocation<uintptr_t> hook2{ REL::ID(55695) };  // 997090, int papyrus wrapper
-
-			_SetBool = trampoline.write_call<5>(hook1.address() + 0x4C, SetBool);
-			//_SetBool = trampoline.write_call<5>(hook.address() + 0xE, SetBool);
-			_SetInt = trampoline.write_call<5>(hook2.address() + 0x4B, SetInt);
-#endif
 		}
 
 	private:
@@ -501,17 +467,13 @@ namespace Hooks
 		static void Hook()
 		{
 			auto& trampoline = SKSE::GetTrampoline();
+			REL::Relocation<std::uintptr_t> hook1{ RELOCATION_ID(49852, 50784) };                             // 84AB90, 876700
+			REL::Relocation<std::uintptr_t> hook2{ RELOCATION_ID(49883, 50816) };                             // 84BCC0, 877970, EnterTweenMenuState
 
-#ifdef IS_SKYRIM_AE
-			REL::Relocation<std::uintptr_t> hook1{ REL::ID(50784) };  // 876700
-			REL::Relocation<std::uintptr_t> hook2{ REL::ID(50816) };  // 877970, EnterTweenMenuState
-
+#ifdef SKYRIM_SUPPORT_AE
 			_Update = trampoline.write_call<5>(hook1.address() + 0x1A6, Update);
 			_SetCameraState = trampoline.write_call<5>(hook2.address() + 0x83, SetCameraState);
 #else
-			REL::Relocation<std::uintptr_t> hook1{ REL::ID(49852) };  // 84AB90
-			REL::Relocation<std::uintptr_t> hook2{ REL::ID(49883) };  // 84BCC0, EnterTweenMenuState
-
 			_Update = trampoline.write_call<5>(hook1.address() + 0x1A6, Update);
 			_SetCameraState = trampoline.write_call<5>(hook2.address() + 0x7C, SetCameraState);
 #endif
@@ -531,14 +493,11 @@ namespace Hooks
 		static void Hook()
 		{
 			auto& trampoline = SKSE::GetTrampoline();
-
-#ifdef IS_SKYRIM_AE
-			REL::Relocation<uintptr_t> hook{ REL::ID(36544) };  // 5D29F0, main loop
-
+			REL::Relocation<uintptr_t> hook{ RELOCATION_ID(35551, 36544) };  // 5AF3D0, 5D29F0, main loop
+			
+#ifdef SKYRIM_SUPPORT_AE
 			_Update = trampoline.write_call<5>(hook.address() + 0x160, Update);
 #else
-			REL::Relocation<uintptr_t> hook{ REL::ID(35551) };  // 5AF3D0, main loop
-			
 			_Update = trampoline.write_call<5>(hook.address() + 0x11F, Update);
 #endif
 		}
@@ -555,21 +514,16 @@ namespace Hooks
 		static void Hook()
 		{
 			auto& trampoline = SKSE::GetTrampoline();
+			REL::Relocation<uintptr_t> hook1{ RELOCATION_ID(42496, 43657) };  // 72FAC0, 75A890
+			REL::Relocation<uintptr_t> hook2{ RELOCATION_ID(49960, 50896) };  // 84F490, 87B570
+			REL::Relocation<uintptr_t> hook3{ RELOCATION_ID(43009, 44200) };  // 7516E0, 77EFD0, replace horse aim yaw
 
 #ifdef IS_SKYRIM_AE
-			REL::Relocation<uintptr_t> hook1{ REL::ID(43657) };  // 75A890
-			REL::Relocation<uintptr_t> hook2{ REL::ID(50896) };  // 87B570
-			REL::Relocation<uintptr_t> hook3{ REL::ID(44200) };  // 77EFD0, replace horse aim yaw
-
 			_GetHorseCameraFreeRotationYaw = trampoline.write_call<5>(hook1.address() + 0x1B5, GetHorseCameraFreeRotationYaw);
 			//_GetMovementAgentPosition = trampoline.write_call<5>(hook1.address() + 0x22B, GetMovementAgentPosition); // 72FCEB - NPC Z offset after the location is set
 			_Func = trampoline.write_call<5>(hook2.address() + 0x45, Func);
 			_GetYaw = trampoline.write_call<5>(hook3.address() + 0x1C0, GetYaw);
 #else
-			REL::Relocation<uintptr_t> hook1{ REL::ID(42496) };  // 72FAC0
-			REL::Relocation<uintptr_t> hook2{ REL::ID(49960) };  // 84F490
-			REL::Relocation<uintptr_t> hook3{ REL::ID(43009) };  // 7516E0, replace horse aim yaw
-			
 			_GetHorseCameraFreeRotationYaw = trampoline.write_call<5>(hook1.address() + 0x17A, GetHorseCameraFreeRotationYaw);  // 72FC3A
 			//_GetMovementAgentPosition = trampoline.write_call<5>(hook1.address() + 0x22B, GetMovementAgentPosition); // 72FCEB - NPC Z offset after the location is set
 			_Func = trampoline.write_call<5>(hook2.address() + 0x45, Func);  // 84F4D5

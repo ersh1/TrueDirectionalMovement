@@ -23,12 +23,12 @@ namespace Raycast
 		//m_closestCollidable = cdBody;
 		closestHitInfo = hitInfo;
 		doesHitExist = true;
-		earlyOutDistance = hitInfo.hitFraction;  // Only accept closer hits after this
+		earlyOutHitFraction = hitInfo.hitFraction;  // Only accept closer hits after this
 	}
 
 	void RayHitCollector::Reset()
 	{
-		earlyOutDistance = 1.0f;
+		earlyOutHitFraction = 1.0f;
 		doesHitExist = false;
 	}
 

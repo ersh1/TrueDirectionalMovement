@@ -120,6 +120,7 @@
 
 	class IVTDM2 : public IVTDM1
 	{
+	public:
 		/// <summary>
 		/// Request the control over the player character's yaw.
 		/// If granted, you may use the SetPlayerYaw function and TDM will not adjust the yaw for the duration of your control.

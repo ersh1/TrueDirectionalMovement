@@ -801,7 +801,7 @@ namespace Hooks
 												auto vec4 = hkpWorld->gravity;
 												float quad[4];
 												_mm_store_ps(quad, vec4.quad);
-												float gravity = -quad[2] * bhkWorld->GetWorldScaleInverse();
+												float gravity = -quad[2] * *g_worldScaleInverse;
 												projectileGravity *= gravity;
 											}
 										}
@@ -976,17 +976,16 @@ namespace Hooks
 						}
 					}
 
-					float bhkWorldScale = RE::bhkWorld::GetWorldScale();
+					float bhkWorldScale = *g_worldScale;
 
 					collector.Reset();
-					RE::bhkWorld::RAYCAST_DATA raycastData;
-					raycastData.rayInput.filterInfo = ((uint32_t)playerCollisionGroup << 16) | 0x28;
-					raycastData.rayInput.from.quad = _mm_setr_ps(rayStart.x * bhkWorldScale, rayStart.y * bhkWorldScale, rayStart.z * bhkWorldScale, 0.f);
-					raycastData.rayInput.to.quad = _mm_setr_ps(rayEnd.x * bhkWorldScale, rayEnd.y * bhkWorldScale, rayEnd.z * bhkWorldScale, 0.f);
-					raycastData.rayHitCollectorA8 = reinterpret_cast<RE::bhkWorld::hkpClosestRayHitCollector*>(&collector);
+					RE::hkpWorldRayCastInput raycastInput;
+					raycastInput.filterInfo = ((uint32_t)playerCollisionGroup << 16) | 0x28;
+					raycastInput.from.quad = _mm_setr_ps(rayStart.x * bhkWorldScale, rayStart.y * bhkWorldScale, rayStart.z * bhkWorldScale, 0.f);
+					raycastInput.to.quad = _mm_setr_ps(rayEnd.x * bhkWorldScale, rayEnd.y * bhkWorldScale, rayEnd.z * bhkWorldScale, 0.f);
 					auto world = playerCharacter->parentCell->GetbhkWorld();
 					world->worldLock.LockForRead();
-					CastRay(world->GetWorld2(), raycastData, collector);
+					CastRay(world->GetWorld2(), raycastInput, collector);
 					world->worldLock.UnlockForRead();
 					if (collector.doesHitExist) {
 						auto distance = rayEnd - rayStart;
