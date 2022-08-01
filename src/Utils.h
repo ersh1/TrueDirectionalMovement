@@ -26,30 +26,30 @@ bool GetTargetPointPosition(RE::ObjectRefHandle a_target, std::string_view a_tar
 void SetRotationMatrix(RE::NiMatrix3& a_matrix, float sacb, float cacb, float sb);
 bool PredictAimProjectile(RE::NiPoint3 a_projectilePos, RE::NiPoint3 a_targetPosition, RE::NiPoint3 a_targetVelocity, float a_gravity, RE::NiPoint3& a_projectileVelocity);
 
-inline RE::NiPoint3 TransformVectorByMatrix(const RE::NiPoint3& a_vector, const RE::NiMatrix3& a_matrix)
+[[nodiscard]] inline RE::NiPoint3 TransformVectorByMatrix(const RE::NiPoint3& a_vector, const RE::NiMatrix3& a_matrix)
 {
 	return RE::NiPoint3(a_matrix.entry[0][0] * a_vector.x + a_matrix.entry[0][1] * a_vector.y + a_matrix.entry[0][2] * a_vector.z,
 		a_matrix.entry[1][0] * a_vector.x + a_matrix.entry[1][1] * a_vector.y + a_matrix.entry[1][2] * a_vector.z,
 		a_matrix.entry[2][0] * a_vector.x + a_matrix.entry[2][1] * a_vector.y + a_matrix.entry[2][2] * a_vector.z);
 }
 
-inline float AngleToRadian(float a_angle)
+[[nodiscard]] inline float AngleToRadian(float a_angle)
 {
 	return a_angle * 0.017453292f;
 }
 
-inline float RadianToAngle(float a_radian)
+[[nodiscard]] inline float RadianToAngle(float a_radian)
 {
 	return a_radian * 57.295779513f;
 }
 
 
-inline bool ApproximatelyEqual(float A, float B)
+[[nodiscard]] inline bool ApproximatelyEqual(float A, float B)
 {
 	return ((A - B) < FLT_EPSILON) && ((B - A) < FLT_EPSILON);
 }
 
-inline RE::NiPoint2 Vec2Rotate(const RE::NiPoint2& vec, float angle)
+[[nodiscard]] inline RE::NiPoint2 Vec2Rotate(const RE::NiPoint2& vec, float angle)
 {
 	RE::NiPoint2 ret;
 	ret.x = vec.x * cos(angle) - vec.y * sin(angle);
@@ -57,7 +57,7 @@ inline RE::NiPoint2 Vec2Rotate(const RE::NiPoint2& vec, float angle)
 	return ret;
 }
 
-inline RE::NiPoint3 RotateAngleAxis(const RE::NiPoint3& vec, const float angle, const RE::NiPoint3& axis)
+[[nodiscard]] inline RE::NiPoint3 RotateAngleAxis(const RE::NiPoint3& vec, const float angle, const RE::NiPoint3& axis)
 {
 	float S = sin(angle);
 	float C = cos(angle);
@@ -83,7 +83,7 @@ inline RE::NiPoint3 RotateAngleAxis(const RE::NiPoint3& vec, const float angle, 
 	);
 }
 
-inline RE::NiPoint3 RotateVector(const RE::NiPoint3& a_vec, const RE::NiQuaternion& a_quat)
+[[nodiscard]] inline RE::NiPoint3 RotateVector(const RE::NiPoint3& a_vec, const RE::NiQuaternion& a_quat)
 {
 	//http://people.csail.mit.edu/bkph/articles/Quaternions.pdf
 	const RE::NiPoint3 Q{ a_quat.x, a_quat.y, a_quat.z };
@@ -91,7 +91,7 @@ inline RE::NiPoint3 RotateVector(const RE::NiPoint3& a_vec, const RE::NiQuaterni
 	return a_vec + (T * a_quat.w) + Q.Cross(T);
 }
 
-inline RE::NiPoint3 ClampSizeMax(const RE::NiPoint3& vec, const float max)
+[[nodiscard]] inline RE::NiPoint3 ClampSizeMax(const RE::NiPoint3& vec, const float max)
 {
 	if (max < 1.e-4f)
 	{
@@ -112,17 +112,17 @@ inline RE::NiPoint3 ClampSizeMax(const RE::NiPoint3& vec, const float max)
 //	return fmod(angle, max - min) + min;
 //}
 
-inline float ClipAngle(float angle, float min, float max)
+[[nodiscard]] inline float ClipAngle(float angle, float min, float max)
 {
 	return fmin(max, fmax(min, angle));
 }
 
-inline float GetAngle(RE::NiPoint2& a, RE::NiPoint2& b)
+[[nodiscard]] inline float GetAngle(RE::NiPoint2& a, RE::NiPoint2& b)
 {
 	return atan2(a.Cross(b), a.Dot(b));
 }
 
-inline RE::NiPoint3 ToOrientationRotation(const RE::NiPoint3& a_vector)
+[[nodiscard]] inline RE::NiPoint3 ToOrientationRotation(const RE::NiPoint3& a_vector)
 {
 	RE::NiPoint3 ret;
 
@@ -138,7 +138,7 @@ inline RE::NiPoint3 ToOrientationRotation(const RE::NiPoint3& a_vector)
 	return ret;
 }
 
-inline RE::NiPoint3 RotationToDirection(const float a_yaw, const float a_pitch)
+[[nodiscard]] inline RE::NiPoint3 RotationToDirection(const float a_yaw, const float a_pitch)
 {
 	RE::NiPoint3 ret;
 
@@ -155,34 +155,34 @@ inline RE::NiPoint3 RotationToDirection(const float a_yaw, const float a_pitch)
 	return ret;
 }
 
-inline RE::NiPoint3 Project(const RE::NiPoint3& A, const RE::NiPoint3& B)
+[[nodiscard]] inline RE::NiPoint3 Project(const RE::NiPoint3& A, const RE::NiPoint3& B)
 {
 	return (B * ((A.x * B.x + A.y * B.y + A.z * B.z) / (B.x * B.x + B.y * B.y + B.z * B.z)));
 }
 
-inline float Clamp(float value, float min, float max)
+[[nodiscard]] inline float Clamp(float value, float min, float max)
 {
 	return value < min ? min : value < max ? value : max;
 }
 
-inline float InterpEaseIn(const float& A, const float& B, float alpha, float exp)
+[[nodiscard]] inline float InterpEaseIn(const float& A, const float& B, float alpha, float exp)
 {
 	float const modifiedAlpha = std::pow(alpha, exp);
 	return std::lerp(A, B, modifiedAlpha);
 }
 
-inline float InterpEaseOut(const float& A, const float& B, float alpha, float exp)
+[[nodiscard]] inline float InterpEaseOut(const float& A, const float& B, float alpha, float exp)
 {
 	float const modifiedAlpha = 1.f - pow(1.f - alpha, exp);
 	return std::lerp(A, B, modifiedAlpha);
 }
 
-inline float InterpEaseInOut(const float& A, const float& B, float alpha, float exp)
+[[nodiscard]] inline float InterpEaseInOut(const float& A, const float& B, float alpha, float exp)
 {
 	return std::lerp(A, B, (alpha < 0.5f) ? InterpEaseIn(0.f, 1.f, alpha * 2.f, exp) * 0.5f : InterpEaseOut(0.f, 1.f, alpha * 2.f - 1.f, exp) * 0.5f + 0.5f);
 }
 
-inline float InterpTo(float a_current, float a_target, float a_deltaTime, float a_interpSpeed)
+[[nodiscard]] inline float InterpTo(float a_current, float a_target, float a_deltaTime, float a_interpSpeed)
 {
 	if (a_interpSpeed <= 0.f) {
 		return a_target;
@@ -199,7 +199,7 @@ inline float InterpTo(float a_current, float a_target, float a_deltaTime, float 
 	return a_current + delta;
 }
 
-inline float InterpAngleTo(float a_current, float a_target, float a_deltaTime, float a_interpSpeed)
+[[nodiscard]] inline float InterpAngleTo(float a_current, float a_target, float a_deltaTime, float a_interpSpeed)
 {
 	if (a_interpSpeed <= 0.f) {
 		return a_target;
@@ -216,12 +216,12 @@ inline float InterpAngleTo(float a_current, float a_target, float a_deltaTime, f
 	return a_current + delta;
 }
 
-inline float GetAngleDiff(const float& A, const float& B)
+[[nodiscard]] inline float GetAngleDiff(const float& A, const float& B)
 {
 	return PI - fabs(fmod(fabs(A - B), TWO_PI) - PI);
 }
 
-inline bool FloatCompare(const float a, const float b)
+[[nodiscard]] inline bool FloatCompare(const float a, const float b)
 {
 	double delta = fabs(a - b);
 	if (delta < std::numeric_limits<float>::epsilon() &&
@@ -231,7 +231,7 @@ inline bool FloatCompare(const float a, const float b)
 	return false;
 }
 
-inline float GetPct(const float a_current, const float a_max)
+[[nodiscard]] inline float GetPct(const float a_current, const float a_max)
 {
 	float percent = -1.f;
 
@@ -249,14 +249,14 @@ inline float GetPct(const float a_current, const float a_max)
 	return percent;
 }
 
-inline RE::NiPoint3 GetNiPoint3(RE::hkVector4 a_hkVector4)
+[[nodiscard]] inline RE::NiPoint3 GetNiPoint3(RE::hkVector4 a_hkVector4)
 {
 	float quad[4];
 	_mm_store_ps(quad, a_hkVector4.quad);
 	return RE::NiPoint3{ quad[0], quad[1], quad[2] };
 }
 
-inline float Remap(const float a_oldValue, const float a_oldMin, const float a_oldMax, const float a_newMin, const float a_newMax)
+[[nodiscard]] inline float Remap(const float a_oldValue, const float a_oldMin, const float a_oldMax, const float a_newMin, const float a_newMax)
 {
 	return (((a_oldValue - a_oldMin) * (a_newMax - a_newMin)) / (a_oldMax - a_oldMin)) + a_newMin;
 }

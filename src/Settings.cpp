@@ -175,6 +175,7 @@ void Settings::ReadSettings()
 		// Misc
 		ReadBoolSetting(mcm, "Misc", "bOverrideAcrobatics", bOverrideAcrobatics);
 		ReadFloatSetting(mcm, "Misc", "fAcrobatics", fAcrobatics);
+		ReadFloatSetting(mcm, "Misc", "fAcrobaticsGliding", fAcrobaticsGliding);
 
 		// Controller
 		ReadBoolSetting(mcm, "Controller", "bOverrideControllerDeadzone", bOverrideControllerDeadzone);
@@ -209,25 +210,30 @@ void Settings::UpdateGlobals()
 		glob_trueHUD->value = DirectionalMovementHandler::GetSingleton()->g_trueHUD != nullptr ? 1.f : 0.f;
 	}
 
-	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
-	RE::BSTSmartPointer<RE::BSAnimationGraphManager> animationGraphManagerPtr;
-	playerCharacter->GetAnimationGraphManager(animationGraphManagerPtr);
-	if (animationGraphManagerPtr) {
-		RE::BShkbAnimationGraph* animationGraph = animationGraphManagerPtr->graphs[0].get();
-		if (animationGraph) {
-			if (glob_nemesisHeadtracking) {
-				bool bDummy;
-				glob_nemesisHeadtracking->value = animationGraph->GetGraphVariableBool("tdmHeadtrackingSKSE", bDummy);
-			}
+	if ((glob_nemesisHeadtracking && glob_nemesisHeadtracking->value == 0) ||
+		(glob_nemesisMountedArchery && glob_nemesisMountedArchery->value == 0) ||
+		(glob_nemesisLeaning && glob_nemesisLeaning->value == 0))
+	{
+		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+		RE::BSTSmartPointer<RE::BSAnimationGraphManager> animationGraphManagerPtr;
+		playerCharacter->GetAnimationGraphManager(animationGraphManagerPtr);
+		if (animationGraphManagerPtr) {
+			RE::BShkbAnimationGraph* animationGraph = animationGraphManagerPtr->graphs[0].get();
+			if (animationGraph) {
+				if (glob_nemesisHeadtracking && glob_nemesisHeadtracking->value == 0) {
+					bool bDummy;
+					glob_nemesisHeadtracking->value = animationGraph->GetGraphVariableBool("tdmHeadtrackingSKSE", bDummy);
+				}
 
-			if (glob_nemesisMountedArchery) {
-				bool bDummy;
-				glob_nemesisMountedArchery->value = playerCharacter->GetGraphVariableBool("360HorseGen", bDummy);
-			}
+				if (glob_nemesisMountedArchery && glob_nemesisMountedArchery->value == 0) {
+					bool bDummy;
+					glob_nemesisMountedArchery->value = playerCharacter->GetGraphVariableBool("360HorseGen", bDummy);
+				}
 
-			if (glob_nemesisLeaning) {
-				float dummy;
-				glob_nemesisLeaning->value = animationGraph->GetGraphVariableFloat("TDM_VelocityX", dummy);
+				if (glob_nemesisLeaning && glob_nemesisLeaning->value == 0) {
+					float dummy;
+					glob_nemesisLeaning->value = animationGraph->GetGraphVariableFloat("TDM_VelocityX", dummy);
+				}
 			}
 		}
 	}

@@ -58,20 +58,6 @@
       ],
       "name": "vs2022-windows",
       "toolset": "v143"
-    },
-    {
-      "cacheVariables": {
-        "BUILD_SKYRIM_AE": "OFF"
-      },
-      "inherits": "vs2022-windows",
-      "name": "se"
-    },
-    {
-      "cacheVariables": {
-        "BUILD_SKYRIM_AE": "ON"
-      },
-      "inherits": "vs2022-windows",
-      "name": "ae"
     }
   ],
   "version": 3

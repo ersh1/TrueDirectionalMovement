@@ -70,7 +70,7 @@ struct Settings
 	static inline bool bFaceCrosshairWhileBlocking = true;
 	static inline bool bFaceCrosshairDuringAutoMove = true;
 	static inline bool bStopOnDirectionChange = true;
-	static inline CameraAdjustMode uAdjustCameraYawDuringMovement = CameraAdjustMode::kAlways;
+	static inline CameraAdjustMode uAdjustCameraYawDuringMovement = CameraAdjustMode::kDuringSprint;
 	static inline float fRunningRotationSpeedMult = 1.5f;
 	static inline float fSprintingRotationSpeedMult = 2.f;
 	static inline float fAttackStartRotationSpeedMult = 5.f;
@@ -141,6 +141,7 @@ struct Settings
 	// Misc
 	static inline bool bOverrideAcrobatics = true;
 	static inline float fAcrobatics = 0.025f;
+	static inline float fAcrobaticsGliding = 0.060f;
 
 	// Controller
 	static inline bool bOverrideControllerDeadzone = true;

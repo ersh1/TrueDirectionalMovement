@@ -104,6 +104,18 @@ namespace Hooks
 
 	void MovementHook::ProcessThumbstick(RE::MovementHandler* a_this, RE::ThumbstickEvent* a_event, RE::PlayerControlsData* a_data)
 	{
+		// save the original values
+        RE::NiPoint2 savedMoveInput = a_data->moveInputVec;
+
+		// call original function so other plugins can hook this vfunc properly
+        _ProcessThumbstick(a_this, a_event, a_data);
+
+		// save new values
+		RE::NiPoint2 newMoveInput = a_data->moveInputVec;
+
+		// restore original values before we do our logic
+		a_data->moveInputVec = savedMoveInput;
+		
 		bool bHandled = false;
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
@@ -115,7 +127,9 @@ namespace Hooks
 
 		if (!bHandled)
 		{
-			_ProcessThumbstick(a_this, a_event, a_data);
+			// if our logic didn't handle the input, return to the values that were set by running the original vfunc
+            a_data->moveInputVec = newMoveInput;
+			
 			if (Settings::bThumbstickBounceFix) {
 				directionalMovementHandler->SetLastInputDirection(a_data->moveInputVec);
 			}
@@ -124,6 +138,21 @@ namespace Hooks
 
 	void MovementHook::ProcessButton(RE::MovementHandler* a_this, RE::ButtonEvent* a_event, RE::PlayerControlsData* a_data)
 	{
+        // save the original values
+        RE::NiPoint2 savedMoveInput = a_data->moveInputVec;
+        bool savedAutoMove = a_data->autoMove;
+		
+		// call original function so other plugins can hook this vfunc properly
+        _ProcessButton(a_this, a_event, a_data);
+
+		// save new values
+		RE::NiPoint2 newMoveInput = a_data->moveInputVec;
+        bool newAutoMove = a_data->autoMove;
+
+		// restore original values before we do our logic
+		a_data->moveInputVec = savedMoveInput;
+        a_data->autoMove = savedAutoMove;
+		
 		bool bHandled = false;
 		DirectionalMovementHandler* directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 		auto pressedDirections = &directionalMovementHandler->_pressedDirections;
@@ -172,12 +201,14 @@ namespace Hooks
 
 		if (!bHandled)
 		{
+            // if our logic didn't handle the input, return to the values that were set by running the original vfunc
+            a_data->moveInputVec = newMoveInput;
+            a_data->autoMove = newAutoMove;
+			
 			*pressedDirections = DirectionalMovementHandler::Direction::kInvalid;
-			_ProcessButton(a_this, a_event, a_data);
 			if (Settings::bThumbstickBounceFix) {
 				directionalMovementHandler->SetLastInputDirection(a_data->moveInputVec);
 			}
-			
 		}
 	}
 
@@ -1374,37 +1405,14 @@ namespace Hooks
 		_SetHeadtrackTarget0(a_this, a_target);
 	}
 
-	// ridiculous, I know
-	RE::TESObjectREFR* RecursiveSearchForParent(RE::NiAVObject* a_object)
-	{
-		if (!a_object) {
-			return nullptr;
-		}
-
-		if (a_object->userData) {
-			return a_object->userData;
-		} else if (a_object->parent) {
-			return RecursiveSearchForParent(a_object->parent);
-		}
-		return nullptr;
-	}
-
 	void SetHeadtrackTarget4(RE::AIProcess* a_this, RE::Actor* a_target)
 	{
 		if (Settings::bHeadtracking && !DirectionalMovementHandler::GetSingleton()->GetForceDisableHeadtracking() && a_target && a_target->IsPlayerRef() && a_this->middleHigh) {
-			RE::NiAVObject* object = a_this->middleHigh->torsoNode;
-			if (!object) {
-				object = a_this->middleHigh->headNode;
-			}
-			auto refr = RecursiveSearchForParent(object);
-			if (refr) {
-				auto actor = refr->As<RE::Actor>();
-				if (actor) {
-					//_SetHeadtrackTarget4(a_target->currentProcess, actor);
-					if (a_target->currentProcess && a_target->currentProcess->high) {
-						a_target->currentProcess->high->SetHeadtrackTarget(3, actor);  // for player, use lower priority so target lock overrides dialogue targets
-						DirectionalMovementHandler::GetSingleton()->RefreshDialogueHeadtrackTimer();
-					}
+			if (auto actor = a_this->GetUserData()) {
+				//_SetHeadtrackTarget4(a_target->currentProcess, actor);
+				if (a_target->currentProcess && a_target->currentProcess->high) {
+					a_target->currentProcess->high->SetHeadtrackTarget(3, actor);  // for player, use lower priority so target lock overrides dialogue targets
+					DirectionalMovementHandler::GetSingleton()->RefreshDialogueHeadtrackTimer();
 				}
 			}
 		}
@@ -1571,9 +1579,9 @@ namespace Hooks
 		_SetCameraState(a_this, a_newState);
 	}
 
-	void MainUpdateHook::Update(RE::Main* a_this, float a2)
+	void MainUpdateHook::Nullsub()
 	{
-		_Update(a_this, a2);
+		_Nullsub();
 
 		DirectionalMovementHandler::GetSingleton()->Update();
 	}

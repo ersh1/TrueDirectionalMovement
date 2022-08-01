@@ -35,8 +35,7 @@ public:
 		kNone = 0,
 		kStart = 1,
 		kMid = 2,
-		kTracing = 3, // Melee Tracing compatibility
-		kEnd = 4
+		kEnd = 3
 	};
 
 	using EventResult = RE::BSEventNotifyControl;
@@ -94,6 +93,7 @@ public:
 	bool IsMagnetismActive() const;
 
 	bool IsPlayerAnimationDriven() const;
+	bool IsTDMRotationLocked() const;
 
 	AttackState GetAttackState() const;
 	void SetAttackState(AttackState a_state);
@@ -213,8 +213,12 @@ public:
 
 	void UpdatePlayerPitch();	
 
-	SmoothCamAPI::IVSmoothCam3* g_SmoothCam = nullptr;
-	TRUEHUD_API::IVTrueHUD3* g_trueHUD = nullptr;
+	static void RegisterSmoothCamCallback();
+	static void RequestAPIs();
+
+	static inline bool bRegisteredSmoothCamCallback = false;
+	static inline SmoothCamAPI::IVSmoothCam3* g_SmoothCam = nullptr;
+	static inline TRUEHUD_API::IVTrueHUD3* g_trueHUD = nullptr;
 	std::atomic_bool _bReticleRemoved{ false };
 
 	bool GetForceDisableDirectionalMovement() const;

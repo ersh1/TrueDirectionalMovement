@@ -73,42 +73,47 @@ DirectionalMovementHandler::EventResult DirectionalMovementHandler::ProcessEvent
 		// Start phase
 		case "CastOKStart"_h:
 		case "preHitFrame"_h:
+		case "MCO_AttackInitiate"_h:
+		case "MCO_PowerAttackInitiate"_h:
+		case "MCO_InputBuffer"_h:
 		case "TDM_AttackStart"_h:
-			SetAttackState(DirectionalMovementHandler::AttackState::kStart);
-			break;
-
-		// Mid phase. Ignore vanilla events if we're tracing already
-		case "weaponSwing"_h:
-		case "weaponLeftSwing"_h:
-			if (GetAttackState() != DirectionalMovementHandler::AttackState::kTracing) {
-				SetAttackState(DirectionalMovementHandler::AttackState::kMid);
+		case "Collision_AttackStart"_h:
+		case "Collision_Start"_h:
+			if (_attackState != AttackState::kMid) {
+				SetAttackState(AttackState::kStart);
 			}
 			break;
+
+		case "weaponSwing"_h:
+		case "weaponLeftSwing"_h:
+		case "SoundPlay.WPNSwingUnarmed"_h:
 		case "TDM_AttackMid"_h:
-		case "MeleeTrace_Right_Start"_h:
-		case "MeleeTrace_Left_Start"_h:
-			SetAttackState(DirectionalMovementHandler::AttackState::kMid);
+		case "Collision_Add"_h:
+			if (_attackState != AttackState::kEnd) {
+				SetAttackState(AttackState::kMid);
+			}
 			break;
 
-		// End phase. Ignore vanilla events if we're tracing already
 		case "HitFrame"_h:
 		case "attackWinStart"_h:
 		case "SkySA_AttackWinStart"_h:
-			if (GetAttackState() != DirectionalMovementHandler::AttackState::kTracing) {
-				SetAttackState(DirectionalMovementHandler::AttackState::kEnd);
-			}
-			break;
+		case "MCO_WinOpen"_h:
+		case "MCO_PowerWinOpen"_h:
+		case "MCO_TransitionOpen"_h:
+		case "MCO_Recovery"_h:
 		case "TDM_AttackEnd"_h:
-		case "MeleeTrace_Right_Stop"_h:
-		case "MeleeTrace_Left_Stop"_h:
-			SetAttackState(DirectionalMovementHandler::AttackState::kEnd);
+		case "Collision_AttackEnd"_h:
+			SetAttackState(AttackState::kEnd);
 			break;
 
 		// Back to none
 		case "attackStop"_h:
 		case "TDM_AttackStop"_h:
 		case "SkySA_AttackWinEnd"_h:
-			SetAttackState(DirectionalMovementHandler::AttackState::kNone);
+		case "MCO_WinClose"_h:
+		case "MCO_PowerWinClose"_h:
+		case "MCO_TransitionClose"_h:
+			SetAttackState(AttackState::kNone);
 			break;
 		}
 	}
@@ -258,13 +263,16 @@ void DirectionalMovementHandler::Update()
 	UpdateProjectileTargetMap();
 
 	if (Settings::bOverrideAcrobatics) {
-		auto playerController = RE::PlayerCharacter::GetSingleton()->GetCharController();
+		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+		auto playerController = playerCharacter->GetCharController();
 		if (playerController) {
 			if (_defaultAcrobatics == -1.f) {
 				_defaultAcrobatics = playerController->acrobatics;
 			}
-			playerController->acrobatics = Settings::fAcrobatics;
-		}		
+			bool bGliding = false;
+			playerCharacter->GetGraphVariableBool("bParaGliding", bGliding);
+			playerController->acrobatics = bGliding ? Settings::fAcrobaticsGliding : Settings::fAcrobatics;
+		}
 	}
 
 #ifndef NDEBUG
@@ -1041,7 +1049,7 @@ void DirectionalMovementHandler::UpdateRotation(bool bForceInstant /*= false */)
 	bool bInstantRotation = bForceInstant || (_bShouldFaceCrosshair && Settings::bFaceCrosshairInstantly) || (_bShouldFaceCrosshair && !_bCurrentlyTurningToCrosshair) || (_bJustDodged && !playerCharacter->IsAnimationDriven()) || (_bYawControlledByPlugin && _controlledYawRotationSpeedMultiplier <= 0.f);
 
 	if (!bInstantRotation) {
-		if (IsPlayerAnimationDriven() || _bIsDodging) {
+		if (IsPlayerAnimationDriven() || _bIsDodging || IsTDMRotationLocked()) {
 			ResetDesiredAngle();
 			return;
 		}
@@ -1294,6 +1302,19 @@ bool DirectionalMovementHandler::IsPlayerAnimationDriven() const
 	}
 	return false;
 }
+
+bool DirectionalMovementHandler::IsTDMRotationLocked() const
+{
+	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+	if (playerCharacter) {
+		bool result = false;
+		playerCharacter->GetGraphVariableBool("TDM_LockRotation", result);
+		return result;
+	}
+	
+	return false;
+}
+
 
 DirectionalMovementHandler::AttackState DirectionalMovementHandler::GetAttackState() const
 {
@@ -2643,16 +2664,6 @@ void DirectionalMovementHandler::OnSettingsUpdated()
 }
 
 // From SmoothCam
-#ifdef IS_SKYRIM_AE
-namespace ICSignatures
-{
-	constexpr const DWORD SizeOfImage = 0xFFFFFFFF;
-	constexpr const DWORD Signature = 0xFFFFFFFF;
-	constexpr const DWORD AddressOfEntryPoint = 0xFFFFFFFF;
-	constexpr const DWORD TimeDateStamp = 0xFFFFFFFF;
-	constexpr const DWORD FileVersion[4] = { 0, 0, 0, 0 };
-};
-#else
 namespace ICSignatures
 {
 	constexpr const DWORD SizeOfImage = 0x00054000;
@@ -2661,7 +2672,6 @@ namespace ICSignatures
 	constexpr const DWORD TimeDateStamp = 0x5d3e15f0;
 	constexpr const DWORD FileVersion[4] = { 1, 0, 0, 4 };
 };
-#endif
 
 void DirectionalMovementHandler::InitCameraModsCompatibility()
 {
@@ -2768,6 +2778,46 @@ void DirectionalMovementHandler::UpdatePlayerPitch()
 			thirdPersonState->freeRotation.y -= pitchDelta;
 		}
 	}
+}
+
+void DirectionalMovementHandler::RegisterSmoothCamCallback()
+{
+	if (!SmoothCamAPI::RegisterInterfaceLoaderCallback(SKSE::GetMessagingInterface(),
+			[](void* interfaceInstance, SmoothCamAPI::InterfaceVersion interfaceVersion) {
+				if (interfaceVersion == SmoothCamAPI::InterfaceVersion::V3) {
+					DirectionalMovementHandler::GetSingleton()->g_SmoothCam = reinterpret_cast<SmoothCamAPI::IVSmoothCam3*>(interfaceInstance);
+					logger::info("Obtained SmoothCamAPI");
+					bRegisteredSmoothCamCallback = true;
+				} else {
+					logger::error("Unable to acquire requested SmoothCamAPI interface version");
+				}
+			})) {
+		logger::warn("SmoothCamAPI::RegisterInterfaceLoaderCallback reported an error");
+	}
+}
+
+void DirectionalMovementHandler::RequestAPIs()
+{
+	if (!g_SmoothCam) {
+		if (!bRegisteredSmoothCamCallback) {
+			RegisterSmoothCamCallback();
+		}
+
+		if (!SmoothCamAPI::RequestInterface(
+			SKSE::GetMessagingInterface(),
+			SmoothCamAPI::InterfaceVersion::V3)) {
+			logger::warn("SmoothCamAPI::RequestInterface reported an error");
+		}
+	}
+
+	if (!g_trueHUD) {
+		DirectionalMovementHandler::GetSingleton()->g_trueHUD = reinterpret_cast<TRUEHUD_API::IVTrueHUD3*>(TRUEHUD_API::RequestPluginAPI(TRUEHUD_API::InterfaceVersion::V3));
+		if (DirectionalMovementHandler::GetSingleton()->g_trueHUD) {
+			logger::info("Obtained TrueHUD API - {0:x}", (uintptr_t)DirectionalMovementHandler::GetSingleton()->g_trueHUD);
+		} else {
+			logger::warn("Failed to obtain TrueHUD API");
+		}
+	}	
 }
 
 bool DirectionalMovementHandler::GetForceDisableDirectionalMovement() const

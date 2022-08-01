@@ -7,9 +7,8 @@
 	* Add the environment variable `VCPKG_ROOT` with the value as the path to the folder containing vcpkg
 * [Visual Studio Community 2022](https://visualstudio.microsoft.com/)
 	* Desktop development with C++
-* [CommonLibSSE](https://github.com/powerof3/CommonLibSSE)
-	* You need to build from the powerof3/dev branch
-	* Add the environment variable `CommonLibSSEPath` with the value as the path to the folder containing CommonLibSSE
+* [CommonLibSSE-NG](https://github.com/CharmedBaryon/CommonLibSSE-NG/tree/v3.4.0)
+	* Add the environment variable `CommonLibSSEPath_NG` with the value as the path to the folder containing CommonLibSSE-NG
 
 ## User Requirements
 * [Address Library for SKSE](https://www.nexusmods.com/skyrimspecialedition/mods/32444)
@@ -20,14 +19,7 @@ git clone https://github.com/ersh1/TrueDirectionalMovement/
 cd TrueDirectionalMovement
 git submodule init
 git submodule update
-```
-### SSE
-```
-cmake --preset se
-cmake --build build --config Release
-```
-### AE
-```
-cmake --preset ae
+
+cmake --preset vs2022-windows
 cmake --build build --config Release
 ```

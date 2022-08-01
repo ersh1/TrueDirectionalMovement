@@ -34,7 +34,7 @@ namespace Events
 				continue;
 			}
 
-			auto userEvent = event->QUserEvent();
+			auto& userEvent = event->QUserEvent();
 			auto userEvents = RE::UserEvents::GetSingleton();
 
 			auto button = static_cast<RE::ButtonEvent*>(event);

@@ -93,11 +93,7 @@ target_include_directories(
 		"${SOURCE_DIR}"
 )
 
-add_subdirectory("$ENV{CommonLibSSEPath}" CommonLibSSE EXCLUDE_FROM_ALL)
-
-if(BUILD_SKYRIM_AE)
-	add_compile_definitions(SKYRIM_SUPPORT_AE)
-endif(BUILD_SKYRIM_AE)
+add_subdirectory("$ENV{CommonLibSSEPath_NG}" CommonLibSSE EXCLUDE_FROM_ALL)
 
 find_package(tomlplusplus REQUIRED CONFIG)
 

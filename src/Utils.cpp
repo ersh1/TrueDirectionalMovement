@@ -204,9 +204,9 @@ bool PredictAimProjectile(RE::NiPoint3 a_projectilePos, RE::NiPoint3 a_targetPos
 			float t1 = 0.5f * (-b - uglyNumber) / a;
 
 			// Assign the lowest positive time to t to aim at the earliest hit
-			t = min(t0, t1);
+			t = fmin(t0, t1);
 			if (t < FLT_EPSILON) {
-				t = max(t0, t1);
+				t = fmax(t0, t1);
 			}
 
 			if (t < FLT_EPSILON) {
