@@ -188,8 +188,9 @@ void DirectionalMovementHandler::Update()
 						SetDesiredAngleToTarget(RE::PlayerCharacter::GetSingleton(), actorHandle);
 						if (Settings::bHeadtracking && !GetForceDisableHeadtracking()) {
 							auto playerCharacter = RE::PlayerCharacter::GetSingleton();
-							if (playerCharacter->currentProcess && playerCharacter->currentProcess->high) {
-								playerCharacter->currentProcess->high->SetHeadtrackTarget(3, actorSpeaker);
+							auto currentProcess = playerCharacter->GetActorRuntimeData().currentProcess;
+							if (currentProcess && currentProcess->high) {
+								currentProcess->high->SetHeadtrackTarget(RE::HighProcessData::HEAD_TRACK_TYPE::kCombat, actorSpeaker);
 								RefreshDialogueHeadtrackTimer();
 							}
 						}
@@ -216,7 +217,7 @@ void DirectionalMovementHandler::Update()
 			auto playerCamera = RE::PlayerCamera::GetSingleton();
 			if (playerCharacter && playerCamera && playerCamera->currentState && (playerCamera->currentState->id != RE::CameraState::kThirdPerson || IFPV_IsFirstPerson() || ImprovedCamera_IsFirstPerson())){
 				// disable headtracking while not in third person
-				playerCharacter->actorState2.headTracking = false;
+				playerCharacter->AsActorState()->actorState2.headTracking = false;
 				if (!IsBehaviorPatchInstalled(playerCharacter) && !RE::UI::GetSingleton()->IsMenuOpen(RE::RaceSexMenu::MENU_NAME)) {
 					playerCharacter->SetGraphVariableBool("IsNPC", false);
 				}
@@ -301,7 +302,8 @@ void DirectionalMovementHandler::UpdateDirectionalMovement()
 	bool bIsAIDriven = false;
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	if (playerCharacter) {
-		bIsAIDriven = playerCharacter->movementController && !playerCharacter->movementController->unk1C5;
+		auto& movementController = playerCharacter->GetActorRuntimeData().movementController;
+		bIsAIDriven = movementController && !movementController->unk1C5;
 	}
 
 	bool bFreeCamera = GetFreeCameraEnabled();
@@ -330,7 +332,7 @@ void DirectionalMovementHandler::UpdateDirectionalMovement()
 		ResetDesiredAngle();
 	}
 
-	OverrideControllerBufferDepth(_bDirectionalMovement && !playerCharacter->IsSprinting());
+	OverrideControllerBufferDepth(_bDirectionalMovement && !playerCharacter->AsActorState()->IsSprinting());
 }
 
 void DirectionalMovementHandler::UpdateFacingState()
@@ -363,15 +365,17 @@ void DirectionalMovementHandler::UpdateFacingState()
 		return;
 	}
 
+	auto playerActorState = playerCharacter->AsActorState();
+
 	// workaround for an issue with AGO, I don't like this but it works
 	static RE::ATTACK_STATE_ENUM currentAttackState;
 	auto previousState = currentAttackState;
-	RE::ATTACK_STATE_ENUM playerAttackState = playerCharacter->GetAttackState();
+	RE::ATTACK_STATE_ENUM playerAttackState = playerActorState->GetAttackState();
 	if (playerAttackState != RE::ATTACK_STATE_ENUM::kBowAttached) {
 		currentAttackState = playerAttackState;
 	}
 
-	bool bShouldFaceCrosshairWhileMoving = (playerCharacter->GetWeaponState() == RE::WEAPON_STATE::kSheathed ? Settings::uDirectionalMovementSheathed : Settings::uDirectionalMovementDrawn) == DirectionalMovementMode::kVanilla;
+	bool bShouldFaceCrosshairWhileMoving = (playerActorState->GetWeaponState() == RE::WEAPON_STATE::kSheathed ? Settings::uDirectionalMovementSheathed : Settings::uDirectionalMovementDrawn) == DirectionalMovementMode::kVanilla;
 
 	if (bShouldFaceCrosshairWhileMoving && HasMovementInput() && !HasTargetLocked()) {
 		_bShouldFaceCrosshair = true;
@@ -389,11 +393,16 @@ void DirectionalMovementHandler::UpdateFacingState()
 		return;
 	}
 
-	if (Settings::bFaceCrosshairWhileShouting && playerCharacter->currentProcess && playerCharacter->currentProcess->high && playerCharacter->currentProcess->high->currentShout) {
-		_bShouldFaceCrosshair = true;
-		_faceCrosshairTimer = _faceCrosshairDuration;
-		_bShouldFaceTarget = true;
-		return;
+	if (Settings::bFaceCrosshairWhileShouting)
+	{
+		if (auto currentProcess = playerCharacter->GetActorRuntimeData().currentProcess) {
+			if (currentProcess && currentProcess->high && currentProcess->high->currentShout) {
+				_bShouldFaceCrosshair = true;
+				_faceCrosshairTimer = _faceCrosshairDuration;
+				_bShouldFaceTarget = true;
+				return;
+			}
+		}
 	}
 
 	if (Settings::bFaceCrosshairWhileBlocking && !HasTargetLocked() &&
@@ -519,7 +528,7 @@ void DirectionalMovementHandler::UpdateFacingCrosshair()
 		if (playerCharacter && playerCamera && playerCamera->currentState && playerCamera->currentState->id == RE::CameraStates::kThirdPerson)
 		{
 			auto thirdPersonState = static_cast<RE::ThirdPersonState*>(playerCamera->currentState.get());
-			if (playerCharacter->IsSprinting() && (!Settings::bFaceCrosshairDuringAutoMove || !RE::PlayerControls::GetSingleton()->data.autoMove)) {
+			if (playerCharacter->AsActorState()->IsSprinting() && (!Settings::bFaceCrosshairDuringAutoMove || !RE::PlayerControls::GetSingleton()->data.autoMove)) {
 				_bCurrentlyTurningToCrosshair = true;
 				return;
 			}
@@ -567,7 +576,7 @@ void DirectionalMovementHandler::UpdateJumpingState()
 void DirectionalMovementHandler::UpdateSwimmingPitchOffset()
 {
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
-	if (playerCharacter && playerCharacter->IsSwimming()) {
+	if (playerCharacter && playerCharacter->AsActorState()->IsSwimming()) {
 		_currentSwimmingPitchOffset = InterpTo(_currentSwimmingPitchOffset, _desiredSwimmingPitchOffset, *g_deltaTime, Settings::fSwimmingPitchSpeed);
 	}
 }
@@ -652,7 +661,8 @@ void DirectionalMovementHandler::UpdateLeaning(RE::Actor* a_actor, [[maybe_unuse
 		return;
 	}
 
-	if (!a_actor->currentProcess || !a_actor->currentProcess->InHighProcess()) {
+	auto currentProcess = a_actor->GetActorRuntimeData().currentProcess;
+	if (!currentProcess || !currentProcess->InHighProcess()) {
 		return;
 	}
 
@@ -675,7 +685,7 @@ void DirectionalMovementHandler::UpdateLeaning(RE::Actor* a_actor, [[maybe_unuse
 	float desiredPitch = 0.f;
 	float desiredRoll = 0.f;
 
-	if (a_actor->actorState1.meleeAttackState == RE::ATTACK_STATE_ENUM::kNone) {
+	if (a_actor->AsActorState()->actorState1.meleeAttackState == RE::ATTACK_STATE_ENUM::kNone) {
 		float quad[4];
 		_mm_store_ps(quad, characterController->forwardVec.quad);
 		RE::NiPoint3 worldVelocity{ -quad[0], -quad[1], 0.f };
@@ -748,7 +758,7 @@ void DirectionalMovementHandler::UpdateCameraAutoRotation()
 			float speedPct = characterController->speedPct;
 			if (speedPct > 0.f) {
 				bool bOnlyDuringSprint = Settings::uAdjustCameraYawDuringMovement == CameraAdjustMode::kDuringSprint;
-				bool bIsSprinting = cameraTarget->IsSprinting();
+				bool bIsSprinting = cameraTarget->AsActorState()->IsSprinting();
 				if (bOnlyDuringSprint && !bIsSprinting) {
 					desiredSpeed = 0.f;
 				} else {
@@ -875,7 +885,8 @@ bool DirectionalMovementHandler::ProcessInput(RE::NiPoint2& a_inputDirection, RE
 	}
 
 	// Skip if player is AI driven
-	if (playerCharacter->movementController && !playerCharacter->movementController->unk1C5) {
+	auto& movementController = playerCharacter->GetActorRuntimeData().movementController;
+	if (movementController && !movementController->unk1C5) {
 		ResetDesiredAngle();
 		return false;
 	}
@@ -888,7 +899,7 @@ bool DirectionalMovementHandler::ProcessInput(RE::NiPoint2& a_inputDirection, RE
 
 	_bHasMovementInput = true;
 
-	if (_bShouldFaceCrosshair && !playerCharacter->IsSprinting()) {
+	if (_bShouldFaceCrosshair && !playerCharacter->AsActorState()->IsSprinting()) {
 		if (!_bCurrentlyTurningToCrosshair) {
 			ResetDesiredAngle();
 		}
@@ -936,7 +947,7 @@ bool DirectionalMovementHandler::ProcessInput(RE::NiPoint2& a_inputDirection, RE
 		return true;
 	}
 
-	bool bWantsToSprint = (playerCharacter->unkBDD & RE::PlayerCharacter::FlagBDD::kSprinting) != RE::PlayerCharacter::FlagBDD::kNone;
+	bool bWantsToSprint = (playerCharacter->GetPlayerRuntimeData().unkBDD & RE::PlayerCharacter::FlagBDD::kSprinting) != RE::PlayerCharacter::FlagBDD::kNone;
 
 	if ((HasTargetLocked() && !bWantsToSprint) || _bMagnetismActive || (Settings::uDialogueMode == DialogueMode::kFaceSpeaker && _dialogueSpeaker)) {
 		a_playerControlsData->prevMoveVec = a_playerControlsData->moveInputVec;
@@ -991,7 +1002,7 @@ void DirectionalMovementHandler::SetDesiredAngleToTarget(RE::PlayerCharacter* a_
 
 	bool bIsDodging = false;
 	a_playerCharacter->GetGraphVariableBool("TDM_Dodge", bIsDodging);
-	if ((a_playerCharacter->unkBDD & RE::PlayerCharacter::FlagBDD::kSprinting) != RE::PlayerCharacter::FlagBDD::kNone || bIsDodging) {
+	if ((a_playerCharacter->GetPlayerRuntimeData().unkBDD & RE::PlayerCharacter::FlagBDD::kSprinting) != RE::PlayerCharacter::FlagBDD::kNone || bIsDodging) {
 		return;
 	}
 
@@ -1057,7 +1068,9 @@ void DirectionalMovementHandler::UpdateRotation(bool bForceInstant /*= false */)
 		float rotationSpeedMult = PI;
 		bool bRelativeSpeed = true;
 
-		if (playerCharacter->IsSwimming()) {
+		auto playerActorState = playerCharacter->AsActorState();
+
+		if (playerActorState->IsSwimming()) {
 			rotationSpeedMult *= Settings::fSwimmingRotationSpeedMult;
 		} else if (_bYawControlledByPlugin) {
 			rotationSpeedMult *= _controlledYawRotationSpeedMultiplier;
@@ -1070,7 +1083,10 @@ void DirectionalMovementHandler::UpdateRotation(bool bForceInstant /*= false */)
 			RE::BGSMovementType* movementType = nullptr;
 
 			if (animationGraphManagerPtr) {
-				RE::BShkbAnimationGraph* animationGraph = animationGraphManagerPtr->graphs[animationGraphManagerPtr->activeGraph].get();
+				auto& graphManagerRuntimeData = animationGraphManagerPtr->GetRuntimeData();
+				auto activeGraph = graphManagerRuntimeData.activeGraph;				
+				
+				RE::BShkbAnimationGraph* animationGraph = animationGraphManagerPtr->graphs[activeGraph].get();
 				BShkbAnimationGraph_GetCurrentMovementTypeName(animationGraph, &string);
 
 				const char* stringCstr = string.c_str();
@@ -1090,7 +1106,7 @@ void DirectionalMovementHandler::UpdateRotation(bool bForceInstant /*= false */)
 				}
 			}
 
-			RE::ATTACK_STATE_ENUM playerAttackState = playerCharacter->GetAttackState();
+			RE::ATTACK_STATE_ENUM playerAttackState = playerActorState->GetAttackState();
 			bool bIsAttacking = playerAttackState > RE::ATTACK_STATE_ENUM::kNone && playerAttackState < RE::ATTACK_STATE_ENUM::kBowDraw;
 			if (playerCharacter->IsInMidair()) {
 				bool bGliding = false;
@@ -1108,7 +1124,7 @@ void DirectionalMovementHandler::UpdateRotation(bool bForceInstant /*= false */)
 					rotationSpeedMult *= Settings::fAttackEndRotationSpeedMult;
 					bRelativeSpeed = false;
 				}
-			} else if (playerCharacter->IsSprinting()) {
+			} else if (playerActorState->IsSprinting()) {
 				rotationSpeedMult *= Settings::fSprintingRotationSpeedMult;
 			} else if (_bCurrentlyTurningToCrosshair) {
 				rotationSpeedMult *= Settings::fFaceCrosshairRotationSpeedMultiplier;
@@ -1215,7 +1231,7 @@ void DirectionalMovementHandler::UpdateTweeningState()
 {
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	if (playerCharacter) {
-		auto movementController = playerCharacter->movementController;
+		auto movementController = playerCharacter->GetActorRuntimeData().movementController;
 		if (movementController && movementController->unk0F8) {
 			uintptr_t tweenerArbiterPtr = movementController->unk0F8 - 0x20;
 
@@ -1271,7 +1287,7 @@ bool DirectionalMovementHandler::GetFreeCameraEnabled() const
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	if (playerCharacter)
 	{
-		return (playerCharacter->GetWeaponState() == RE::WEAPON_STATE::kSheathed ? Settings::uDirectionalMovementSheathed : Settings::uDirectionalMovementDrawn) != DirectionalMovementMode::kDisabled;
+		return (playerCharacter->AsActorState()->GetWeaponState() == RE::WEAPON_STATE::kSheathed ? Settings::uDirectionalMovementSheathed : Settings::uDirectionalMovementDrawn) != DirectionalMovementMode::kDisabled;
 	}
 
 	return false;
@@ -1510,14 +1526,19 @@ bool DirectionalMovementHandler::CheckCurrentTarget(RE::ActorHandle a_target, bo
 	{
 		return false;
 	}
+	
 	auto target = a_target.get();
-	if (!target || target->IsDisabled() ||
-		!target->parentCell || target->parentCell->cellDetached ||
-		!target->currentProcess || !target->currentProcess->InHighProcess() ||
+	if (!target || target->IsDisabled() || !target->parentCell || target->parentCell->cellDetached) {
+		return false;
+	}
+
+	auto actorState = target->AsActorState();
+	auto currentProcess = target->GetActorRuntimeData().currentProcess;
+	if (!currentProcess || !currentProcess->InHighProcess() ||
 		target->IsDead() ||
-		(target->IsBleedingOut() && target->IsEssential()) ||
+		(actorState->IsBleedingOut() && target->IsEssential()) ||
 		target->GetPosition().GetDistance(playerCharacter->GetPosition()) > (Settings::fTargetLockDistance * GetTargetLockDistanceRaceSizeMultiplier(target->GetRace()) * _targetLockDistanceHysteresis) ||
-		target->GetActorValue(RE::ActorValue::kInvisibility) > 0 ||
+		target->AsActorValueOwner()->GetActorValue(RE::ActorValue::kInvisibility) > 0 ||
 		//RE::UI::GetSingleton()->IsMenuOpen("Dialogue Menu"))
 		RE::MenuTopicManager::GetSingleton()->speaker)
 	{
@@ -1591,13 +1612,13 @@ bool DirectionalMovementHandler::IsActorValidTarget(RE::ActorPtr a_actor, bool a
 	if (a_actor->IsDead())
 		return false;
 
-	if (a_actor->IsBleedingOut() && a_actor->IsEssential())
+	if (a_actor->AsActorState()->IsBleedingOut() && a_actor->IsEssential())
 		return false;
 
 	if (a_bCheckDistance && a_actor->GetPosition().GetDistance(playerCharacter->GetPosition()) > Settings::fTargetLockDistance * GetTargetLockDistanceRaceSizeMultiplier(a_actor->GetRace()))
 		return false;
 
-	if (a_actor->GetActorValue(RE::ActorValue::kInvisibility) > 0)
+	if (a_actor->AsActorValueOwner()->GetActorValue(RE::ActorValue::kInvisibility) > 0)
 		return false;
 
 	/*if (a_actor->IsPlayerTeammate())
@@ -2005,7 +2026,7 @@ bool DirectionalMovementHandler::SetDesiredAngleToMagnetismTarget()
 		return false;
 	}
 
-	RE::ATTACK_STATE_ENUM playerAttackState = playerCharacter->GetAttackState();
+	RE::ATTACK_STATE_ENUM playerAttackState = playerCharacter->AsActorState()->GetAttackState();
 	bool bIsAttacking = playerAttackState > RE::ATTACK_STATE_ENUM::kNone && playerAttackState < RE::ATTACK_STATE_ENUM::kBowDraw;
 
 	if (!bIsAttacking || _attackState > AttackState::kStart) {
@@ -2090,7 +2111,7 @@ void DirectionalMovementHandler::SetTarget(RE::ActorHandle a_target)
 
 	SetTargetPoint(GetBestTargetPoint(a_target));
 
-	SetHeadtrackTarget(4, nullptr);
+	SetHeadtrackTarget(RE::HighProcessData::HEAD_TRACK_TYPE::kDialogue, nullptr);
 
 	if (g_trueHUD) {
 		g_trueHUD->SetTarget(SKSE::GetPluginHandle(), a_target);
@@ -2109,7 +2130,7 @@ void DirectionalMovementHandler::SetTarget(RE::ActorHandle a_target)
 	}
 	
 	if (Settings::bHeadtracking && !GetForceDisableHeadtracking() && _target) {
-		SetHeadtrackTarget(4, a_target.get().get());
+		SetHeadtrackTarget(RE::HighProcessData::HEAD_TRACK_TYPE::kDialogue, a_target.get().get());
 	}
 }
 
@@ -2121,14 +2142,14 @@ void DirectionalMovementHandler::SetSoftTarget(RE::ActorHandle a_softTarget)
 
 	_softTarget = a_softTarget;
 
-	SetHeadtrackTarget(3, nullptr);
+	SetHeadtrackTarget(RE::HighProcessData::HEAD_TRACK_TYPE::kCombat, nullptr);
 
 	if (g_trueHUD) {
 		g_trueHUD->SetSoftTarget(SKSE::GetPluginHandle(), _softTarget);
 	}
 
 	if (Settings::bHeadtracking && !GetForceDisableHeadtracking() && Settings::bHeadtrackSoftTarget && _softTarget) {
-		SetHeadtrackTarget(3, a_softTarget.get().get());
+		SetHeadtrackTarget(RE::HighProcessData::HEAD_TRACK_TYPE::kCombat, a_softTarget.get().get());
 	}
 }
 
@@ -2179,15 +2200,15 @@ void DirectionalMovementHandler::RemoveTargetLockReticle()
 	g_trueHUD->RemoveWidget(SKSE::GetPluginHandle(), 'LOCK', 0, TRUEHUD_API::WidgetRemovalMode::Normal);
 }
 
-void DirectionalMovementHandler::SetHeadtrackTarget(int32_t a_headtrackPriority, RE::TESObjectREFR* a_target)
+void DirectionalMovementHandler::SetHeadtrackTarget(RE::HighProcessData::HEAD_TRACK_TYPE a_headtrackType, RE::TESObjectREFR* a_target)
 {
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
-
+	auto currentProcess = playerCharacter->GetActorRuntimeData().currentProcess;	
 	if (a_target) {
-		playerCharacter->currentProcess->high->SetHeadtrackTarget(a_headtrackPriority, a_target);
+		currentProcess->high->SetHeadtrackTarget(a_headtrackType, a_target);
 	} else {
-		playerCharacter->currentProcess->high->SetHeadtrackTarget(a_headtrackPriority, nullptr);
-		playerCharacter->currentProcess->high->SetHeadtrackTarget(0, nullptr);
+		currentProcess->high->SetHeadtrackTarget(a_headtrackType, nullptr);
+		currentProcess->high->SetHeadtrackTarget(RE::HighProcessData::HEAD_TRACK_TYPE::kDefault, nullptr);
 	}
 }
 
@@ -2217,7 +2238,7 @@ void DirectionalMovementHandler::UpdateCameraHeadtracking()
 	if (Settings::uCameraHeadtrackingMode == CameraHeadtrackingMode::kDisable && !(cameraYawOffset < TWOTHIRDS_PI && cameraYawOffset > -TWOTHIRDS_PI)) {
 		return;
 	} else if (Settings::uCameraHeadtrackingMode == CameraHeadtrackingMode::kFaceCamera && !(cameraYawOffset < PI2 && cameraYawOffset > -PI2)) {
-		playerCharacter->currentProcess->SetHeadtrackTarget(playerCharacter, cameraPos);
+		playerCharacter->GetActorRuntimeData().currentProcess->SetHeadtrackTarget(playerCharacter, cameraPos);
 		return;
 	}
 
@@ -2233,7 +2254,7 @@ void DirectionalMovementHandler::UpdateCameraHeadtracking()
 	RE::NiPoint3 playerHeadPos = playerCharacter->GetLookingAtLocation();
 
 	auto targetPos = playerHeadPos + direction * 500.f;
-	playerCharacter->currentProcess->SetHeadtrackTarget(playerCharacter, targetPos);
+	playerCharacter->GetActorRuntimeData().currentProcess->SetHeadtrackTarget(playerCharacter, targetPos);
 }
 
 
@@ -2582,8 +2603,11 @@ void DirectionalMovementHandler::RefreshCameraHeadtrackTimer()
 
 void DirectionalMovementHandler::UpdateAIProcessRotationSpeed(RE::Actor* a_actor)
 {
-	if (a_actor && a_actor->currentProcess && a_actor->currentProcess->middleHigh) {
-		a_actor->currentProcess->middleHigh->rotationSpeed.z = _desiredAIProcessRotationSpeed;
+	if (a_actor) {
+		auto currentProcess = a_actor->GetActorRuntimeData().currentProcess;
+		if (currentProcess && currentProcess->middleHigh) {
+			currentProcess->middleHigh->rotationSpeed.z = _desiredAIProcessRotationSpeed;
+		}
 	}
 	SetDesiredAIProcessRotationSpeed(0.f);
 }
@@ -2645,7 +2669,7 @@ void DirectionalMovementHandler::OnSettingsUpdated()
 	if (!Settings::bHeadtracking) {
 		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 		if (playerCharacter) {
-			playerCharacter->actorState2.headTracking = false;
+			playerCharacter->AsActorState()->actorState2.headTracking = false;
 			playerCharacter->SetGraphVariableBool("IsNPC", false);
 		}
 	}

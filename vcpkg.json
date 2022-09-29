@@ -2,7 +2,8 @@
   "name": "truedirectionalmovement",
   "version": "2",
   "dependencies": [
-    "fast-cpp-csv-parser",
+    "fmt",
+    "rapidcsv",
     "rsm-binary-io",
     "simpleini",
     "spdlog",

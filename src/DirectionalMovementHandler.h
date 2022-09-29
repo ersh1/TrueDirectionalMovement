@@ -166,7 +166,7 @@ public:
 	void ReticleRemoved();
 	void RemoveTargetLockReticle();
 	
-	void SetHeadtrackTarget(int32_t a_headtrackPriority, RE::TESObjectREFR* a_target);
+	void SetHeadtrackTarget(RE::HighProcessData::HEAD_TRACK_TYPE a_headtrackType, RE::TESObjectREFR* a_target);
 
 	void UpdateCameraHeadtracking();
 

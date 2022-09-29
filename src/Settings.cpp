@@ -63,7 +63,7 @@ void Settings::ReadSettings()
 				<< '\t' << e.description() << '\n'
 				<< "\t\t(" << e.source().begin << ')';
 			logger::error(ss.str());
-			util::report_and_fail("failed to load settings"sv);
+			util::report_and_fail("Failed to load settings. This might be an indication of your game being unstable, try installing SSE Engine Fixes."sv);
 		} catch (const std::exception& e) {
 			util::report_and_fail(e.what());
 		} catch (...) {

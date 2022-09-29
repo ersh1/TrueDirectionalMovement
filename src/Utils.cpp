@@ -82,7 +82,7 @@ bool GetTorsoPos(RE::Actor* a_actor, RE::NiPoint3& point)
 		return false;
 	}
 
-	RE::TESRace* race = a_actor->race;
+	RE::TESRace* race = a_actor->GetRace();
 	if (!race) {
 		return false;
 	}

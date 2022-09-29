@@ -229,7 +229,7 @@ namespace Hooks
 		static void GetLinearVelocityProjectile(RE::Projectile* a_this, RE::NiPoint3& a_outVelocity);
 		static void GetLinearVelocityArrow(RE::Projectile* a_this, RE::NiPoint3& a_outVelocity);
 		static void GetLinearVelocityMissile(RE::Projectile* a_this, RE::NiPoint3& a_outVelocity);
-		static void Func183(RE::Projectile* a_this);
+		static bool Func183(RE::Projectile* a_this);
 		static void InitProjectile(RE::Projectile* a_this);
 
 		static inline REL::Relocation<decltype(GetLinearVelocityProjectile)> _GetLinearVelocityProjectile;
@@ -267,7 +267,7 @@ namespace Hooks
 			auto& trampoline = SKSE::GetTrampoline();
 			REL::Relocation<uintptr_t> hook{ RELOCATION_ID(39375, 40447) };  // 69E580, 6C6440
 
-			_UpdateSprintState = trampoline.write_call<5>(hook.address() + RELOCATION_OFFSET(0xDAE, 0x140B), UpdateSprintState);
+			_UpdateSprintState = trampoline.write_call<5>(hook.address() + RELOCATION_OFFSET2(0xDAE, 0x140B, 0x140D), UpdateSprintState);
 		}
 
 	private:
