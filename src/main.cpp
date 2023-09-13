@@ -130,7 +130,7 @@ extern "C" DLLEXPORT void* SKSEAPI RequestPluginAPI(const TDM_API::InterfaceVers
 {
 	auto api = Messaging::TDMInterface::GetSingleton();
 
-	logger::info("TrueDirectionalMovement::RequestPluginAPI called, InterfaceVersion {}", a_interfaceVersion);
+	logger::info("TrueDirectionalMovement::RequestPluginAPI called, InterfaceVersion {}", static_cast<uint8_t>(a_interfaceVersion));
 
 	switch (a_interfaceVersion) {
 	case TDM_API::InterfaceVersion::V1:

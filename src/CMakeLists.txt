@@ -74,8 +74,8 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
 
 			"/wd4200" # nonstandard extension used : zero-sized array in struct/union
 
-			"$<$<CONFIG:DEBUG>:>"
-			"$<$<CONFIG:RELEASE>:/Zc:inline;/JMC-;/Ob3>"
+			"$<$<CONFIG:DEBUG>:/ZI>"
+			"$<$<CONFIG:RELEASE>:/Zi;/Zc:inline;/JMC-;/Ob3>"
 	)
 
 	target_link_options(

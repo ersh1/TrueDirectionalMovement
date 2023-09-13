@@ -260,6 +260,7 @@ namespace Hooks
 		{
 			REL::Relocation<std::uintptr_t> PlayerCharacterVtbl{ RE::VTABLE_PlayerCharacter[0] };					// 1665E0
 			_UpdateAnimation = PlayerCharacterVtbl.write_vfunc(0x7D, UpdateAnimation);
+			_Update = PlayerCharacterVtbl.write_vfunc(0xAD, Update);
 			_ProcessTracking = PlayerCharacterVtbl.write_vfunc(0x122, ProcessTracking);
 			REL::Relocation<std::uintptr_t> PlayerCharacter_ActorStateVtbl{ RE::VTABLE_PlayerCharacter[6] };  // 16640E8
 			_GetAngle = PlayerCharacter_ActorStateVtbl.write_vfunc(0x4, GetAngle);
@@ -272,11 +273,13 @@ namespace Hooks
 
 	private:
 		static void UpdateAnimation(RE::Actor* a_this, float a_delta);
+		static void Update(RE::Actor* a_this, float a_delta);
 		static void ProcessTracking(RE::Actor* a_this, float a_delta, RE::NiAVObject* a_obj3D);
 		static void GetAngle(RE::ActorState* a_this, RE::NiPoint3 &a_angle);
 		static void UpdateSprintState(RE::PlayerCharacter* a_this);
 
 		static inline REL::Relocation<decltype(UpdateAnimation)> _UpdateAnimation;
+		static inline REL::Relocation<decltype(Update)> _Update;
 		static inline REL::Relocation<decltype(ProcessTracking)> _ProcessTracking;
 		static inline REL::Relocation<decltype(GetAngle)> _GetAngle;
 		static inline REL::Relocation<decltype(UpdateSprintState)> _UpdateSprintState;
@@ -343,16 +346,20 @@ namespace Hooks
 			auto& trampoline = SKSE::GetTrampoline();
 			REL::Relocation<uintptr_t> hook1{ RELOCATION_ID(32042, 32796) };  // 4EC300, 504B30  // synchronized anims
 			REL::Relocation<uintptr_t> hook2{ RELOCATION_ID(36365, 37356) };  // 5D87F0, 5FD7E0
+			REL::Relocation<uintptr_t> hook3{ RELOCATION_ID(38613, 39644) };  // 664C80, 68C160
 
-			_Actor_SetRotationX = trampoline.write_call<5>(hook1.address() + RELOCATION_OFFSET(0x4DC, 0x667), Actor_SetRotationX); // 4EC7DC
-			_Actor_SetRotationZ = trampoline.write_call<5>(hook2.address() + RELOCATION_OFFSET(0x9C7, 0xA87), Actor_SetRotationZ); // 5D91B7
+			_Actor_SetRotationX = trampoline.write_call<5>(hook1.address() + RELOCATION_OFFSET(0x4DC, 0x667), Actor_SetRotationX);    // 4EC7DC
+			_Actor_SetRotationZ1 = trampoline.write_call<5>(hook2.address() + RELOCATION_OFFSET(0x9C7, 0xA87), Actor_SetRotationZ1);  // 5D91B7
+			_Actor_SetRotationZ2 = trampoline.write_call<5>(hook3.address() + RELOCATION_OFFSET(0x59A, 0x5C5), Actor_SetRotationZ2);  // 66521A
 		}
 
 	private:
 		static void Actor_SetRotationX(RE::Actor* a_this, float a_angle);
-		static void Actor_SetRotationZ(RE::Actor* a_this, float a_angle);
+		static void Actor_SetRotationZ1(RE::Actor* a_this, float a_angle);
+		static void Actor_SetRotationZ2(RE::Actor* a_this, float a_angle);
 		static inline REL::Relocation<decltype(Actor_SetRotationX)> _Actor_SetRotationX;
-		static inline REL::Relocation<decltype(Actor_SetRotationZ)> _Actor_SetRotationZ;
+		static inline REL::Relocation<decltype(Actor_SetRotationZ1)> _Actor_SetRotationZ1;
+		static inline REL::Relocation<decltype(Actor_SetRotationZ2)> _Actor_SetRotationZ2;
 	};
 
 	class EnemyHealthHook

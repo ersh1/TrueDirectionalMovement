@@ -158,6 +158,8 @@ struct Settings
 	static inline std::unordered_map<RE::BGSBodyPartData*, std::vector<std::string>> targetPoints;
 
 	static inline RE::BGSKeyword* kywd_magicWard = nullptr;
+	static inline RE::BGSKeyword* kywd_furnitureForces1stPerson = nullptr;
+	static inline RE::BGSKeyword* kywd_furnitureForces3rdPerson = nullptr;
 	static inline RE::SpellItem* spel_targetLockSpell = nullptr;
 	static inline RE::TESGlobal* glob_directionalMovement = nullptr;
 	static inline RE::TESGlobal* glob_targetLockHint = nullptr;

@@ -229,6 +229,9 @@ public:
 	void SetYawControl(bool a_enable, float a_yawRotationSpeedMultiplier = 0);
 	void SetPlayerYaw(float a_yaw);
 
+	bool IsACCInstalled() const { return _bACCInstalled; }
+	bool IsICInstalled() const { return _bICInstalled; }
+
 private:
 	using Lock = std::recursive_mutex;
 	using Locker = std::lock_guard<Lock>;
@@ -329,6 +332,7 @@ private:
 	RE::TESGlobal* _IFPV_IsFirstPerson = nullptr;
 	bool* _ImprovedCamera_IsFirstPerson = nullptr;
 	bool _bACCInstalled = false;
+	bool _bICInstalled = false;
 	bool _bControlsTrueHUDTarget = false;
 
 	bool _mountedArcheryRequestedSmoothCamCrosshair = false;

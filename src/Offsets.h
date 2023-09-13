@@ -17,8 +17,11 @@ static RE::NiRect<float>* g_viewPort = (RE::NiRect<float>*)RELOCATION_ID(519618,
 static uintptr_t g_highActorCuller = RELOCATION_ID(517032, 403540).address();                        // 2F26F80, 2FC1A50
 static float* g_fNear = (float*)(RELOCATION_ID(517032, 403540).address() + 0x40);                    // 2F26FC0, 2FC1A90
 static float* g_fFar = (float*)(RELOCATION_ID(517032, 403540).address() + 0x44);                     // 2F26FC4, 2FC1A94
-static float* g_worldScale = (float*)RELOCATION_ID(231896, 188105).address();
-static float* g_worldScaleInverse = (float*)RELOCATION_ID(230692, 187407).address();
+static float* g_worldScale = (float*)RELOCATION_ID(231896, 188105).address();                        // 154064C, 1637AA0
+static float* g_worldScaleInverse = (float*)RELOCATION_ID(230692, 187407).address();                 // 1536BA0, 162DF48
+static float* g_fFreeRotationSpeed = (float*)RELOCATION_ID(509884, 382636).address();                // 1DF3820, 1E87BC8
+static float* g_fVanityModeMinDist = (float*)RELOCATION_ID(509874, 382621).address();                // 1DF37A8, 1E87B50
+static float* g_fVanityModeMaxDist = (float*)RELOCATION_ID(509878, 382627).address();                // 1DF37D8, 1E87B80
 
 // functions
 typedef RE::BGSMovementType*(__fastcall* tGetMovementTypeFromString)(const char** a1);
@@ -56,3 +59,9 @@ static REL::Relocation<tCastRay> CastRay{ RELOCATION_ID(60552, 61400) };
 
 typedef void*(__fastcall* tLinearCast)(RE::hkpWorld* world, const RE::hkpCollidable* collA, const RE::hkpLinearCastInput* input, RE::hkpCdPointCollector* castCollector, RE::hkpCdPointCollector* startCollector);
 static REL::Relocation<tLinearCast> LinearCast{ RELOCATION_ID(60554, 61402) };
+
+typedef void(tPlayerCamera_SetCameraState)(RE::PlayerCamera* a_this, RE::CameraState a_cameraState);
+static REL::Relocation<tPlayerCamera_SetCameraState> PlayerCamera_SetCameraState{ RELOCATION_ID(49947, 50880) };  // 84EA70, 87A930
+
+typedef void(tAIProcess_ClearHeadTrackTarget)(RE::AIProcess* a_this);
+static REL::Relocation<tAIProcess_ClearHeadTrackTarget> AIProcess_ClearHeadTrackTarget{ RELOCATION_ID(38852, 39889) };  // 67D190, 6A4900

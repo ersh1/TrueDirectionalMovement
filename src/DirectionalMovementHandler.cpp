@@ -947,7 +947,7 @@ bool DirectionalMovementHandler::ProcessInput(RE::NiPoint2& a_inputDirection, RE
 		return true;
 	}
 
-	bool bWantsToSprint = (playerCharacter->GetPlayerRuntimeData().unkBDD & RE::PlayerCharacter::FlagBDD::kSprinting) != RE::PlayerCharacter::FlagBDD::kNone;
+	bool bWantsToSprint = playerCharacter->GetPlayerRuntimeData().playerFlags.isSprinting;
 
 	if ((HasTargetLocked() && !bWantsToSprint) || _bMagnetismActive || (Settings::uDialogueMode == DialogueMode::kFaceSpeaker && _dialogueSpeaker)) {
 		a_playerControlsData->prevMoveVec = a_playerControlsData->moveInputVec;
@@ -1002,7 +1002,7 @@ void DirectionalMovementHandler::SetDesiredAngleToTarget(RE::PlayerCharacter* a_
 
 	bool bIsDodging = false;
 	a_playerCharacter->GetGraphVariableBool("TDM_Dodge", bIsDodging);
-	if ((a_playerCharacter->GetPlayerRuntimeData().unkBDD & RE::PlayerCharacter::FlagBDD::kSprinting) != RE::PlayerCharacter::FlagBDD::kNone || bIsDodging) {
+	if (a_playerCharacter->GetPlayerRuntimeData().playerFlags.isSprinting || bIsDodging) {
 		return;
 	}
 
@@ -1419,7 +1419,7 @@ bool DirectionalMovementHandler::ToggleTargetLock(bool bEnable, bool bPressedMan
 		SetTarget(RE::ActorHandle());
 
 		// Set graph variable
-		playerCharacter->SetGraphVariableBool("TDM_TargetLock", true);
+		playerCharacter->SetGraphVariableBool("TDM_TargetLock", false);
 
 		// Remove spell so DAR can detect target lock
 		if (Settings::spel_targetLockSpell) {
@@ -2221,28 +2221,28 @@ void DirectionalMovementHandler::UpdateCameraHeadtracking()
 		return;
 	}
 
-	RE::ThirdPersonState* currentState = nullptr;
+	float cameraPitchOffset = 0.f;
+	float cameraYawOffset = 0.f;
 
 	if (playerCamera->currentState->id == RE::CameraState::kThirdPerson || playerCamera->currentState->id == RE::CameraState::kMount)
 	{
-		currentState = static_cast<RE::ThirdPersonState*>(playerCamera->currentState.get());
-	}
+		auto currentState = static_cast<RE::ThirdPersonState*>(playerCamera->currentState.get());
 
-	if (!currentState) {
-		return;
+		cameraYawOffset = NormalRelativeAngle(currentState->freeRotation.x);
+		cameraPitchOffset = currentState->freeRotation.y;
+	} else if (playerCamera->currentState->id != RE::CameraState::kFirstPerson) {
+	    return;
 	}
 	
 	RE::NiPoint3 cameraPos = GetCameraPos();
 
-	float cameraYawOffset = NormalRelativeAngle(currentState->freeRotation.x);
 	if (Settings::uCameraHeadtrackingMode == CameraHeadtrackingMode::kDisable && !(cameraYawOffset < TWOTHIRDS_PI && cameraYawOffset > -TWOTHIRDS_PI)) {
 		return;
 	} else if (Settings::uCameraHeadtrackingMode == CameraHeadtrackingMode::kFaceCamera && !(cameraYawOffset < PI2 && cameraYawOffset > -PI2)) {
 		playerCharacter->GetActorRuntimeData().currentProcess->SetHeadtrackTarget(playerCharacter, cameraPos);
 		return;
 	}
-
-	float cameraPitchOffset = currentState->freeRotation.y;
+	
 	float offsetMult = Settings::fCameraHeadtrackingStrength;
 	cameraYawOffset *= offsetMult;
 	float yaw = NormalRelativeAngle(playerCharacter->data.angle.z + cameraYawOffset - PI2);
@@ -2706,6 +2706,10 @@ void DirectionalMovementHandler::InitCameraModsCompatibility()
 
 	if (GetModuleHandle("AlternateConversationCamera.dll")) {
 		_bACCInstalled = true;
+	}
+
+	if (GetModuleHandle("ImprovedCameraSE.dll")) {
+		_bICInstalled = true;
 	}
 
 	// From SmoothCam - Improved Camera compatibility

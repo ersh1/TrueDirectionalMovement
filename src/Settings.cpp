@@ -10,6 +10,8 @@ void Settings::Initialize()
 	auto dataHandler = RE::TESDataHandler::GetSingleton();
 	if (dataHandler) {
 		kywd_magicWard = dataHandler->LookupForm<RE::BGSKeyword>(0x1EA69, "Skyrim.esm");
+		kywd_furnitureForces1stPerson = dataHandler->LookupForm<RE::BGSKeyword>(0xA56D7, "Skyrim.esm");
+		kywd_furnitureForces3rdPerson = dataHandler->LookupForm<RE::BGSKeyword>(0xA56D8, "Skyrim.esm");
 		spel_targetLockSpell = dataHandler->LookupForm<RE::SpellItem>(0x805, "TrueDirectionalMovement.esp");
 		glob_directionalMovement = dataHandler->LookupForm<RE::TESGlobal>(0x807, "TrueDirectionalMovement.esp");
 		glob_targetLockHint = dataHandler->LookupForm<RE::TESGlobal>(0x808, "TrueDirectionalMovement.esp");
@@ -56,13 +58,7 @@ void Settings::ReadSettings()
 				}							
 			}
 		}
-		catch (const toml::parse_error& e) {
-			std::ostringstream ss;
-			ss
-				<< "Error parsing file \'" << *e.source().path << "\':\n"
-				<< '\t' << e.description() << '\n'
-				<< "\t\t(" << e.source().begin << ')';
-			logger::error(ss.str());
+		catch ([[maybe_unused]] const toml::parse_error& e) {
 			util::report_and_fail("Failed to load settings. This might be an indication of your game being unstable, try installing SSE Engine Fixes."sv);
 		} catch (const std::exception& e) {
 			util::report_and_fail(e.what());
