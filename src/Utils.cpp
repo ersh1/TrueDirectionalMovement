@@ -1,5 +1,4 @@
 #include "Utils.h"
-#include "Offsets.h"
 
 void GetAngle(const RE::NiPoint3& a_from, const RE::NiPoint3& a_to, AngleZX& angle)
 {

@@ -22,6 +22,7 @@ static float* g_worldScaleInverse = (float*)RELOCATION_ID(230692, 187407).addres
 static float* g_fFreeRotationSpeed = (float*)RELOCATION_ID(509884, 382636).address();                // 1DF3820, 1E87BC8
 static float* g_fVanityModeMinDist = (float*)RELOCATION_ID(509874, 382621).address();                // 1DF37A8, 1E87B50
 static float* g_fVanityModeMaxDist = (float*)RELOCATION_ID(509878, 382627).address();                // 1DF37D8, 1E87B80
+static void** g_142EC5C60 = (void**)RELOCATION_ID(514725, 400883).address();                         // 2EC5C60, 2F603B0
 
 // functions
 typedef RE::BGSMovementType*(__fastcall* tGetMovementTypeFromString)(const char** a1);
@@ -65,3 +66,6 @@ static REL::Relocation<tPlayerCamera_SetCameraState> PlayerCamera_SetCameraState
 
 typedef void(tAIProcess_ClearHeadTrackTarget)(RE::AIProcess* a_this);
 static REL::Relocation<tAIProcess_ClearHeadTrackTarget> AIProcess_ClearHeadTrackTarget{ RELOCATION_ID(38852, 39889) };  // 67D190, 6A4900
+
+typedef float (*tGetPlayerTimeMult)(void* a1);
+static REL::Relocation<tGetPlayerTimeMult> GetPlayerTimeMult{ RELOCATION_ID(43104, 44301) };  // 759420, 7873C0

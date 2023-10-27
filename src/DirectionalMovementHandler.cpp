@@ -246,9 +246,10 @@ void DirectionalMovementHandler::Update()
 			float desiredRotationX = NormalRelativeAngle(_desiredCameraAngleX - cameraTarget->data.angle.z);
 			float desiredRotationY = Settings::bResetCameraPitch ? 0.f : thirdPersonState->freeRotation.y;
 			float desiredTargetPitch = Settings::bResetCameraPitch ? 0.f : cameraTarget->data.angle.x;
-			thirdPersonState->freeRotation.x = InterpAngleTo(thirdPersonState->freeRotation.x, desiredRotationX, *g_deltaTimeRealTime, 10.f);
-			thirdPersonState->freeRotation.y = InterpAngleTo(thirdPersonState->freeRotation.y, desiredRotationY, *g_deltaTimeRealTime, 10.f);
-			cameraTarget->data.angle.x = InterpAngleTo(cameraTarget->data.angle.x, desiredTargetPitch, *g_deltaTimeRealTime, 10.f);
+			const float realTimeDeltaTime = GetRealTimeDeltaTime();
+			thirdPersonState->freeRotation.x = InterpAngleTo(thirdPersonState->freeRotation.x, desiredRotationX, realTimeDeltaTime, 10.f);
+			thirdPersonState->freeRotation.y = InterpAngleTo(thirdPersonState->freeRotation.y, desiredRotationY, realTimeDeltaTime, 10.f);
+			cameraTarget->data.angle.x = InterpAngleTo(cameraTarget->data.angle.x, desiredTargetPitch, realTimeDeltaTime, 10.f);
 			if (GetAngleDiff(thirdPersonState->freeRotation.x, desiredRotationX) < 0.05f &&
 				GetAngleDiff(thirdPersonState->freeRotation.y, desiredRotationY) < 0.05f &&
 				GetAngleDiff(cameraTarget->data.angle.x, desiredTargetPitch) < 0.05f) {
@@ -309,7 +310,7 @@ void DirectionalMovementHandler::UpdateDirectionalMovement()
 	bool bFreeCamera = GetFreeCameraEnabled();
 
 	RE::TESCameraState* currentCameraState = RE::PlayerCamera::GetSingleton()->currentState.get();
-	if (bFreeCamera && !_bForceDisableDirectionalMovement && currentCameraState && !bIsAIDriven &&
+	if (bFreeCamera && !GetForceDisableDirectionalMovement() && currentCameraState && !bIsAIDriven &&
 		(!_bShouldFaceCrosshair || _bCurrentlyTurningToCrosshair)  &&
 		((currentCameraState->id == RE::CameraStates::kThirdPerson && !IFPV_IsFirstPerson() && !ImprovedCamera_IsFirstPerson()) ||
 			(currentCameraState->id == RE::CameraStates::kTween && _cameraStateBeforeTween != RE::CameraStates::kFirstPerson) ||
@@ -577,7 +578,7 @@ void DirectionalMovementHandler::UpdateSwimmingPitchOffset()
 {
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	if (playerCharacter && playerCharacter->AsActorState()->IsSwimming()) {
-		_currentSwimmingPitchOffset = InterpTo(_currentSwimmingPitchOffset, _desiredSwimmingPitchOffset, *g_deltaTime, Settings::fSwimmingPitchSpeed);
+		_currentSwimmingPitchOffset = InterpTo(_currentSwimmingPitchOffset, _desiredSwimmingPitchOffset, GetPlayerDeltaTime(), Settings::fSwimmingPitchSpeed);
 	}
 }
 
@@ -612,29 +613,31 @@ void DirectionalMovementHandler::UpdateMountedArchery()
 
 void DirectionalMovementHandler::ProgressTimers()
 {
+	const float playerDeltaTime = GetPlayerDeltaTime();
+	const float realTimeDeltaTime = GetRealTimeDeltaTime();
 	if (_dialogueHeadtrackTimer > 0.f) {
-		_dialogueHeadtrackTimer -= *g_deltaTime;
+		_dialogueHeadtrackTimer -= playerDeltaTime;
 	}
 	if (_lastTargetSwitchTimer > 0.f) {
-		_lastTargetSwitchTimer -= *g_deltaTimeRealTime;
+		_lastTargetSwitchTimer -= realTimeDeltaTime;
 	}
 	if (_lastLOSTimer > 0.f) {
-		_lastLOSTimer -= *g_deltaTime;
+		_lastLOSTimer -= playerDeltaTime;
 	}
 	if (_faceCrosshairTimer > 0.f) {
-		_faceCrosshairTimer -= *g_deltaTime;
+		_faceCrosshairTimer -= playerDeltaTime;
 	}
 	if (_aimingTimer > 0.f) {
-		_aimingTimer -= *g_deltaTime;
+		_aimingTimer -= playerDeltaTime;
 	}
 	if (_cameraHeadtrackTimer > 0.f) {
-		_cameraHeadtrackTimer -= *g_deltaTime;
+		_cameraHeadtrackTimer -= playerDeltaTime;
 	}
 	if (_cameraRotationDelayTimer > 0.f) {
-		_cameraRotationDelayTimer -= *g_deltaTimeRealTime;
+		_cameraRotationDelayTimer -= realTimeDeltaTime;
 	}
 	if (_tutorialHintTimer > 0.f) {
-		_tutorialHintTimer -= *g_deltaTimeRealTime;
+		_tutorialHintTimer -= realTimeDeltaTime;
 	}
 }
 
@@ -685,6 +688,8 @@ void DirectionalMovementHandler::UpdateLeaning(RE::Actor* a_actor, [[maybe_unuse
 	float desiredPitch = 0.f;
 	float desiredRoll = 0.f;
 
+	const float playerDeltaTime = GetPlayerDeltaTime();
+
 	if (a_actor->AsActorState()->actorState1.meleeAttackState == RE::ATTACK_STATE_ENUM::kNone) {
 		float quad[4];
 		_mm_store_ps(quad, characterController->forwardVec.quad);
@@ -697,7 +702,11 @@ void DirectionalMovementHandler::UpdateLeaning(RE::Actor* a_actor, [[maybe_unuse
 		a_actor->SetGraphVariableFloat("TDM_VelocityY", worldVelocity.y);
 
 		// calculate acceleration
-		RE::NiPoint3 worldAcceleration = (worldVelocity - previousVelocity) / *g_deltaTime;
+		RE::NiPoint3 worldAcceleration = RE::NiPoint3::Zero();
+		
+		if (playerDeltaTime > 0.f) {
+			worldAcceleration = (worldVelocity - previousVelocity) / playerDeltaTime;
+		}
 
 		worldAcceleration *= worldAcceleration.Dot(worldVelocity) > 0 ? 1.f : 0.5f;
 		worldAcceleration = ClampSizeMax(worldAcceleration, Settings::fMaxLeaningStrength);  // clamp to sane values
@@ -722,8 +731,8 @@ void DirectionalMovementHandler::UpdateLeaning(RE::Actor* a_actor, [[maybe_unuse
 	a_actor->GetGraphVariableFloat("TDM_Roll", roll);
 
 	// interpolate
-	roll = InterpTo(roll, desiredRoll, *g_deltaTime, Settings::fLeaningSpeed);
-	pitch = InterpTo(pitch, desiredPitch, *g_deltaTime, Settings::fLeaningSpeed);
+	roll = InterpTo(roll, desiredRoll, playerDeltaTime, Settings::fLeaningSpeed);
+	pitch = InterpTo(pitch, desiredPitch, playerDeltaTime, Settings::fLeaningSpeed);
 
 	// update angles
 	a_actor->SetGraphVariableFloat("TDM_Pitch", pitch);
@@ -767,8 +776,9 @@ void DirectionalMovementHandler::UpdateCameraAutoRotation()
 			}
 		}
 
-		_currentAutoCameraRotationSpeed = InterpTo(_currentAutoCameraRotationSpeed, desiredSpeed, *g_deltaTimeRealTime, 5.f);
-		thirdPersonState->freeRotation.x += _currentAutoCameraRotationSpeed * *g_deltaTimeRealTime;
+		const float realTimeDeltaTime = GetRealTimeDeltaTime();
+		_currentAutoCameraRotationSpeed = InterpTo(_currentAutoCameraRotationSpeed, desiredSpeed, realTimeDeltaTime, 5.f);
+		thirdPersonState->freeRotation.x += _currentAutoCameraRotationSpeed * realTimeDeltaTime;
 	}
 }
 
@@ -1059,6 +1069,8 @@ void DirectionalMovementHandler::UpdateRotation(bool bForceInstant /*= false */)
 
 	bool bInstantRotation = bForceInstant || (_bShouldFaceCrosshair && Settings::bFaceCrosshairInstantly) || (_bShouldFaceCrosshair && !_bCurrentlyTurningToCrosshair) || (_bJustDodged && !playerCharacter->IsAnimationDriven()) || (_bYawControlledByPlugin && _controlledYawRotationSpeedMultiplier <= 0.f);
 
+	const float playerDeltaTime = GetPlayerDeltaTime();
+
 	if (!bInstantRotation) {
 		if (IsPlayerAnimationDriven() || _bIsDodging || IsTDMRotationLocked()) {
 			ResetDesiredAngle();
@@ -1151,7 +1163,7 @@ void DirectionalMovementHandler::UpdateRotation(bool bForceInstant /*= false */)
 			rotationSpeedMult /= gtm;
 		}
 
-		float maxAngleDelta = rotationSpeedMult * *g_deltaTime;
+		float maxAngleDelta = rotationSpeedMult * playerDeltaTime;
 		if (bRelativeSpeed) {
 			maxAngleDelta *= (1.f + abs(angleDelta));
 		}
@@ -1159,7 +1171,7 @@ void DirectionalMovementHandler::UpdateRotation(bool bForceInstant /*= false */)
 		angleDelta = ClipAngle(angleDelta, -maxAngleDelta, maxAngleDelta);
 	}
 
-	float aiProcessRotationSpeed = angleDelta * (1 / *g_deltaTime);
+	float aiProcessRotationSpeed = angleDelta * (1 / playerDeltaTime);
 	SetDesiredAIProcessRotationSpeed(aiProcessRotationSpeed);
 	
 	playerCharacter->SetRotationZ(playerCharacter->data.angle.z + angleDelta);
@@ -1216,15 +1228,16 @@ void DirectionalMovementHandler::UpdateRotationLockedCam()
 	float angleDelta = GetAngle(currentPlayerDirection, playerDirectionToTargetXY);
 	angleDelta = NormalRelativeAngle(angleDelta);
 
-	float desiredCharacterYaw = currentCharacterYaw + angleDelta;
+	const float realTimeDeltaTime = GetRealTimeDeltaTime();
 
-	playerCharacter->SetRotationZ(InterpAngleTo(currentCharacterYaw, desiredCharacterYaw, *g_deltaTimeRealTime, Settings::fTargetLockYawAdjustSpeed));
+	float desiredCharacterYaw = currentCharacterYaw + angleDelta;
+	playerCharacter->SetRotationZ(InterpAngleTo(currentCharacterYaw, desiredCharacterYaw, realTimeDeltaTime, Settings::fTargetLockYawAdjustSpeed));
 
 	// pitch
 	RE::NiPoint3 playerAngle = ToOrientationRotation(playerDirectionToTarget);
 	float desiredPlayerPitch = -playerAngle.x;
 
-	playerCharacter->SetRotationX(InterpAngleTo(currentCharacterPitch, desiredPlayerPitch, *g_deltaTimeRealTime, Settings::fTargetLockPitchAdjustSpeed));
+	playerCharacter->SetRotationX(InterpAngleTo(currentCharacterPitch, desiredPlayerPitch, realTimeDeltaTime, Settings::fTargetLockPitchAdjustSpeed));
 }
 
 void DirectionalMovementHandler::UpdateTweeningState()
@@ -1636,7 +1649,7 @@ bool DirectionalMovementHandler::IsActorValidTarget(RE::ActorPtr a_actor, bool a
 	return true;
 }
 
-RE::ActorHandle DirectionalMovementHandler::FindTarget(TargetLockSelectionMode a_mode)
+RE::ActorHandle DirectionalMovementHandler::FindTarget(TargetLockSelectionMode a_mode, bool a_bSkipCurrent /*= true*/)
 {
 	if (auto crosshairRef = Events::CrosshairRefManager::GetSingleton()->GetCachedRef()) {
 		if (auto crosshairRefPtr = crosshairRef.get()) {
@@ -1684,6 +1697,9 @@ RE::ActorHandle DirectionalMovementHandler::FindTarget(TargetLockSelectionMode a
 
 	for (auto& actorHandle : actorHandles) {
 		auto actor = actorHandle.get();
+		if (a_bSkipCurrent && actorHandle == _target) {
+		    continue;
+		}
 		if (IsActorValidTarget(actor)) {
 			float targetLockMaxDistance = Settings::fTargetLockDistance * GetTargetLockDistanceRaceSizeMultiplier(actor->GetRace());
 			
@@ -2529,8 +2545,10 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	float angleDelta = bIsBehind ? GetAngle(reversedCameraDirection, projectedDirectionToTargetXY) : GetAngle(currentCameraDirection, projectedDirectionToTargetXY);
 	angleDelta = NormalRelativeAngle(angleDelta);
 
+	const float realTimeDeltaTime = GetRealTimeDeltaTime();
+
 	float desiredFreeCameraRotation = currentCameraYawOffset + angleDelta;
-	thirdPersonState->freeRotation.x = InterpAngleTo(currentCameraYawOffset, desiredFreeCameraRotation, *g_deltaTimeRealTime, Settings::fTargetLockYawAdjustSpeed);
+	thirdPersonState->freeRotation.x = InterpAngleTo(currentCameraYawOffset, desiredFreeCameraRotation, realTimeDeltaTime, Settings::fTargetLockYawAdjustSpeed);
 
 	if (bIsBehind)
 	{
@@ -2560,9 +2578,9 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 
 	if (!bIsHorseCamera) {
 		thirdPersonState->freeRotation.y += cameraPitchOffset;
-		thirdPersonState->freeRotation.y = InterpAngleTo(thirdPersonState->freeRotation.y, desiredCameraAngle, *g_deltaTimeRealTime, Settings::fTargetLockPitchAdjustSpeed);
+		thirdPersonState->freeRotation.y = InterpAngleTo(thirdPersonState->freeRotation.y, desiredCameraAngle, realTimeDeltaTime, Settings::fTargetLockPitchAdjustSpeed);
 	} else {
-		thirdPersonState->freeRotation.y = InterpAngleTo(thirdPersonState->freeRotation.y, -desiredCameraAngle, *g_deltaTimeRealTime, Settings::fTargetLockPitchAdjustSpeed);
+		thirdPersonState->freeRotation.y = InterpAngleTo(thirdPersonState->freeRotation.y, -desiredCameraAngle, realTimeDeltaTime, Settings::fTargetLockPitchAdjustSpeed);
 	}
 }
 
@@ -2662,6 +2680,8 @@ void DirectionalMovementHandler::OnPreLoadGame()
 	_softTarget = RE::ActorHandle();
 	_dialogueSpeaker = RE::ObjectRefHandle();
 	_playerIsNPC = false;
+	_papyrusDisableDirectionalMovement.clear();
+	_papyrusDisableHeadtracking.clear();
 }
 
 void DirectionalMovementHandler::OnSettingsUpdated()
@@ -2850,12 +2870,12 @@ void DirectionalMovementHandler::RequestAPIs()
 
 bool DirectionalMovementHandler::GetForceDisableDirectionalMovement() const
 {
-	return _bForceDisableDirectionalMovement;
+	return _bForceDisableDirectionalMovement || !_papyrusDisableDirectionalMovement.empty();
 }
 
 bool DirectionalMovementHandler::GetForceDisableHeadtracking() const
 {
-	return _bForceDisableHeadtracking;
+	return _bForceDisableHeadtracking || !_papyrusDisableHeadtracking.empty();
 }
 
 bool DirectionalMovementHandler::GetYawControl() const
@@ -2885,6 +2905,24 @@ void DirectionalMovementHandler::SetYawControl(bool a_enable, float a_yawRotatio
 void DirectionalMovementHandler::SetPlayerYaw(float a_yaw)
 {
 	_desiredAngle = NormalAbsoluteAngle(a_yaw);
+}
+
+void DirectionalMovementHandler::PapyrusDisableDirectionalMovement(std::string_view a_modName, bool a_bDisable)
+{
+	if (a_bDisable) {
+		_papyrusDisableDirectionalMovement.emplace(a_modName.data());
+	} else {
+		_papyrusDisableDirectionalMovement.erase(a_modName.data());
+	}
+}
+
+void DirectionalMovementHandler::PapyrusDisableHeadtracking(std::string_view a_modName, bool a_bDisable)
+{
+	if (a_bDisable) {
+		_papyrusDisableHeadtracking.emplace(a_modName.data());
+	} else {
+		_papyrusDisableHeadtracking.erase(a_modName.data());
+	}
 }
 
 DirectionalMovementHandler::DirectionalMovementHandler() :

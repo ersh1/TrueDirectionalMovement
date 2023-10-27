@@ -2,6 +2,7 @@
 #include "SmoothCamAPI.h"
 #include "TrueHUDAPI.h"
 #include "Widgets/TargetLockReticle.h"
+#include <unordered_set>
 
 namespace std
 {
@@ -142,7 +143,7 @@ public:
 
 	bool IsActorValidTarget(RE::ActorPtr a_actor, bool a_bCheckDistance = false) const;
 
-	RE::ActorHandle FindTarget(TargetLockSelectionMode a_mode);
+	RE::ActorHandle FindTarget(TargetLockSelectionMode a_mode, bool a_bSkipCurrent = true);
 	void SwitchTarget(Direction a_direction);
 	bool SwitchTargetPoint(Direction a_direction);
 	RE::ActorHandle SwitchScreenTarget(Direction a_direction);
@@ -228,6 +229,9 @@ public:
 	void SetForceDisableHeadtracking(bool a_disable);
 	void SetYawControl(bool a_enable, float a_yawRotationSpeedMultiplier = 0);
 	void SetPlayerYaw(float a_yaw);
+
+	void PapyrusDisableDirectionalMovement(std::string_view a_modName, bool a_bDisable);
+	void PapyrusDisableHeadtracking(std::string_view a_modName, bool a_bDisable);
 
 	bool IsACCInstalled() const { return _bACCInstalled; }
 	bool IsICInstalled() const { return _bICInstalled; }
@@ -317,7 +321,9 @@ private:
 	AttackState _attackState;
 
 	bool _bForceDisableDirectionalMovement = false;
-	bool _bForceDisableHeadtracking = false;
+	std::unordered_set<std::string> _papyrusDisableDirectionalMovement{};
+    bool _bForceDisableHeadtracking = false;
+	std::unordered_set<std::string> _papyrusDisableHeadtracking{};
 	bool _bYawControlledByPlugin = false;
 	float _controlledYawRotationSpeedMultiplier = 0;
 

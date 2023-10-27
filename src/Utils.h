@@ -1,4 +1,5 @@
 #pragma once
+#include "Offsets.h"
 
 #define PI 3.1415926535897932f
 #define TWOTHIRDS_PI 2.0943951023931955f
@@ -25,6 +26,21 @@ bool GetTargetPointPosition(RE::ObjectRefHandle a_target, std::string_view a_tar
 
 void SetRotationMatrix(RE::NiMatrix3& a_matrix, float sacb, float cacb, float sb);
 bool PredictAimProjectile(RE::NiPoint3 a_projectilePos, RE::NiPoint3 a_targetPosition, RE::NiPoint3 a_targetVelocity, float a_gravity, RE::NiPoint3& a_projectileVelocity);
+
+[[nodiscard]] inline float GetPlayerTimeMultiplier()
+{
+	return GetPlayerTimeMult(*g_142EC5C60);
+}
+
+[[nodiscard]] inline float GetPlayerDeltaTime()
+{
+    return *g_deltaTime * GetPlayerTimeMultiplier();
+}
+
+[[nodiscard]] inline float GetRealTimeDeltaTime()
+{
+    return *g_deltaTimeRealTime;
+}
 
 [[nodiscard]] inline RE::NiPoint3 TransformVectorByMatrix(const RE::NiPoint3& a_vector, const RE::NiMatrix3& a_matrix)
 {

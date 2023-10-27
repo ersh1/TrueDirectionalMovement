@@ -1329,7 +1329,7 @@ namespace Hooks
 			bool bUnk2 = Actor_IsSyncSprintState(a_this) || (actorState->GetAttackState() == RE::ATTACK_STATE_ENUM::kNone);
 			bool bIsPreviousMoveInputForward = ((bShouldFaceCrosshair && !bAutoMove) ? normalizedInputDirection.y : playerControls->data.prevMoveVec.y) > 0.f;
 			bool bIsNotStrafing = bShouldFaceCrosshair ? 0.75f > fabs(normalizedInputDirection.x) : *g_fSprintStopThreshold > fabs(playerControls->data.prevMoveVec.x);
-			bool bIsStaminaNotZero = a_this->AsActorValueOwner()->GetActorValue(RE::ActorValue::kStamina) > 0.f;
+			bool bIsStaminaNotZero = actor->AsActorValueOwner()->GetActorValue(RE::ActorValue::kStamina) > 0.f;
 			bool bIsSprinting = a_this->GetPlayerRuntimeData().playerFlags.isSprinting;
 
 			// added
