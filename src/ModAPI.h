@@ -8,8 +8,9 @@ namespace Messaging
 	using APIResult = ::TDM_API::APIResult;
 	using InterfaceVersion1 = ::TDM_API::IVTDM1;
 	using InterfaceVersion2 = ::TDM_API::IVTDM2;
+	using InterfaceVersion3 = ::TDM_API::IVTDM3;
 
-	class TDMInterface : public InterfaceVersion2
+	class TDMInterface : public InterfaceVersion3
 	{
 	private:
 		TDMInterface() noexcept;
@@ -24,9 +25,9 @@ namespace Messaging
 
 		// InterfaceVersion1
 		virtual unsigned long GetTDMThreadId() const noexcept override;
-		virtual bool GetDirectionalMovementState() noexcept override;
-		virtual bool GetTargetLockState() noexcept override;
-		virtual RE::ActorHandle GetCurrentTarget() noexcept override;
+		virtual bool GetDirectionalMovementState() const noexcept override;
+		virtual bool GetTargetLockState() const noexcept override;
+		virtual RE::ActorHandle GetCurrentTarget() const noexcept override;
 		virtual APIResult RequestDisableDirectionalMovement(SKSE::PluginHandle a_modHandle) noexcept override;
 		virtual APIResult RequestDisableHeadtracking(SKSE::PluginHandle a_modHandle) noexcept override;
 		virtual SKSE::PluginHandle GetDisableDirectionalMovementOwner() const noexcept override;
@@ -38,6 +39,10 @@ namespace Messaging
 		virtual APIResult RequestYawControl(SKSE::PluginHandle a_modHandle, float a_yawRotationSpeedMultiplier) noexcept override;
 		virtual APIResult SetPlayerYaw(SKSE::PluginHandle a_modHandle, float a_desiredYaw) noexcept override;
 		virtual APIResult ReleaseYawControl(SKSE::PluginHandle a_modHandle) noexcept override;
+
+		// InterfaceVersion3
+		virtual TDM_API::DirectionalMovementMode GetDirectionalMovementMode() const noexcept override;
+		virtual RE::NiPoint2 GetActualMovementInput() const noexcept override;
 
 		// Internal
 		// Mark directional movement control as required by True Directional Movement for API requests

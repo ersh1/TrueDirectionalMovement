@@ -64,7 +64,8 @@ struct Settings
 	static inline DirectionalMovementMode uDirectionalMovementSheathed = DirectionalMovementMode::kDirectional;
 	static inline DirectionalMovementMode uDirectionalMovementDrawn = DirectionalMovementMode::kDirectional;
 	static inline DialogueMode uDialogueMode = DialogueMode::kFaceSpeaker;
-	static inline float fMeleeMagnetismAngle = 60.f;	
+	static inline float fMeleeMagnetismAngle = 60.f;
+	static inline bool bMagnetismWhileBlocking = true;
 	static inline bool bFaceCrosshairWhileAttacking = false;
 	static inline bool bFaceCrosshairWhileShouting = true;
 	static inline bool bFaceCrosshairWhileBlocking = true;
@@ -80,6 +81,7 @@ struct Settings
 	static inline float fGlidingRotationSpeedMult = 0.5f;
 	static inline float fWaterRotationSpeedMult = 0.5f;
 	static inline float fSwimmingRotationSpeedMult = 0.5f;
+	static inline float fDodgeUnlockedRotationSpeedMult = 0.5f;
 	static inline float fFaceCrosshairRotationSpeedMultiplier = 2.f;
 	static inline bool bFaceCrosshairInstantly = false;
 	static inline float fCameraAutoAdjustDelay = 0.1f;

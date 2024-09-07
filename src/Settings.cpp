@@ -96,6 +96,7 @@ void Settings::ReadSettings()
 		ReadUInt32Setting(mcm, "DirectionalMovement", "uDirectionalMovementDrawn", (uint32_t&)uDirectionalMovementDrawn);
 		ReadUInt32Setting(mcm, "DirectionalMovement", "uDialogueMode", (uint32_t&)uDialogueMode);
 		ReadFloatSetting(mcm, "DirectionalMovement", "fMeleeMagnetismAngle", fMeleeMagnetismAngle);
+		ReadBoolSetting(mcm, "DirectionalMovement", "bMagnetismWhileBlocking", bMagnetismWhileBlocking);
 		ReadBoolSetting(mcm, "DirectionalMovement", "bFaceCrosshairWhileAttacking", bFaceCrosshairWhileAttacking);
 		ReadBoolSetting(mcm, "DirectionalMovement", "bFaceCrosshairWhileShouting", bFaceCrosshairWhileShouting);
 		ReadBoolSetting(mcm, "DirectionalMovement", "bFaceCrosshairWhileBlocking", bFaceCrosshairWhileBlocking);
@@ -111,6 +112,7 @@ void Settings::ReadSettings()
 		ReadFloatSetting(mcm, "DirectionalMovement", "fGlidingRotationSpeedMult", fGlidingRotationSpeedMult);
 		ReadFloatSetting(mcm, "DirectionalMovement", "fWaterRotationSpeedMult", fWaterRotationSpeedMult);
 		ReadFloatSetting(mcm, "DirectionalMovement", "fSwimmingRotationSpeedMult", fSwimmingRotationSpeedMult);
+		ReadFloatSetting(mcm, "DirectionalMovement", "fDodgeUnlockedRotationSpeedMult", fDodgeUnlockedRotationSpeedMult);
 		ReadFloatSetting(mcm, "DirectionalMovement", "fFaceCrosshairRotationSpeedMultiplier", fFaceCrosshairRotationSpeedMultiplier);
 		ReadBoolSetting(mcm, "DirectionalMovement", "bFaceCrosshairInstantly", bFaceCrosshairInstantly);
 		ReadFloatSetting(mcm, "DirectionalMovement", "fCameraAutoAdjustDelay", fCameraAutoAdjustDelay);
@@ -203,7 +205,7 @@ void Settings::OnPostLoadGame()
 void Settings::UpdateGlobals()
 {
 	if (glob_trueHUD) {
-		glob_trueHUD->value = DirectionalMovementHandler::GetSingleton()->g_trueHUD != nullptr ? 1.f : 0.f;
+		glob_trueHUD->value = APIs::TrueHUD != nullptr ? 1.f : 0.f;
 	}
 
 	if ((glob_nemesisHeadtracking && glob_nemesisHeadtracking->value == 0) ||

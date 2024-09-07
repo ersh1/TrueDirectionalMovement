@@ -4,16 +4,15 @@
 #include "ModAPI.h"
 #include "Papyrus.h"
 #include "Settings.h"
-#include "SmoothCamAPI.h"
-#include "TrueHUDAPI.h"
 #include "Raycast.h"
+#include "API/APIManager.h"
 
 void MessageHandler(SKSE::MessagingInterface::Message* a_msg)
 {
 	// Try requesting APIs at multiple steps to try to work around the SKSE messaging bug
 	switch (a_msg->type) {
 	case SKSE::MessagingInterface::kDataLoaded:
-		DirectionalMovementHandler::RequestAPIs();
+		APIs::RequestAPIs();
 		Events::SinkEventHandlers();
 		Settings::Initialize();
 		Settings::ReadSettings();		
@@ -21,17 +20,17 @@ void MessageHandler(SKSE::MessagingInterface::Message* a_msg)
 		DirectionalMovementHandler::GetSingleton()->Initialize();
 		break;
 	case SKSE::MessagingInterface::kPostLoad:
-		DirectionalMovementHandler::RequestAPIs();
+		APIs::RequestAPIs();
 		break;
 	case SKSE::MessagingInterface::kPostPostLoad:
-		DirectionalMovementHandler::RequestAPIs();
+		APIs::RequestAPIs();
 		break;
 	case SKSE::MessagingInterface::kPreLoadGame:
 		DirectionalMovementHandler::GetSingleton()->OnPreLoadGame();
 		break;
 	case SKSE::MessagingInterface::kPostLoadGame:
 	case SKSE::MessagingInterface::kNewGame:
-		DirectionalMovementHandler::RequestAPIs();
+		APIs::RequestAPIs();
 		Settings::OnPostLoadGame();
 		DirectionalMovementHandler::Register();
 		break;
@@ -136,6 +135,8 @@ extern "C" DLLEXPORT void* SKSEAPI RequestPluginAPI(const TDM_API::InterfaceVers
 	case TDM_API::InterfaceVersion::V1:
 		[[fallthrough]];
 	case TDM_API::InterfaceVersion::V2:
+		[[fallthrough]];
+	case TDM_API::InterfaceVersion::V3:
 		logger::info("TrueDirectionalMovement::RequestPluginAPI returned the API singleton");
 		return static_cast<void*>(api);
 	}

@@ -2,7 +2,6 @@
 #include "Settings.h"
 #include "Events.h"
 #include "Offsets.h"
-#include "Utils.h"
 
 #include <Psapi.h>
 #include <DbgHelp.h>
@@ -101,6 +100,9 @@ DirectionalMovementHandler::EventResult DirectionalMovementHandler::ProcessEvent
 		case "MCO_PowerWinOpen"_h:
 		case "MCO_TransitionOpen"_h:
 		case "MCO_Recovery"_h:
+		case "BFCO_NextWinStart"_h:
+		case "BFCO_NextPowerWinStart"_h:
+		case "BFCO_DIY_recovery"_h:
 		case "TDM_AttackEnd"_h:
 		case "Collision_AttackEnd"_h:
 			SetAttackState(AttackState::kEnd);
@@ -112,8 +114,13 @@ DirectionalMovementHandler::EventResult DirectionalMovementHandler::ProcessEvent
 		case "SkySA_AttackWinEnd"_h:
 		case "MCO_WinClose"_h:
 		case "MCO_PowerWinClose"_h:
+		case "BFCO_DIY_EndLoop"_h:
 		case "MCO_TransitionClose"_h:
 			SetAttackState(AttackState::kNone);
+			break;
+
+		case "DF_DodgeStart"_h:
+			OnDodge();
 			break;
 		}
 	}
@@ -201,6 +208,11 @@ void DirectionalMovementHandler::Update()
 
 		UpdateSwimmingPitchOffset();
 
+		// last safety check before utilizing desired angle
+		if (IsPlayerAIDriven() || IsPlayerAnimationDriven()) {
+			ResetDesiredAngle();
+		}
+
 		UpdateRotation();
 	} else {
 		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
@@ -278,7 +290,7 @@ void DirectionalMovementHandler::Update()
 	}
 
 #ifndef NDEBUG
-	if (g_trueHUD) {
+	if (APIs::TrueHUD) {
 		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 
 		auto playerAngle = playerCharacter->data.angle.z;
@@ -287,12 +299,12 @@ void DirectionalMovementHandler::Update()
 		RE::NiPoint3 forwardVector{ 0.f, 1.f, 0.f };
 
 		RE::NiPoint3 dir = RotateAngleAxis(forwardVector, -playerAngle, { 0.f, 0.f, 1.f });
-		g_trueHUD->DrawArrow(playerPos, playerPos + dir * 20.f);
+		APIs::TrueHUD->DrawArrow(playerPos, playerPos + dir * 20.f);
 
 		if (_desiredAngle != -1.f) {
 			playerPos += RE::NiPoint3{ 0.f, 0.f, 10.f };
 			dir = RotateAngleAxis(forwardVector, -_desiredAngle, { 0.f, 0.f, 1.f });
-			g_trueHUD->DrawArrow(playerPos, playerPos + dir * 25.f, 10.f, 0.f, 0xFFFF00FF, 1.5f);
+			APIs::TrueHUD->DrawArrow(playerPos, playerPos + dir * 25.f, 10.f, 0.f, 0xFFFF00FF, 1.5f);
 		}
 	}
 #endif
@@ -300,13 +312,8 @@ void DirectionalMovementHandler::Update()
 
 void DirectionalMovementHandler::UpdateDirectionalMovement()
 {
-	bool bIsAIDriven = false;
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
-	if (playerCharacter) {
-		auto& movementController = playerCharacter->GetActorRuntimeData().movementController;
-		bIsAIDriven = movementController && !movementController->unk1C5;
-	}
-
+	bool bIsAIDriven = IsPlayerAIDriven();
 	bool bFreeCamera = GetFreeCameraEnabled();
 
 	RE::TESCameraState* currentCameraState = RE::PlayerCamera::GetSingleton()->currentState.get();
@@ -387,7 +394,7 @@ void DirectionalMovementHandler::UpdateFacingState()
 
 	bool bIsAttacking = playerAttackState > RE::ATTACK_STATE_ENUM::kNone && playerAttackState < RE::ATTACK_STATE_ENUM::kBowDraw;
 
-	if (Settings::bFaceCrosshairWhileAttacking && bIsAttacking && !HasTargetLocked() && !_bMagnetismActive) {
+	if (Settings::bFaceCrosshairWhileAttacking && bIsAttacking && !HasTargetLocked() && !IsMagnetismActive()) {
 		_bShouldFaceCrosshair = true;
 		_faceCrosshairTimer = 0.1f;
 		_bShouldFaceTarget = true;
@@ -553,14 +560,17 @@ void DirectionalMovementHandler::UpdateDodgingState()
 {
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 
-	bool bWasDodging = _bIsDodging;
-	playerCharacter->GetGraphVariableBool("TDM_Dodge", _bIsDodging);
-
-	_bJustDodged = !bWasDodging && _bIsDodging;
-
-	if (_bJustDodged && !playerCharacter->IsAnimationDriven())
-	{
-		_faceCrosshairTimer = 0.f;
+	if (APIs::DodgeFramework) {
+		playerCharacter->GetGraphVariableBool("DF_IsDodging", _DF_bIsDodging);
+		playerCharacter->GetGraphVariableBool("DF_UnlockRotation", _DF_bUnlockRotation);
+		playerCharacter->GetGraphVariableBool("DF_UnlockRotationFull", _DF_bUnlockRotationFull);
+	} else {  // no dodge framework, old code
+		bool bWasDodging = _bIsDodging_Legacy;
+		playerCharacter->GetGraphVariableBool("TDM_Dodge", _bIsDodging_Legacy);
+		_bJustDodged_Legacy = !bWasDodging && _bIsDodging_Legacy;
+		if (_bJustDodged_Legacy && !playerCharacter->IsAnimationDriven()) {
+			_faceCrosshairTimer = 0.f;
+		}
 	}
 }
 
@@ -588,13 +598,13 @@ void DirectionalMovementHandler::UpdateMountedArchery()
 
 	bool bEnable = IsMountedArcheryPatchInstalled(playerCharacter);
 
-	if (g_SmoothCam) {
-		g_SmoothCam->EnableUnlockedHorseAim(bEnable);
+	if (APIs::SmoothCam) {
+		APIs::SmoothCam->EnableUnlockedHorseAim(bEnable);
 
 		bEnable = bEnable && GetCurrentlyMountedAiming();
 		if (bEnable) {
 			if (!_mountedArcheryRequestedSmoothCamCrosshair) {
-				auto result = g_SmoothCam->RequestCrosshairControl(SKSE::GetPluginHandle(), true);
+				auto result = APIs::SmoothCam->RequestCrosshairControl(SKSE::GetPluginHandle(), true);
 				if (result == SmoothCamAPI::APIResult::OK || result == SmoothCamAPI::APIResult::AlreadyGiven) {
 					_mountedArcheryRequestedSmoothCamCrosshair = true;
 				}
@@ -604,7 +614,7 @@ void DirectionalMovementHandler::UpdateMountedArchery()
 			if (_mountedArcheryRequestedSmoothCamCrosshair) {
 				_mountedArcheryRequestedSmoothCamCrosshair = false;
 				if (!_targetLockRequestedSmoothCamCrosshair) {
-					g_SmoothCam->ReleaseCrosshairControl(SKSE::GetPluginHandle());
+					APIs::SmoothCam->ReleaseCrosshairControl(SKSE::GetPluginHandle());
 				}
 			}
 		}
@@ -638,6 +648,16 @@ void DirectionalMovementHandler::ProgressTimers()
 	}
 	if (_tutorialHintTimer > 0.f) {
 		_tutorialHintTimer -= realTimeDeltaTime;
+	}
+}
+
+void DirectionalMovementHandler::OnDodge()
+{
+	if (APIs::DodgeFramework) {
+		_faceCrosshairTimer = 0.f;
+		if (Is360Movement()) {
+			UpdateRotation(true);  // immediately rotate to desired direction on dodge, for responsiveness
+		}
 	}
 }
 
@@ -782,11 +802,6 @@ void DirectionalMovementHandler::UpdateCameraAutoRotation()
 	}
 }
 
-void DirectionalMovementHandler::ResetCameraRotationDelay()
-{
-	_cameraRotationDelayTimer = Settings::fCameraAutoAdjustDelay;
-}
-
 bool DirectionalMovementHandler::IsCrosshairVisible() const
 {
 	auto hud = RE::UI::GetSingleton()->GetMenu(RE::HUDMenu::MENU_NAME);
@@ -801,8 +816,8 @@ void DirectionalMovementHandler::HideCrosshair()
 	if (Settings::bTargetLockHideCrosshair) {
 		// Request control over crosshair from SmoothCam.
 		bool bCanControlCrosshair = false;
-		if (g_SmoothCam && !_targetLockRequestedSmoothCamCrosshair) {
-			auto result = g_SmoothCam->RequestCrosshairControl(SKSE::GetPluginHandle(), true);
+		if (APIs::SmoothCam && !_targetLockRequestedSmoothCamCrosshair) {
+			auto result = APIs::SmoothCam->RequestCrosshairControl(SKSE::GetPluginHandle(), true);
 			if (result == SmoothCamAPI::APIResult::OK || result == SmoothCamAPI::APIResult::AlreadyGiven) {
 				_targetLockRequestedSmoothCamCrosshair = true;
 				bCanControlCrosshair = true;
@@ -832,8 +847,8 @@ void DirectionalMovementHandler::ShowCrosshair()
 	if (_bCrosshairIsHidden) {
 		bool bCanControlCrosshair = false;
 		// Check if we have control over crosshair from SmoothCam
-		if (g_SmoothCam && _targetLockRequestedSmoothCamCrosshair) {
-			auto pluginHandle = g_SmoothCam->GetCrosshairOwner();
+		if (APIs::SmoothCam && _targetLockRequestedSmoothCamCrosshair) {
+			auto pluginHandle = APIs::SmoothCam->GetCrosshairOwner();
 			if (pluginHandle == SKSE::GetPluginHandle()) {
 				bCanControlCrosshair = true;
 			}
@@ -850,21 +865,16 @@ void DirectionalMovementHandler::ShowCrosshair()
 			}
 
 			// Release control over crosshair to SmoothCam.
-			if (g_SmoothCam && _targetLockRequestedSmoothCamCrosshair) {
+			if (APIs::SmoothCam && _targetLockRequestedSmoothCamCrosshair) {
 				_targetLockRequestedSmoothCamCrosshair = false;
 				if (!_mountedArcheryRequestedSmoothCamCrosshair) {
-					g_SmoothCam->ReleaseCrosshairControl(SKSE::GetPluginHandle());
+					APIs::SmoothCam->ReleaseCrosshairControl(SKSE::GetPluginHandle());
 				}
 			}
 		}
 
 		_bCrosshairIsHidden = false;
 	}
-}
-
-bool DirectionalMovementHandler::IsAiming() const
-{
-	return _bIsAiming;
 }
 
 void DirectionalMovementHandler::SetIsAiming(bool a_bIsAiming)
@@ -895,8 +905,7 @@ bool DirectionalMovementHandler::ProcessInput(RE::NiPoint2& a_inputDirection, RE
 	}
 
 	// Skip if player is AI driven
-	auto& movementController = playerCharacter->GetActorRuntimeData().movementController;
-	if (movementController && !movementController->unk1C5) {
+	if (IsPlayerAIDriven()) {
 		ResetDesiredAngle();
 		return false;
 	}
@@ -950,7 +959,7 @@ bool DirectionalMovementHandler::ProcessInput(RE::NiPoint2& a_inputDirection, RE
 		return true;
 	}
 
-	if (HasTargetLocked() && _bIsDodging) {
+	if (HasTargetLocked() && (HasDodgeRotationLock())) {
 		// don't rotate when dodging in target lock
 		a_playerControlsData->prevMoveVec = a_playerControlsData->moveInputVec;
 		a_playerControlsData->moveInputVec = a_inputDirection;
@@ -959,7 +968,7 @@ bool DirectionalMovementHandler::ProcessInput(RE::NiPoint2& a_inputDirection, RE
 
 	bool bWantsToSprint = playerCharacter->GetPlayerRuntimeData().playerFlags.isSprinting;
 
-	if ((HasTargetLocked() && !bWantsToSprint) || _bMagnetismActive || (Settings::uDialogueMode == DialogueMode::kFaceSpeaker && _dialogueSpeaker)) {
+	if ((HasTargetLocked() && !bWantsToSprint) || IsMagnetismActive() || (Settings::uDialogueMode == DialogueMode::kFaceSpeaker && _dialogueSpeaker)) {
 		a_playerControlsData->prevMoveVec = a_playerControlsData->moveInputVec;
 		a_playerControlsData->moveInputVec = cameraRelativeInputDirection;
 
@@ -978,7 +987,7 @@ bool DirectionalMovementHandler::ProcessInput(RE::NiPoint2& a_inputDirection, RE
 		}
 	}
 
-	bool bShouldStop = Settings::bStopOnDirectionChange && RE::BSTimer::GetCurrentGlobalTimeMult() == 1;
+	bool bShouldStop = Settings::bStopOnDirectionChange && RE::BSTimer::QGlobalTimeMultiplier() == 1;
 
 	a_playerControlsData->prevMoveVec = a_playerControlsData->moveInputVec;
 	a_playerControlsData->moveInputVec.x = 0.f;
@@ -1067,12 +1076,12 @@ void DirectionalMovementHandler::UpdateRotation(bool bForceInstant /*= false */)
 
 	float angleDelta = NormalRelativeAngle(_desiredAngle - playerCharacter->data.angle.z);
 
-	bool bInstantRotation = bForceInstant || (_bShouldFaceCrosshair && Settings::bFaceCrosshairInstantly) || (_bShouldFaceCrosshair && !_bCurrentlyTurningToCrosshair) || (_bJustDodged && !playerCharacter->IsAnimationDriven()) || (_bYawControlledByPlugin && _controlledYawRotationSpeedMultiplier <= 0.f);
+	bool bInstantRotation = bForceInstant || (_bShouldFaceCrosshair && Settings::bFaceCrosshairInstantly) || (_bShouldFaceCrosshair && !_bCurrentlyTurningToCrosshair) || (_bJustDodged_Legacy && !playerCharacter->IsAnimationDriven()) || (_bYawControlledByPlugin && _controlledYawRotationSpeedMultiplier <= 0.f);
 
 	const float playerDeltaTime = GetPlayerDeltaTime();
 
 	if (!bInstantRotation) {
-		if (IsPlayerAnimationDriven() || _bIsDodging || IsTDMRotationLocked()) {
+		if (IsPlayerAnimationDriven() || HasDodgeRotationLock() || IsTDMRotationLocked()) {
 			ResetDesiredAngle();
 			return;
 		}
@@ -1144,7 +1153,9 @@ void DirectionalMovementHandler::UpdateRotation(bool bForceInstant /*= false */)
 				rotationSpeedMult *= Settings::fRunningRotationSpeedMult;
 			}
 
-			
+			if (_DF_bIsDodging && _DF_bUnlockRotation && !_DF_bUnlockRotationFull) {
+				rotationSpeedMult *= Settings::fDodgeUnlockedRotationSpeedMult;
+			}
 
 			// multiply it by water speed mult
 			float submergeLevel = TESObjectREFR_GetSubmergeLevel(playerCharacter, playerCharacter->data.location.z, playerCharacter->parentCell);
@@ -1159,7 +1170,7 @@ void DirectionalMovementHandler::UpdateRotation(bool bForceInstant /*= false */)
 
 		// multiply rotation speed by the inverse of slow time multiplier to effectively ignore it
 		if (Settings::bIgnoreSlowTime) {
-			float gtm = RE::BSTimer::GetCurrentGlobalTimeMult();
+			float gtm = RE::BSTimer::QGlobalTimeMultiplier();
 			rotationSpeedMult /= gtm;
 		}
 
@@ -1174,7 +1185,7 @@ void DirectionalMovementHandler::UpdateRotation(bool bForceInstant /*= false */)
 	float aiProcessRotationSpeed = angleDelta * (1 / playerDeltaTime);
 	SetDesiredAIProcessRotationSpeed(aiProcessRotationSpeed);
 	
-	playerCharacter->SetRotationZ(playerCharacter->data.angle.z + angleDelta);
+	playerCharacter->SetHeading(playerCharacter->data.angle.z + angleDelta);
 
 	thirdPersonState->freeRotation.x = NormalRelativeAngle(thirdPersonState->freeRotation.x - angleDelta);
 
@@ -1231,13 +1242,13 @@ void DirectionalMovementHandler::UpdateRotationLockedCam()
 	const float realTimeDeltaTime = GetRealTimeDeltaTime();
 
 	float desiredCharacterYaw = currentCharacterYaw + angleDelta;
-	playerCharacter->SetRotationZ(InterpAngleTo(currentCharacterYaw, desiredCharacterYaw, realTimeDeltaTime, Settings::fTargetLockYawAdjustSpeed));
+	playerCharacter->SetHeading(InterpAngleTo(currentCharacterYaw, desiredCharacterYaw, realTimeDeltaTime, Settings::fTargetLockYawAdjustSpeed));
 
 	// pitch
 	RE::NiPoint3 playerAngle = ToOrientationRotation(playerDirectionToTarget);
 	float desiredPlayerPitch = -playerAngle.x;
 
-	playerCharacter->SetRotationX(InterpAngleTo(currentCharacterPitch, desiredPlayerPitch, realTimeDeltaTime, Settings::fTargetLockPitchAdjustSpeed));
+	playerCharacter->SetLooking(InterpAngleTo(currentCharacterPitch, desiredPlayerPitch, realTimeDeltaTime, Settings::fTargetLockPitchAdjustSpeed));
 }
 
 void DirectionalMovementHandler::UpdateTweeningState()
@@ -1285,14 +1296,18 @@ bool DirectionalMovementHandler::IsImprovedCameraInstalled() const
 	return false;
 }
 
-bool DirectionalMovementHandler::IsFreeCamera() const
+TDM_API::DirectionalMovementMode DirectionalMovementHandler::GetDirectionalMovementMode() const
 {
-	return _bDirectionalMovement;
-}
-
-bool DirectionalMovementHandler::Is360Movement() const
-{
-	return _bDirectionalMovement && !_bShouldFaceCrosshair && !_bCurrentlyTurningToCrosshair;
+	if (IsFreeCamera()) {
+		if (Is360Movement()) {
+			if (HasTargetLocked()) {
+				return TDM_API::DirectionalMovementMode::kTargetLock;
+			}
+			return TDM_API::DirectionalMovementMode::kDirectional;
+		}
+		return TDM_API::DirectionalMovementMode::kVanillaStyle;
+	}
+	return TDM_API::DirectionalMovementMode::kDisabled;
 }
 
 bool DirectionalMovementHandler::GetFreeCameraEnabled() const
@@ -1306,30 +1321,28 @@ bool DirectionalMovementHandler::GetFreeCameraEnabled() const
 	return false;
 }
 
-bool DirectionalMovementHandler::HasMovementInput() const
+bool DirectionalMovementHandler::IsPlayerAIDriven() const
 {
-	return _bHasMovementInput;
-}
+	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 
-bool DirectionalMovementHandler::IsDodging() const
-{
-	return _bIsDodging;
-}
+	auto& runtimeData = playerCharacter->GetPlayerRuntimeData();
+	if (/*runtimeData.playerFlags.aiControlledToPos || runtimeData.playerFlags.aiControlledFromPos || */runtimeData.playerFlags.aiControlledPackage) {
+		return true;
+	}
 
-bool DirectionalMovementHandler::IsMagnetismActive() const
-{
-	return _bMagnetismActive;
+	auto& movementController = playerCharacter->GetActorRuntimeData().movementController;
+	if (movementController && !movementController->playerControls) {
+		return true;
+	}
+
+	return false;
 }
 
 bool DirectionalMovementHandler::IsPlayerAnimationDriven() const
 {
 	// workaround for 'IsNPC' issue
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
-	if (playerCharacter)
-	{
-		return playerCharacter->IsAnimationDriven() && !_bCurrentlyTurningToCrosshair && !HasTargetLocked();
-	}
-	return false;
+	return playerCharacter->IsAnimationDriven() && !_bCurrentlyTurningToCrosshair && !HasTargetLocked();
 }
 
 bool DirectionalMovementHandler::IsTDMRotationLocked() const
@@ -1342,22 +1355,6 @@ bool DirectionalMovementHandler::IsTDMRotationLocked() const
 	}
 	
 	return false;
-}
-
-
-DirectionalMovementHandler::AttackState DirectionalMovementHandler::GetAttackState() const
-{
-	return _attackState;
-}
-
-void DirectionalMovementHandler::SetAttackState(DirectionalMovementHandler::AttackState a_state)
-{
-	_attackState = a_state;
-}
-
-bool DirectionalMovementHandler::IsCameraResetting() const
-{
-	return _bResetCamera;
 }
 
 void DirectionalMovementHandler::ResetCamera()
@@ -1373,26 +1370,6 @@ void DirectionalMovementHandler::ResetCamera()
 
 		_bResetCamera = true;
 	}
-}
-
-void DirectionalMovementHandler::ResetDesiredAngle()
-{
-	_desiredAngle = -1.f;
-}
-
-float DirectionalMovementHandler::GetYawDelta() const
-{
-	return _yawDelta;
-}
-
-void DirectionalMovementHandler::ResetYawDelta()
-{
-	_yawDelta = 0.f;
-}
-
-RE::NiPoint2 DirectionalMovementHandler::GetActualInputDirection() const
-{
-	return _actualInputDirection;
 }
 
 bool DirectionalMovementHandler::ToggleTargetLock(bool bEnable, bool bPressedManually /*= false */)
@@ -1754,8 +1731,8 @@ void DirectionalMovementHandler::SwitchTarget(Direction a_direction)
 	//RE::ActorHandle actor = GetClosestTarget(FindTargetsByDirection(a_direction), _target);
 
 	if (SwitchTargetPoint(a_direction)) {
-		if (g_trueHUD) {
-			g_trueHUD->SetTarget(SKSE::GetPluginHandle(), _target);
+		if (APIs::TrueHUD) {
+			APIs::TrueHUD->SetTarget(SKSE::GetPluginHandle(), _target);
 
 			if (Settings::bEnableTargetLockReticle) {
 				if (_target) {
@@ -2044,8 +2021,9 @@ bool DirectionalMovementHandler::SetDesiredAngleToMagnetismTarget()
 
 	RE::ATTACK_STATE_ENUM playerAttackState = playerCharacter->AsActorState()->GetAttackState();
 	bool bIsAttacking = playerAttackState > RE::ATTACK_STATE_ENUM::kNone && playerAttackState < RE::ATTACK_STATE_ENUM::kBowDraw;
+	bool bIsBlocking = Settings::bMagnetismWhileBlocking ? playerCharacter->IsBlocking() : false;
 
-	if (!bIsAttacking || _attackState > AttackState::kStart) {
+	if (!bIsBlocking && (!bIsAttacking || _attackState > AttackState::kStart)) {
 		_bMagnetismActive = false;
 		return false;
 	}
@@ -2056,7 +2034,7 @@ bool DirectionalMovementHandler::SetDesiredAngleToMagnetismTarget()
 		return false;
 	}
 
-	if (_bMagnetismActive) {
+	if (!bIsBlocking && IsMagnetismActive()) {
 		return true;
 	}
 
@@ -2107,16 +2085,6 @@ bool DirectionalMovementHandler::SetDesiredAngleToMagnetismTarget()
 	return false;
 }
 
-float DirectionalMovementHandler::GetCurrentSwimmingPitchOffset() const
-{
-	return _currentSwimmingPitchOffset;
-}
-
-void DirectionalMovementHandler::SetDesiredSwimmingPitchOffset(float a_value)
-{
-	_desiredSwimmingPitchOffset = a_value;
-}
-
 void DirectionalMovementHandler::SetTarget(RE::ActorHandle a_target)
 {
 	if (_target == a_target) {
@@ -2129,8 +2097,8 @@ void DirectionalMovementHandler::SetTarget(RE::ActorHandle a_target)
 
 	SetHeadtrackTarget(RE::HighProcessData::HEAD_TRACK_TYPE::kDialogue, nullptr);
 
-	if (g_trueHUD) {
-		g_trueHUD->SetTarget(SKSE::GetPluginHandle(), a_target);
+	if (APIs::TrueHUD) {
+		APIs::TrueHUD->SetTarget(SKSE::GetPluginHandle(), a_target);
 
 		if (Settings::bEnableTargetLockReticle) {
 			if (a_target) {
@@ -2160,18 +2128,13 @@ void DirectionalMovementHandler::SetSoftTarget(RE::ActorHandle a_softTarget)
 
 	SetHeadtrackTarget(RE::HighProcessData::HEAD_TRACK_TYPE::kCombat, nullptr);
 
-	if (g_trueHUD) {
-		g_trueHUD->SetSoftTarget(SKSE::GetPluginHandle(), _softTarget);
+	if (APIs::TrueHUD) {
+		APIs::TrueHUD->SetSoftTarget(SKSE::GetPluginHandle(), _softTarget);
 	}
 
 	if (Settings::bHeadtracking && !GetForceDisableHeadtracking() && Settings::bHeadtrackSoftTarget && _softTarget) {
 		SetHeadtrackTarget(RE::HighProcessData::HEAD_TRACK_TYPE::kCombat, a_softTarget.get().get());
 	}
-}
-
-void DirectionalMovementHandler::SetTargetPoint(RE::NiPointer<RE::NiAVObject> a_targetPoint)
-{
-	_currentTargetPoint = a_targetPoint;
 }
 
 RE::NiAVObject* DirectionalMovementHandler::GetProjectileTargetPoint(RE::ObjectRefHandle a_projectileHandle) const
@@ -2203,7 +2166,7 @@ void DirectionalMovementHandler::AddTargetLockReticle(RE::ActorHandle a_target, 
 	auto widget = std::make_shared<Scaleform::TargetLockReticle>(a_target.native_handle(), a_target, a_targetPoint, reticleStyle);
 	_targetLockReticle = widget;
 
-	g_trueHUD->AddWidget(SKSE::GetPluginHandle(), 'LOCK', 0, "TDM_TargetLockReticle", widget);
+	APIs::TrueHUD->AddWidget(SKSE::GetPluginHandle(), 'LOCK', 0, "TDM_TargetLockReticle", widget);
 }
 
 void DirectionalMovementHandler::ReticleRemoved()
@@ -2213,7 +2176,7 @@ void DirectionalMovementHandler::ReticleRemoved()
 
 void DirectionalMovementHandler::RemoveTargetLockReticle()
 {
-	g_trueHUD->RemoveWidget(SKSE::GetPluginHandle(), 'LOCK', 0, TRUEHUD_API::WidgetRemovalMode::Normal);
+	APIs::TrueHUD->RemoveWidget(SKSE::GetPluginHandle(), 'LOCK', 0, TRUEHUD_API::WidgetRemovalMode::Normal);
 }
 
 void DirectionalMovementHandler::SetHeadtrackTarget(RE::HighProcessData::HEAD_TRACK_TYPE a_headtrackType, RE::TESObjectREFR* a_target)
@@ -2273,12 +2236,6 @@ void DirectionalMovementHandler::UpdateCameraHeadtracking()
 	playerCharacter->GetActorRuntimeData().currentProcess->SetHeadtrackTarget(playerCharacter, targetPos);
 }
 
-
-void DirectionalMovementHandler::SetPreviousHorseAimAngle(float a_angle)
-{
-	_previousHorseAimAngle = a_angle;
-}
-
 void DirectionalMovementHandler::SetCurrentHorseAimAngle(float a_angle)
 {
 	_horseAimAngle = NormalRelativeAngle(a_angle);
@@ -2288,16 +2245,6 @@ void DirectionalMovementHandler::SetCurrentHorseAimAngle(float a_angle)
 		playerCharacter->SetGraphVariableFloat("TDM_HorseAimTurn_Angle", _horseAimAngle);
 		playerCharacter->SetGraphVariableFloat("TDM_HorseAimTurn_Angle_Absolute", absoluteAimAngle);
 	}
-}
-
-bool DirectionalMovementHandler::GetCurrentlyMountedAiming() const
-{
-	return _currentlyMountedAiming;
-}
-
-void DirectionalMovementHandler::SetCurrentlyMountedAiming(bool a_aiming)
-{
-	_currentlyMountedAiming = a_aiming;
 }
 
 void DirectionalMovementHandler::UpdateHorseAimDirection()
@@ -2392,11 +2339,6 @@ void DirectionalMovementHandler::SetNewHorseAimDirection(float a_angle)
 	}
 }
 
-float DirectionalMovementHandler::GetCurrentHorseAimAngle() const
-{
-	return _horseAimAngle;
-}
-
 void DirectionalMovementHandler::SetLastInputDirection(RE::NiPoint2& a_inputDirection)
 {
 	static constexpr RE::NiPoint2 zeroVector{ 0.f, 0.f };
@@ -2409,11 +2351,6 @@ void DirectionalMovementHandler::SetLastInputDirection(RE::NiPoint2& a_inputDire
 			_lastInputs.pop_back();
 		}
 	}
-}
-
-bool DirectionalMovementHandler::CheckInputDot(float a_dot) const
-{
-	return a_dot < _analogBounceDotThreshold;
 }
 
 bool DirectionalMovementHandler::DetectInputAnalogStickBounce() const
@@ -2436,11 +2373,6 @@ bool DirectionalMovementHandler::DetectInputAnalogStickBounce() const
 	} while (it != _lastInputs.end() - 1);
 
 	return false;
-}
-
-void DirectionalMovementHandler::SetCameraStateBeforeTween(RE::CameraStates::CameraState a_cameraState)
-{
-	_cameraStateBeforeTween = a_cameraState;
 }
 
 RE::NiPoint3 DirectionalMovementHandler::GetCameraRotation()
@@ -2584,41 +2516,6 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	}
 }
 
-bool DirectionalMovementHandler::ShouldFaceTarget() const
-{
-	return _bShouldFaceTarget;
-}
-
-bool DirectionalMovementHandler::ShouldFaceCrosshair() const
-{
-	return _bShouldFaceCrosshair;
-}
-
-bool DirectionalMovementHandler::HasTargetLocked() const
-{
-	return static_cast<bool>(_target);
-}
-
-float DirectionalMovementHandler::GetDialogueHeadtrackTimer() const
-{
-	return _dialogueHeadtrackTimer;
-}
-
-void DirectionalMovementHandler::RefreshDialogueHeadtrackTimer()
-{
-	_dialogueHeadtrackTimer = Settings::fDialogueHeadtrackingDuration;
-}
-
-float DirectionalMovementHandler::GetCameraHeadtrackTimer() const
-{
-	return _cameraHeadtrackTimer;
-}
-
-void DirectionalMovementHandler::RefreshCameraHeadtrackTimer()
-{
-	_cameraHeadtrackTimer = Settings::fCameraHeadtrackingDuration;
-}
-
 void DirectionalMovementHandler::UpdateAIProcessRotationSpeed(RE::Actor* a_actor)
 {
 	if (a_actor) {
@@ -2630,40 +2527,15 @@ void DirectionalMovementHandler::UpdateAIProcessRotationSpeed(RE::Actor* a_actor
 	SetDesiredAIProcessRotationSpeed(0.f);
 }
 
-void DirectionalMovementHandler::SetDesiredAIProcessRotationSpeed(float a_rotationSpeed)
-{
-	_desiredAIProcessRotationSpeed = a_rotationSpeed;
-}
-
-// for testing purposes
-//static float fCurrentSpecial = 100.f;
-//float GetCurrentSpecial([[maybe_unused]] RE::Actor* a_actor)
-//{
-//	while (fCurrentSpecial < -50.f) {
-//		fCurrentSpecial += 200.f;
-//	}
-//	fCurrentSpecial -= *g_deltaTime * 25.f;
-//	
-//	return fCurrentSpecial;
-//}
-//
-//float GetMaxSpecial([[maybe_unused]] RE::Actor* a_actor)
-//{
-//	return 100.f;
-//}
-
 void DirectionalMovementHandler::Initialize()
 {
-	if (g_trueHUD) {
-		if (g_trueHUD->RequestTargetControl(SKSE::GetPluginHandle()) != TRUEHUD_API::APIResult::AlreadyTaken) {
+	if (APIs::TrueHUD) {
+		if (APIs::TrueHUD->RequestTargetControl(SKSE::GetPluginHandle()) != TRUEHUD_API::APIResult::AlreadyTaken) {
 			_bControlsTrueHUDTarget = true;
 		}
-		/*if (g_trueHUD->RequestSpecialResourceBarsControl(SKSE::GetPluginHandle()) == TRUEHUD_API::APIResult::OK) {
-			g_trueHUD->RegisterSpecialResourceFunctions(SKSE::GetPluginHandle(), GetCurrentSpecial, GetMaxSpecial, true);
-		}*/
-		g_trueHUD->LoadCustomWidgets(SKSE::GetPluginHandle(), "TrueDirectionalMovement/TDM_Widgets.swf"sv, [](TRUEHUD_API::APIResult a_apiResult) {
+		APIs::TrueHUD->LoadCustomWidgets(SKSE::GetPluginHandle(), "TrueDirectionalMovement/TDM_Widgets.swf"sv, [](TRUEHUD_API::APIResult a_apiResult) {
 			if (a_apiResult == TRUEHUD_API::APIResult::OK) {
-				DirectionalMovementHandler::GetSingleton()->g_trueHUD->RegisterNewWidgetType(SKSE::GetPluginHandle(), 'LOCK');
+				APIs::TrueHUD->RegisterNewWidgetType(SKSE::GetPluginHandle(), 'LOCK');
 			}
 		});
 	}
@@ -2674,7 +2546,11 @@ void DirectionalMovementHandler::OnPreLoadGame()
 	ResetControls();
 	ResetDesiredAngle();
 	ToggleTargetLock(false);
-	_bIsDodging = false;
+	_DF_bIsDodging = false;
+	_DF_bUnlockRotation = false;
+	_DF_bUnlockRotationFull = false;
+	_bIsDodging_Legacy = false;
+	_bJustDodged_Legacy = false;
 	_attackState = AttackState::kNone;
 	_target = RE::ActorHandle();
 	_softTarget = RE::ActorHandle();
@@ -2802,16 +2678,6 @@ bool DirectionalMovementHandler::IsMountedArcheryPatchInstalled(RE::TESObjectREF
 	return a_ref->GetGraphVariableBool("360HorseGen", bOut);
 }
 
-bool DirectionalMovementHandler::GetPlayerIsNPC() const
-{
-	return _playerIsNPC;
-}
-
-void DirectionalMovementHandler::SetPlayerIsNPC(bool a_enable)
-{
-	_playerIsNPC = a_enable;
-}
-
 void DirectionalMovementHandler::UpdatePlayerPitch()
 {
 	if (_bUpdatePlayerPitch)
@@ -2828,71 +2694,6 @@ void DirectionalMovementHandler::UpdatePlayerPitch()
 	}
 }
 
-void DirectionalMovementHandler::RegisterSmoothCamCallback()
-{
-	if (!SmoothCamAPI::RegisterInterfaceLoaderCallback(SKSE::GetMessagingInterface(),
-			[](void* interfaceInstance, SmoothCamAPI::InterfaceVersion interfaceVersion) {
-				if (interfaceVersion == SmoothCamAPI::InterfaceVersion::V3) {
-					DirectionalMovementHandler::GetSingleton()->g_SmoothCam = reinterpret_cast<SmoothCamAPI::IVSmoothCam3*>(interfaceInstance);
-					logger::info("Obtained SmoothCamAPI");
-					bRegisteredSmoothCamCallback = true;
-				} else {
-					logger::error("Unable to acquire requested SmoothCamAPI interface version");
-				}
-			})) {
-		logger::warn("SmoothCamAPI::RegisterInterfaceLoaderCallback reported an error");
-	}
-}
-
-void DirectionalMovementHandler::RequestAPIs()
-{
-	if (!g_SmoothCam) {
-		if (!bRegisteredSmoothCamCallback) {
-			RegisterSmoothCamCallback();
-		}
-
-		if (!SmoothCamAPI::RequestInterface(
-			SKSE::GetMessagingInterface(),
-			SmoothCamAPI::InterfaceVersion::V3)) {
-			logger::warn("SmoothCamAPI::RequestInterface reported an error");
-		}
-	}
-
-	if (!g_trueHUD) {
-		DirectionalMovementHandler::GetSingleton()->g_trueHUD = reinterpret_cast<TRUEHUD_API::IVTrueHUD3*>(TRUEHUD_API::RequestPluginAPI(TRUEHUD_API::InterfaceVersion::V3));
-		if (DirectionalMovementHandler::GetSingleton()->g_trueHUD) {
-			logger::info("Obtained TrueHUD API - {0:x}", (uintptr_t)DirectionalMovementHandler::GetSingleton()->g_trueHUD);
-		} else {
-			logger::warn("Failed to obtain TrueHUD API");
-		}
-	}	
-}
-
-bool DirectionalMovementHandler::GetForceDisableDirectionalMovement() const
-{
-	return _bForceDisableDirectionalMovement || !_papyrusDisableDirectionalMovement.empty();
-}
-
-bool DirectionalMovementHandler::GetForceDisableHeadtracking() const
-{
-	return _bForceDisableHeadtracking || !_papyrusDisableHeadtracking.empty();
-}
-
-bool DirectionalMovementHandler::GetYawControl() const
-{
-	return _bYawControlledByPlugin;
-}
-
-void DirectionalMovementHandler::SetForceDisableDirectionalMovement(bool a_disable)
-{
-	_bForceDisableDirectionalMovement = a_disable;
-}
-
-void DirectionalMovementHandler::SetForceDisableHeadtracking(bool a_disable)
-{
-	_bForceDisableHeadtracking = a_disable;
-}
-
 void DirectionalMovementHandler::SetYawControl(bool a_enable, float a_yawRotationSpeedMultiplier /*= 0*/)
 {
 	_bYawControlledByPlugin = a_enable;
@@ -2900,11 +2701,6 @@ void DirectionalMovementHandler::SetYawControl(bool a_enable, float a_yawRotatio
 	if (a_enable) {
 		ResetDesiredAngle();
 	}
-}
-
-void DirectionalMovementHandler::SetPlayerYaw(float a_yaw)
-{
-	_desiredAngle = NormalAbsoluteAngle(a_yaw);
 }
 
 void DirectionalMovementHandler::PapyrusDisableDirectionalMovement(std::string_view a_modName, bool a_bDisable)

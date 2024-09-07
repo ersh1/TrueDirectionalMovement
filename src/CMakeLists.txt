@@ -17,13 +17,16 @@ set(SOURCE_FILES
 	"${SOURCE_DIR}/PCH.h"
 	"${SOURCE_DIR}/Settings.cpp"
 	"${SOURCE_DIR}/Settings.h"
-	"${SOURCE_DIR}/SmoothCamAPI.h"
 	"${SOURCE_DIR}/TrueDirectionalMovementAPI.h"
-	"${SOURCE_DIR}/TrueHUDAPI.h"
 	"${SOURCE_DIR}/Raycast.cpp"
 	"${SOURCE_DIR}/Raycast.h"
 	"${SOURCE_DIR}/Utils.cpp"
 	"${SOURCE_DIR}/Utils.h"
+	"${SOURCE_DIR}/API/APIManager.cpp"
+	"${SOURCE_DIR}/API/APIManager.h"
+	"${SOURCE_DIR}/API/DodgeFrameworkAPI.h"
+	"${SOURCE_DIR}/API/SmoothCamAPI.h"
+	"${SOURCE_DIR}/API/TrueHUDAPI.h"
 	"${SOURCE_DIR}/Widgets/TargetLockReticle.cpp"
 	"${SOURCE_DIR}/Widgets/TargetLockReticle.h"
 )
@@ -93,7 +96,57 @@ target_include_directories(
 		"${SOURCE_DIR}"
 )
 
-add_subdirectory("$ENV{CommonLibSSEPath_NG}" CommonLibSSE EXCLUDE_FROM_ALL)
+# dependency macros
+macro(find_dependency_path DEPENDENCY FILE)
+	# searches extern for dependencies and if not checks the environment variable
+	if(NOT ${DEPENDENCY} STREQUAL "")
+		# Check extern
+		message(
+			STATUS
+			"Searching for ${DEPENDENCY} using file ${FILE}"
+		)
+		find_path(PATH
+			${FILE}
+			PATHS
+			"../extern/${DEPENDENCY}"
+			"extern/${DEPENDENCY}"
+			"../external/${DEPENDENCY}"
+			"external/${DEPENDENCY}")
+
+		set("${DEPENDENCY}Path" "${PATH}")
+		message("${PATH}")
+		message("${DEPENDENCY}Path")
+		message("${${DEPENDENCY}Path}")
+		if("${${DEPENDENCY}Path}" STREQUAL "PATH-NOTFOUND")
+			# Check path
+			message(
+				STATUS
+				"Getting environment variable for ${DEPENDENCY}Path: $ENV{${DEPENDENCY}Path}"
+			)
+			set("${DEPENDENCY}Path" "$ENV{${DEPENDENCY}Path}")
+		endif()
+
+		if (NOT "${${DEPENDENCY}Path}" STREQUAL "")
+			message(
+				STATUS
+				"Found ${DEPENDENCY} in ${${DEPENDENCY}Path}; adding"
+			)
+			add_subdirectory("${${DEPENDENCY}Path}" ${DEPENDENCY})
+		endif()
+	endif()
+endmacro()
+
+# dependencies
+find_dependency_path(CommonLibSSE include/REL/Relocation.h)
+
+if(("${CommonLibSSEPath}" STREQUAL "CommonLibSSEPath-NOTFOUND") OR "${CommonLibSSEPath}" STREQUAL "")
+	# fallback to CommonLibSSEPath_NG from environment
+	message(
+		STATUS
+		"Found CommonLibSSE from CommonLibSSEPath_NG environment variable"
+	)
+	add_subdirectory("$ENV{CommonLibSSEPath_NG}" CommonLibSSE EXCLUDE_FROM_ALL)
+endif()
 
 find_package(tomlplusplus REQUIRED CONFIG)
 

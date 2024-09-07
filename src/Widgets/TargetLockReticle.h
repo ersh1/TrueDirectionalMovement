@@ -1,5 +1,5 @@
 #pragma once
-#include "TrueHUDAPI.h"
+#include "API/TrueHUDAPI.h"
 #include "Settings.h"
 
 namespace Scaleform
@@ -54,7 +54,7 @@ namespace Scaleform
 	private:
 		float _interpTimer = 0.f;
 		float _interpDuration = 0.f;
-		float _interpAlpha;
+		float _interpAlpha = 0.f;
 
 		RE::NiPoint2 _lastScreenPos;
 		RE::NiPoint2 _desiredScreenPos;

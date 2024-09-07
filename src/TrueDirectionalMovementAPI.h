@@ -16,7 +16,8 @@
 	enum class InterfaceVersion : uint8_t
 	{
 		V1,
-		V2
+		V2,
+		V3
 	};
 
 	// Error types that may be returned by the True Directional Movement API
@@ -45,6 +46,21 @@
 		BadThread,
 	};
 
+	enum class DirectionalMovementMode : uint8_t
+	{
+		// Directional movement is disabled, the movement is vanilla
+		kDisabled,
+
+		// Directional movement is enabled, but the player is facing the crosshair
+		kVanillaStyle,
+
+		// Directional movement is enabled, and the player is facing the direction of movement
+		kDirectional,
+		
+		// Directional movement is enabled, and the player has a target locked
+		kTargetLock
+	};
+
 	// True Directional Movement's modder interface
 	class IVTDM1
 	{
@@ -61,19 +77,19 @@
 		/// Get the current state (enabled / disabled) of directional movement.
 		/// </summary>
 		/// <returns>The current state (true / false) of directional movement</returns>
-		[[nodiscard]] virtual bool GetDirectionalMovementState() noexcept = 0;
+		[[nodiscard]] virtual bool GetDirectionalMovementState() const noexcept = 0;
 
 		/// <summary>
 		/// Get the current state (enabled / disabled) of target lock.
 		/// </summary>
 		/// <returns>The current state (true / false) of target lock</returns>
-		[[nodiscard]] virtual bool GetTargetLockState() noexcept = 0;
+		[[nodiscard]] virtual bool GetTargetLockState() const noexcept = 0;
 
 		/// <summary>
 		/// Get the actor handle of the currently locked target.
 		/// </summary>
 		/// <returns>The actor handle of the currently locked target</returns>
-		[[nodiscard]] virtual ActorHandle GetCurrentTarget() noexcept = 0;
+		[[nodiscard]] virtual ActorHandle GetCurrentTarget() const noexcept = 0;
 
 		/// <summary>
 		/// Request the plugin to forcibly disable directional movement.
@@ -146,6 +162,22 @@
 		virtual APIResult ReleaseYawControl(PluginHandle a_myPluginHandle) noexcept = 0;
 	};
 
+	class IVTDM3 : public IVTDM2
+	{
+	public:
+		/// <summary>
+		/// Get the current directional movement mode
+		/// </summary>
+		/// <returns>The current directional movement mode</returns>
+		[[nodiscard]] virtual DirectionalMovementMode GetDirectionalMovementMode() const noexcept = 0;
+
+		/// <summary>
+		/// Gets the original movement input vector, unaltered by TDM
+		/// </summary>
+		/// <returns>The original input vector</returns>
+		[[nodiscard]] virtual RE::NiPoint2 GetActualMovementInput() const noexcept = 0;
+	};
+
 	typedef void* (*_RequestPluginAPI)(const InterfaceVersion interfaceVersion);
 
 	/// <summary>
@@ -154,7 +186,7 @@
 	/// </summary>
 	/// <param name="a_interfaceVersion">The interface version to request</param>
 	/// <returns>The pointer to the API singleton, or nullptr if request failed</returns>
-	[[nodiscard]] inline void* RequestPluginAPI(const InterfaceVersion a_interfaceVersion = InterfaceVersion::V2)
+	[[nodiscard]] inline void* RequestPluginAPI(const InterfaceVersion a_interfaceVersion = InterfaceVersion::V3)
 	{
 		auto pluginHandle = GetModuleHandle("TrueDirectionalMovement.dll");
 		_RequestPluginAPI requestAPIFunction = (_RequestPluginAPI)GetProcAddress(pluginHandle, "RequestPluginAPI");

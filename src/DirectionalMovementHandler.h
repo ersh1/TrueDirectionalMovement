@@ -1,6 +1,6 @@
 #pragma once
-#include "SmoothCamAPI.h"
-#include "TrueHUDAPI.h"
+#include "Utils.h"
+#include "API/APIManager.h"
 #include "Widgets/TargetLockReticle.h"
 #include <unordered_set>
 
@@ -58,19 +58,21 @@ public:
 	void UpdateSwimmingPitchOffset();
 	void UpdateMountedArchery();
 	void ProgressTimers();
+
+	void OnDodge();
 	
 	void UpdateProjectileTargetMap();
 
 	void UpdateLeaning(RE::Actor* a_actor, float a_deltaTime);
 
 	void UpdateCameraAutoRotation();
-	void ResetCameraRotationDelay();
+	void ResetCameraRotationDelay() { _cameraRotationDelayTimer = Settings::fCameraAutoAdjustDelay; }
 
 	bool IsCrosshairVisible() const;
 	void HideCrosshair();
 	void ShowCrosshair();
 
-	bool IsAiming() const;
+	bool IsAiming() const { return _bIsAiming; }
 	void SetIsAiming(bool a_bIsAiming);
 
 	bool ProcessInput(RE::NiPoint2& a_inputDirection, RE::PlayerControlsData* a_playerControlsData);
@@ -79,35 +81,37 @@ public:
 	void UpdateRotationLockedCam();
 	void UpdateTweeningState();
 	void UpdateAIProcessRotationSpeed(RE::Actor* a_actor);
-	void SetDesiredAIProcessRotationSpeed(float a_rotationSpeed);
+	void SetDesiredAIProcessRotationSpeed(float a_rotationSpeed) { _desiredAIProcessRotationSpeed = a_rotationSpeed; }
 	
 	bool IFPV_IsFirstPerson() const;
 	bool ImprovedCamera_IsFirstPerson() const;
 	bool IsImprovedCameraInstalled() const;
 
-	bool IsFreeCamera() const;
-	bool Is360Movement() const;
+	TDM_API::DirectionalMovementMode GetDirectionalMovementMode() const;
+	bool IsFreeCamera() const { return _bDirectionalMovement; }
+	bool Is360Movement() const { return _bDirectionalMovement && !_bShouldFaceCrosshair && !_bCurrentlyTurningToCrosshair; }
 	bool GetFreeCameraEnabled() const;
-	bool HasMovementInput() const;	
+	bool HasMovementInput() const { return _bHasMovementInput; }
 
-	bool IsDodging() const;
-	bool IsMagnetismActive() const;
+	bool IsDodging() const { return _DF_bIsDodging || _bIsDodging_Legacy; }
+	bool IsMagnetismActive() const { return _bMagnetismActive; }
 
+	bool IsPlayerAIDriven() const;
 	bool IsPlayerAnimationDriven() const;
 	bool IsTDMRotationLocked() const;
 
-	AttackState GetAttackState() const;
-	void SetAttackState(AttackState a_state);
+	AttackState GetAttackState() const { return _attackState; }
+	void SetAttackState(AttackState a_state) { _attackState = a_state; }
 
-	bool IsCameraResetting() const;
+	bool IsCameraResetting() const { return _bResetCamera; }
 	void ResetCamera();
 
-	void ResetDesiredAngle();
+	void ResetDesiredAngle() { _desiredAngle = -1.f; }
 
-	float GetYawDelta() const;
-	void ResetYawDelta();
+	float GetYawDelta() const { return _yawDelta; }
+	void ResetYawDelta() { _yawDelta = 0.f; }
 
-	RE::NiPoint2 GetActualInputDirection() const;
+	RE::NiPoint2 GetActualInputDirection() const { return _actualInputDirection; }
 
 	enum class Direction
 	{
@@ -152,12 +156,12 @@ public:
 
 	bool SetDesiredAngleToMagnetismTarget();
 	
-	float GetCurrentSwimmingPitchOffset() const;
-	void SetDesiredSwimmingPitchOffset(float a_value);
+	float GetCurrentSwimmingPitchOffset() const { return _currentSwimmingPitchOffset; }
+	void SetDesiredSwimmingPitchOffset(float a_value) { _desiredSwimmingPitchOffset = a_value; }
 
 	void SetTarget(RE::ActorHandle a_target);
 	void SetSoftTarget(RE::ActorHandle a_softTarget);
-	void SetTargetPoint(RE::NiPointer<RE::NiAVObject> a_targetPoint);
+	void SetTargetPoint(RE::NiPointer<RE::NiAVObject> a_targetPoint) { _currentTargetPoint = a_targetPoint; }
 
 	RE::NiAVObject* GetProjectileTargetPoint(RE::ObjectRefHandle a_projectileHandle) const;
 	void AddProjectileTarget(RE::ObjectRefHandle a_projectileHandle, RE::NiPointer<RE::NiAVObject> a_targetPoint);
@@ -171,33 +175,33 @@ public:
 
 	void UpdateCameraHeadtracking();
 
-	void SetPreviousHorseAimAngle(float a_angle);
+	void SetPreviousHorseAimAngle(float a_angle) { _previousHorseAimAngle = a_angle; }
 	void SetCurrentHorseAimAngle(float a_angle);
-	bool GetCurrentlyMountedAiming() const;
-	void SetCurrentlyMountedAiming(bool a_aiming);
+	bool GetCurrentlyMountedAiming() const { return _currentlyMountedAiming; }
+	void SetCurrentlyMountedAiming(bool a_aiming) { _currentlyMountedAiming = a_aiming; }
 	void UpdateHorseAimDirection();
 	void SetNewHorseAimDirection(float a_angle);
-	float GetCurrentHorseAimAngle() const;
+	float GetCurrentHorseAimAngle() const { return _horseAimAngle; }
 
 	void SetLastInputDirection(RE::NiPoint2& a_inputDirection);
-	bool CheckInputDot(float a_dot) const;
+	bool CheckInputDot(float a_dot) const { return a_dot < _analogBounceDotThreshold; }
 	bool DetectInputAnalogStickBounce() const;
 
-	void SetCameraStateBeforeTween(RE::CameraStates::CameraState a_cameraState);
+	void SetCameraStateBeforeTween(RE::CameraStates::CameraState a_cameraState) { _cameraStateBeforeTween = a_cameraState; }
 
 	RE::NiPoint3 GetCameraRotation();
 
 	void LookAtTarget(RE::ActorHandle a_target);
 
-	bool ShouldFaceTarget() const;
-	bool ShouldFaceCrosshair() const;
+	bool ShouldFaceTarget() const { return _bShouldFaceTarget; }
+	bool ShouldFaceCrosshair() const { return _bShouldFaceCrosshair; }
 
-	bool HasTargetLocked() const;
+	bool HasTargetLocked() const { return static_cast<bool>(_target); }
 
-	float GetDialogueHeadtrackTimer() const;
-	void RefreshDialogueHeadtrackTimer();
-	float GetCameraHeadtrackTimer() const;
-	void RefreshCameraHeadtrackTimer();
+	float GetDialogueHeadtrackTimer() const { return _dialogueHeadtrackTimer; }
+	void RefreshDialogueHeadtrackTimer() { _dialogueHeadtrackTimer = Settings::fDialogueHeadtrackingDuration; }
+	float GetCameraHeadtrackTimer() const { return _cameraHeadtrackTimer; }
+	void RefreshCameraHeadtrackTimer() { _cameraHeadtrackTimer = Settings::fCameraHeadtrackingDuration; }
 
 	void Initialize();
 	void OnPreLoadGame();
@@ -209,32 +213,28 @@ public:
 	static bool IsBehaviorPatchInstalled(RE::TESObjectREFR* a_ref);
 	static bool IsMountedArcheryPatchInstalled(RE::TESObjectREFR* a_ref);
 
-	bool GetPlayerIsNPC() const;
-	void SetPlayerIsNPC(bool a_enable);
+	bool GetPlayerIsNPC() const { return _playerIsNPC; }
+	void SetPlayerIsNPC(bool a_enable) { _playerIsNPC = a_enable; }
 
 	void UpdatePlayerPitch();	
 
-	static void RegisterSmoothCamCallback();
-	static void RequestAPIs();
-
-	static inline bool bRegisteredSmoothCamCallback = false;
-	static inline SmoothCamAPI::IVSmoothCam3* g_SmoothCam = nullptr;
-	static inline TRUEHUD_API::IVTrueHUD3* g_trueHUD = nullptr;
 	std::atomic_bool _bReticleRemoved{ false };
 
-	bool GetForceDisableDirectionalMovement() const;
-	bool GetForceDisableHeadtracking() const;
-	bool GetYawControl() const;
-	void SetForceDisableDirectionalMovement(bool a_disable);
-	void SetForceDisableHeadtracking(bool a_disable);
+	bool GetForceDisableDirectionalMovement() const { return _bForceDisableDirectionalMovement || !_papyrusDisableDirectionalMovement.empty(); }
+	bool GetForceDisableHeadtracking() const { return _bForceDisableHeadtracking || !_papyrusDisableHeadtracking.empty(); }
+	bool GetYawControl() const { return _bYawControlledByPlugin; }
+	void SetForceDisableDirectionalMovement(bool a_disable) { _bForceDisableDirectionalMovement = a_disable; }
+	void SetForceDisableHeadtracking(bool a_disable) { _bForceDisableHeadtracking = a_disable; }
 	void SetYawControl(bool a_enable, float a_yawRotationSpeedMultiplier = 0);
-	void SetPlayerYaw(float a_yaw);
+	void SetPlayerYaw(float a_yaw) { _desiredAngle = NormalAbsoluteAngle(a_yaw); }
 
 	void PapyrusDisableDirectionalMovement(std::string_view a_modName, bool a_bDisable);
 	void PapyrusDisableHeadtracking(std::string_view a_modName, bool a_bDisable);
 
 	bool IsACCInstalled() const { return _bACCInstalled; }
 	bool IsICInstalled() const { return _bICInstalled; }
+
+	bool HasDodgeRotationLock() const { return (_DF_bIsDodging && (!_DF_bUnlockRotation || !_DF_bUnlockRotationFull)) || _bIsDodging_Legacy; }
 
 private:
 	using Lock = std::recursive_mutex;
@@ -289,6 +289,8 @@ private:
 	static constexpr size_t _inputBufferSize = 5;
 	std::deque<RE::NiPoint2> _lastInputs;
 
+	RE::NiPoint2 _unalteredInputVec;
+
 	float _lastTargetSwitchTimer = 0.f;
 	float _lastLOSTimer = 0.f;
 	float _dialogueHeadtrackTimer = 0.f;
@@ -316,8 +318,14 @@ private:
 	bool _playerIsNPC = false;
 
 	bool _bHasMovementInput = false;
-	bool _bIsDodging = false;
-	bool _bJustDodged = false;
+
+	bool _DF_bIsDodging = false;
+	bool _DF_bUnlockRotation = false;
+	bool _DF_bUnlockRotationFull = false;
+
+	bool _bIsDodging_Legacy = false;
+	bool _bJustDodged_Legacy = false;
+
 	AttackState _attackState;
 
 	bool _bForceDisableDirectionalMovement = false;

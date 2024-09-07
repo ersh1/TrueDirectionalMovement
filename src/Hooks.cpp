@@ -240,7 +240,7 @@ namespace Hooks
 			return;
 		}
 
-		a_this->ProcessRawInput(a_rawX, a_rawY, a_outX, a_outY);
+		a_this->NormalizeThumbstickValue(a_rawX, a_rawY, a_outX, a_outY);
 
 		RE::NiPoint2 normalizedInputDirection{ a_outX, a_outY };
 		float inputLength = normalizedInputDirection.Unitize();
@@ -458,7 +458,7 @@ namespace Hooks
 				if (savedCamera.rotationType == SaveCamera::RotationType::kThirdPerson) {
 					auto x = savedCamera.ConsumeYaw();
 					if (playerCharacter->AsActorState()->actorState1.sitSleepState == RE::SIT_SLEEP_STATE::kNormal) {  // don't do this while sitting, sleeping etc.
-						playerCharacter->SetRotationZ(x);
+						playerCharacter->SetHeading(x);
 					}
 				}
 				savedCamera.bZoomSaved = false;
@@ -1282,13 +1282,12 @@ namespace Hooks
 		}
 	}
 
-	static void ApplyYawDelta(RE::ActorState* a_actorState, RE::NiPoint3& a_angle)
+	static void ApplyYawDelta([[maybe_unused]] RE::ActorState* a_actorState, RE::NiPoint3& a_angle)
 	{
-		auto actor = SKSE::stl::adjust_pointer<RE::Actor>(a_actorState, -0xB8);
+		//auto actor = SKSE::stl::adjust_pointer<RE::Actor>(a_actorState, -0xB8);
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
-		auto& runtimeData = actor->GetActorRuntimeData();
 		
-		bool bIsAIDriven = runtimeData.movementController && !runtimeData.movementController->unk1C5;
+		bool bIsAIDriven = directionalMovementHandler->IsPlayerAIDriven();
 		if (!bIsAIDriven) {
 			a_angle.z -= DirectionalMovementHandler::GetSingleton()->GetYawDelta();
 		} else {
@@ -1418,12 +1417,13 @@ namespace Hooks
 
 	void Actor_SetRotationHook::Actor_SetRotationZ1(RE::Actor* a_this, float a_angle)
 	{
-		if (a_this->IsPlayerRef())
-		{
+		if (a_this->IsPlayerRef()) {
 			auto thirdPersonState = static_cast<RE::ThirdPersonState*>(RE::PlayerCamera::GetSingleton()->cameraStates[RE::CameraState::kThirdPerson].get());
 			if (RE::PlayerCamera::GetSingleton()->currentState.get() == thirdPersonState && thirdPersonState->freeRotationEnabled) {
-				float angleDelta = a_angle - a_this->data.angle.z;
-				thirdPersonState->freeRotation.x -= angleDelta;
+				if (!DirectionalMovementHandler::GetSingleton()->IsPlayerAIDriven()) {
+					float angleDelta = a_angle - a_this->data.angle.z;
+					thirdPersonState->freeRotation.x -= angleDelta;
+				}
 			}
 		}
 

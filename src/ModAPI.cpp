@@ -13,7 +13,7 @@ unsigned long Messaging::TDMInterface::GetTDMThreadId() const noexcept
 	return apiTID;
 }
 
-bool Messaging::TDMInterface::GetDirectionalMovementState() noexcept
+bool Messaging::TDMInterface::GetDirectionalMovementState() const noexcept
 {
 	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 	if (directionalMovementHandler) {
@@ -22,7 +22,7 @@ bool Messaging::TDMInterface::GetDirectionalMovementState() noexcept
 	return false;
 }
 
-bool Messaging::TDMInterface::GetTargetLockState() noexcept
+bool Messaging::TDMInterface::GetTargetLockState() const noexcept
 {
 	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 	if (directionalMovementHandler) {
@@ -31,7 +31,7 @@ bool Messaging::TDMInterface::GetTargetLockState() noexcept
 	return false;
 }
 
-RE::ActorHandle Messaging::TDMInterface::GetCurrentTarget() noexcept
+RE::ActorHandle Messaging::TDMInterface::GetCurrentTarget() const noexcept
 {
 	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 	if (directionalMovementHandler) {
@@ -172,6 +172,18 @@ Messaging::APIResult Messaging::TDMInterface::ReleaseYawControl(SKSE::PluginHand
 	}
 
 	return APIResult::OK;
+}
+
+TDM_API::DirectionalMovementMode Messaging::TDMInterface::GetDirectionalMovementMode() const noexcept
+{
+	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+	return static_cast<TDM_API::DirectionalMovementMode>(directionalMovementHandler->GetDirectionalMovementMode());
+}
+
+RE::NiPoint2 Messaging::TDMInterface::GetActualMovementInput() const noexcept
+{
+	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+	return directionalMovementHandler->GetActualInputDirection();
 }
 
 void Messaging::TDMInterface::SetNeedsDirectionalMovementControl(bool a_needsControl) noexcept
