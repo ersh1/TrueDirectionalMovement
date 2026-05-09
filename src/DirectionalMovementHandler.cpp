@@ -10,6 +10,28 @@
 constexpr auto werewolfFormID = 0xCDD84;
 constexpr auto vampireLordFormID = 0x200283A;
 
+namespace GraphVarNames
+{
+	static const RE::BSFixedString IsNPC{ "IsNPC"sv };
+	static const RE::BSFixedString bParaGliding{ "bParaGliding"sv };
+	static const RE::BSFixedString iState{ "iState"sv };
+	static const RE::BSFixedString DF_IsDodging{ "DF_IsDodging"sv };
+	static const RE::BSFixedString DF_UnlockRotation{ "DF_UnlockRotation"sv };
+	static const RE::BSFixedString DF_UnlockRotationFull{ "DF_UnlockRotationFull"sv };
+	static const RE::BSFixedString TDM_Dodge{ "TDM_Dodge"sv };
+	static const RE::BSFixedString TDM_VelocityX{ "TDM_VelocityX"sv };
+	static const RE::BSFixedString TDM_VelocityY{ "TDM_VelocityY"sv };
+	static const RE::BSFixedString TDM_Pitch{ "TDM_Pitch"sv };
+	static const RE::BSFixedString TDM_Roll{ "TDM_Roll"sv };
+	static const RE::BSFixedString TDM_SpineTurn{ "TDM_SpineTurn"sv };
+	static const RE::BSFixedString TDM_LockRotation{ "TDM_LockRotation"sv };
+	static const RE::BSFixedString TDM_TargetLock{ "TDM_TargetLock"sv };
+	static const RE::BSFixedString TDM_HorseAimTurn_Angle{ "TDM_HorseAimTurn_Angle"sv };
+	static const RE::BSFixedString TDM_HorseAimTurn_Angle_Absolute{ "TDM_HorseAimTurn_Angle_Absolute"sv };
+	static const RE::BSFixedString tdmHeadtrackingSKSE{ "tdmHeadtrackingSKSE"sv };
+	static const RE::BSFixedString HorseGen360{ "360HorseGen"sv };
+}
+
 DirectionalMovementHandler* DirectionalMovementHandler::GetSingleton()
 {
 	static DirectionalMovementHandler singleton;
@@ -231,7 +253,7 @@ void DirectionalMovementHandler::Update()
 				// disable headtracking while not in third person
 				playerCharacter->AsActorState()->actorState2.headTracking = false;
 				if (!IsBehaviorPatchInstalled(playerCharacter) && !RE::UI::GetSingleton()->IsMenuOpen(RE::RaceSexMenu::MENU_NAME)) {
-					playerCharacter->SetGraphVariableBool("IsNPC", false);
+					playerCharacter->SetGraphVariableBool(GraphVarNames::IsNPC, false);
 				}
 			}
 		}
@@ -284,7 +306,7 @@ void DirectionalMovementHandler::Update()
 				_defaultAcrobatics = playerController->acrobatics;
 			}
 			bool bGliding = false;
-			playerCharacter->GetGraphVariableBool("bParaGliding", bGliding);
+			playerCharacter->GetGraphVariableBool(GraphVarNames::bParaGliding, bGliding);
 			playerController->acrobatics = bGliding ? Settings::fAcrobaticsGliding : Settings::fAcrobatics;
 		}
 	}
@@ -423,7 +445,7 @@ void DirectionalMovementHandler::UpdateFacingState()
 
 	// face crosshair if we're using a staff. Thanks NickNak for the iState writeup!
 	int iState = 0;
-	playerCharacter->GetGraphVariableInt("iState", iState);
+	playerCharacter->GetGraphVariableInt(GraphVarNames::iState, iState);
 
 	auto rightHand = playerCharacter->GetEquippedObject(false);
 	if (rightHand) {
@@ -561,12 +583,12 @@ void DirectionalMovementHandler::UpdateDodgingState()
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 
 	if (APIs::DodgeFramework) {
-		playerCharacter->GetGraphVariableBool("DF_IsDodging", _DF_bIsDodging);
-		playerCharacter->GetGraphVariableBool("DF_UnlockRotation", _DF_bUnlockRotation);
-		playerCharacter->GetGraphVariableBool("DF_UnlockRotationFull", _DF_bUnlockRotationFull);
+		playerCharacter->GetGraphVariableBool(GraphVarNames::DF_IsDodging, _DF_bIsDodging);
+		playerCharacter->GetGraphVariableBool(GraphVarNames::DF_UnlockRotation, _DF_bUnlockRotation);
+		playerCharacter->GetGraphVariableBool(GraphVarNames::DF_UnlockRotationFull, _DF_bUnlockRotationFull);
 	} else {  // no dodge framework, old code
 		bool bWasDodging = _bIsDodging_Legacy;
-		playerCharacter->GetGraphVariableBool("TDM_Dodge", _bIsDodging_Legacy);
+		playerCharacter->GetGraphVariableBool(GraphVarNames::TDM_Dodge, _bIsDodging_Legacy);
 		_bJustDodged_Legacy = !bWasDodging && _bIsDodging_Legacy;
 		if (_bJustDodged_Legacy && !playerCharacter->IsAnimationDriven()) {
 			_faceCrosshairTimer = 0.f;
@@ -699,11 +721,11 @@ void DirectionalMovementHandler::UpdateLeaning(RE::Actor* a_actor, [[maybe_unuse
 	}
 
 	RE::NiPoint3 previousVelocity;
-	bool bFound = a_actor->GetGraphVariableFloat("TDM_VelocityX", previousVelocity.x);
+	bool bFound = a_actor->GetGraphVariableFloat(GraphVarNames::TDM_VelocityX, previousVelocity.x);
 	if (!bFound) {
 		return;
 	}
-	a_actor->GetGraphVariableFloat("TDM_VelocityY", previousVelocity.y);
+	a_actor->GetGraphVariableFloat(GraphVarNames::TDM_VelocityY, previousVelocity.y);
 
 	float desiredPitch = 0.f;
 	float desiredRoll = 0.f;
@@ -718,8 +740,8 @@ void DirectionalMovementHandler::UpdateLeaning(RE::Actor* a_actor, [[maybe_unuse
 
 		worldVelocity *= characterController->speedPct * Settings::fLeaningMult;
 
-		a_actor->SetGraphVariableFloat("TDM_VelocityX", worldVelocity.x);
-		a_actor->SetGraphVariableFloat("TDM_VelocityY", worldVelocity.y);
+		a_actor->SetGraphVariableFloat(GraphVarNames::TDM_VelocityX, worldVelocity.x);
+		a_actor->SetGraphVariableFloat(GraphVarNames::TDM_VelocityY, worldVelocity.y);
 
 		// calculate acceleration
 		RE::NiPoint3 worldAcceleration = RE::NiPoint3::Zero();
@@ -747,17 +769,17 @@ void DirectionalMovementHandler::UpdateLeaning(RE::Actor* a_actor, [[maybe_unuse
 	}
 
 	float pitch, roll;
-	a_actor->GetGraphVariableFloat("TDM_Pitch", pitch);
-	a_actor->GetGraphVariableFloat("TDM_Roll", roll);
+	a_actor->GetGraphVariableFloat(GraphVarNames::TDM_Pitch, pitch);
+	a_actor->GetGraphVariableFloat(GraphVarNames::TDM_Roll, roll);
 
 	// interpolate
 	roll = InterpTo(roll, desiredRoll, playerDeltaTime, Settings::fLeaningSpeed);
 	pitch = InterpTo(pitch, desiredPitch, playerDeltaTime, Settings::fLeaningSpeed);
 
 	// update angles
-	a_actor->SetGraphVariableFloat("TDM_Pitch", pitch);
-	a_actor->SetGraphVariableFloat("TDM_Roll", roll);
-	a_actor->SetGraphVariableFloat("TDM_SpineTurn", roll);
+	a_actor->SetGraphVariableFloat(GraphVarNames::TDM_Pitch, pitch);
+	a_actor->SetGraphVariableFloat(GraphVarNames::TDM_Roll, roll);
+	a_actor->SetGraphVariableFloat(GraphVarNames::TDM_SpineTurn, roll);
 }
 
 void DirectionalMovementHandler::UpdateCameraAutoRotation()
@@ -1020,7 +1042,7 @@ void DirectionalMovementHandler::SetDesiredAngleToTarget(RE::PlayerCharacter* a_
 	}
 
 	bool bIsDodging = false;
-	a_playerCharacter->GetGraphVariableBool("TDM_Dodge", bIsDodging);
+	a_playerCharacter->GetGraphVariableBool(GraphVarNames::TDM_Dodge, bIsDodging);
 	if (a_playerCharacter->GetPlayerRuntimeData().playerFlags.isSprinting || bIsDodging) {
 		return;
 	}
@@ -1131,7 +1153,7 @@ void DirectionalMovementHandler::UpdateRotation(bool bForceInstant /*= false */)
 			bool bIsAttacking = playerAttackState > RE::ATTACK_STATE_ENUM::kNone && playerAttackState < RE::ATTACK_STATE_ENUM::kBowDraw;
 			if (playerCharacter->IsInMidair()) {
 				bool bGliding = false;
-				playerCharacter->GetGraphVariableBool("bParaGliding", bGliding);
+				playerCharacter->GetGraphVariableBool(GraphVarNames::bParaGliding, bGliding);
 				rotationSpeedMult *= bGliding ? Settings::fGlidingRotationSpeedMult : Settings::fAirRotationSpeedMult;
 				bRelativeSpeed = false;
 			} else if (!bSkipAttackRotationMultipliers && bIsAttacking) {
@@ -1350,7 +1372,7 @@ bool DirectionalMovementHandler::IsTDMRotationLocked() const
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	if (playerCharacter) {
 		bool result = false;
-		playerCharacter->GetGraphVariableBool("TDM_LockRotation", result);
+		playerCharacter->GetGraphVariableBool(GraphVarNames::TDM_LockRotation, result);
 		return result;
 	}
 	
@@ -1388,7 +1410,7 @@ bool DirectionalMovementHandler::ToggleTargetLock(bool bEnable, bool bPressedMan
 			SetTarget(actor);
 
 			// Set graph variable
-			playerCharacter->SetGraphVariableBool("TDM_TargetLock", true);
+			playerCharacter->SetGraphVariableBool(GraphVarNames::TDM_TargetLock, true);
 
 			// Add spell so DAR can detect target lock
 			if (Settings::spel_targetLockSpell) {
@@ -1409,7 +1431,7 @@ bool DirectionalMovementHandler::ToggleTargetLock(bool bEnable, bool bPressedMan
 		SetTarget(RE::ActorHandle());
 
 		// Set graph variable
-		playerCharacter->SetGraphVariableBool("TDM_TargetLock", false);
+		playerCharacter->SetGraphVariableBool(GraphVarNames::TDM_TargetLock, false);
 
 		// Remove spell so DAR can detect target lock
 		if (Settings::spel_targetLockSpell) {
@@ -2242,8 +2264,8 @@ void DirectionalMovementHandler::SetCurrentHorseAimAngle(float a_angle)
 	float absoluteAimAngle = NormalAbsoluteAngle(a_angle);
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	if (playerCharacter) {
-		playerCharacter->SetGraphVariableFloat("TDM_HorseAimTurn_Angle", _horseAimAngle);
-		playerCharacter->SetGraphVariableFloat("TDM_HorseAimTurn_Angle_Absolute", absoluteAimAngle);
+		playerCharacter->SetGraphVariableFloat(GraphVarNames::TDM_HorseAimTurn_Angle, _horseAimAngle);
+		playerCharacter->SetGraphVariableFloat(GraphVarNames::TDM_HorseAimTurn_Angle_Absolute, absoluteAimAngle);
 	}
 }
 
@@ -2566,7 +2588,7 @@ void DirectionalMovementHandler::OnSettingsUpdated()
 		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 		if (playerCharacter) {
 			playerCharacter->AsActorState()->actorState2.headTracking = false;
-			playerCharacter->SetGraphVariableBool("IsNPC", false);
+			playerCharacter->SetGraphVariableBool(GraphVarNames::IsNPC, false);
 		}
 	}
 	if (auto widget = _targetLockReticle.lock()) {
@@ -2665,7 +2687,7 @@ bool DirectionalMovementHandler::IsBehaviorPatchInstalled(RE::TESObjectREFR* a_r
 	}
 
 	bool bOut;
-	return a_ref->GetGraphVariableBool("tdmHeadtrackingSKSE", bOut);
+	return a_ref->GetGraphVariableBool(GraphVarNames::tdmHeadtrackingSKSE, bOut);
 }
 
 bool DirectionalMovementHandler::IsMountedArcheryPatchInstalled(RE::TESObjectREFR* a_ref)
@@ -2675,7 +2697,7 @@ bool DirectionalMovementHandler::IsMountedArcheryPatchInstalled(RE::TESObjectREF
 	}
 
 	bool bOut;
-	return a_ref->GetGraphVariableBool("360HorseGen", bOut);
+	return a_ref->GetGraphVariableBool(GraphVarNames::HorseGen360, bOut);
 }
 
 void DirectionalMovementHandler::UpdatePlayerPitch()
