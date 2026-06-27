@@ -1,6 +1,28 @@
 #include "APIManager.h"
 
-#include "DirectionalMovementHandler.h"
+#include "OARFunctions.h"
+
+template <typename T>
+void RegisterFunction()
+{
+	switch (OAR_API::Functions::AddCustomFunction<T>())
+	{
+		using enum OAR_API::Functions::APIResult;
+	case OK:
+		logger::info("Registered {} function!", T::FUNCTION_NAME);
+		break;
+	case AlreadyRegistered:
+		logger::warn("Function {} is already registered!",
+			T::FUNCTION_NAME);
+		break;
+	case Invalid:
+		logger::error("Function {} is invalid!", T::FUNCTION_NAME);
+		break;
+	case Failed:
+		logger::error("Failed to register function {}!", T::FUNCTION_NAME);
+		break;
+	}
+}
 
 void APIs::RequestAPIs()
 {
@@ -50,4 +72,16 @@ void APIs::RequestAPIs()
 			logger::warn("Failed to obtain IDRC API");
 		}
 	}	
+
+	if (!OAR_Functions) {
+		OAR_Functions = GetAPI(OAR_API::Functions::InterfaceVersion::V1);
+		if (OAR_Functions) {
+			logger::info("Obtained OAR Functions API - {0:x}", reinterpret_cast<uintptr_t>(OAR_Functions));
+
+			RegisterFunction<Functions::ToggleHeadtrackingFunction>();
+			RegisterFunction<Functions::ReleaseTargetLockFunction>();
+		} else {
+			logger::warn("Failed to obtain OAR Functions API");
+		}
+	}
 }

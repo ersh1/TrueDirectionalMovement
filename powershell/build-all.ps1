@@ -1,10 +1,10 @@
 # USER DEFINED
-$sse = "E:\Steam\steamapps\common\Skyrim Special Edition"
-$outDir = "D:\Skyrim Mod Organizer\mods\True Directional Movement - Modernized Third Person Gameplay"
+$sse = "C:\Steam\steamapps\common\Skyrim Special Edition"
+$outDir = "C:\Skyrim Mod Organizer\mods\True Directional Movement - Modernized Third Person Gameplay"
 
 
 # GRAB DIRECTORIES
-$sseSrc = $sse + "\Data\Scripts\Source"
+$sseSrc = $sse + "\Data\Source\Scripts"
 $usrSrc = (Get-Location)
 $papyrus = $sse + "\Papyrus Compiler\PapyrusCompiler.exe"
 $flags = $sseSrc + "\TESV_Papyrus_Flags.flg"

@@ -1365,12 +1365,11 @@ bool DirectionalMovementHandler::IsPlayerAIDriven() const
 	if (/*runtimeData.playerFlags.aiControlledToPos || runtimeData.playerFlags.aiControlledFromPos || */runtimeData.playerFlags.aiControlledPackage) {
 		return true;
 	}
-// TODO - Needed to comment this out in order to get it compiled with latest CommonLib version
-// (https://github.com/alandtse/CommonLibVR/tree/ng)
-//	auto& movementController = playerCharacter->GetActorRuntimeData().movementController;
-//	if (movementController && !movementController->playerControls) {
-//		return true;
-//	}
+
+	auto& movementController = playerCharacter->GetActorRuntimeData().movementController;
+	if (movementController && !movementController->playerControls) {
+		return true;
+	}
 
 	return false;
 }

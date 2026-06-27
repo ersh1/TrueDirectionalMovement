@@ -230,11 +230,12 @@ public:
 
 	bool GetForceDisableDirectionalMovement() const { return _bForceDisableDirectionalMovement || !_papyrusDisableDirectionalMovement.empty(); }
 	bool GetForceDisableTargetLock() const { return _bForceDisableTargetLock || !_papyrusDisableTargetLock.empty(); }
-	bool GetForceDisableHeadtracking() const { return _bForceDisableHeadtracking || !_papyrusDisableHeadtracking.empty(); }
+	bool GetForceDisableHeadtracking() const { return _bForceDisableHeadtracking || _bOARDisableHeadtracking || !_papyrusDisableHeadtracking.empty(); }
 	bool GetYawControl() const { return _bYawControlledByPlugin; }
 	void SetForceDisableDirectionalMovement(bool a_disable) { _bForceDisableDirectionalMovement = a_disable; }
 	void SetForceDisableTargetLock(bool a_disable) { _bForceDisableTargetLock = a_disable; }
 	void SetForceDisableHeadtracking(bool a_disable) { _bForceDisableHeadtracking = a_disable; }
+	void SetOARDisableHeadtracking(bool a_disable) { _bOARDisableHeadtracking = a_disable; }
 	void SetYawControl(bool a_enable, float a_yawRotationSpeedMultiplier = 0);
 	void SetPlayerYaw(float a_yaw) { _desiredAngle = NormalAbsoluteAngle(a_yaw); }
 
@@ -353,6 +354,7 @@ private:
 	std::unordered_set<std::string> _papyrusDisableTargetLock{};
     bool _bForceDisableHeadtracking = false;
 	std::unordered_set<std::string> _papyrusDisableHeadtracking{};
+	bool _bOARDisableHeadtracking = false;
 	bool _bYawControlledByPlugin = false;
 	float _controlledYawRotationSpeedMultiplier = 0;
 
