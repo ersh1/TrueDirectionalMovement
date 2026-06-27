@@ -1,4 +1,5 @@
 #pragma once
+#include "DragonCameraState.h"
 
 namespace Hooks
 {
@@ -135,6 +136,34 @@ namespace Hooks
 		static void UpdateRotation(RE::HorseCameraState* a_this);
 		static void HandleLookInput(RE::HorseCameraState* a_this, const RE::NiPoint2& a_input); 
 		static void ProcessButton(RE::HorseCameraState* a_this, RE::ButtonEvent* a_event, RE::PlayerControlsData* a_data);
+
+		static inline REL::Relocation<decltype(OnEnterState)> _OnEnterState;
+		static inline REL::Relocation<decltype(OnExitState)> _OnExitState;
+		static inline REL::Relocation<decltype(UpdateRotation)> _UpdateRotation;
+		static inline REL::Relocation<decltype(HandleLookInput)> _HandleLookInput;
+		static inline REL::Relocation<decltype(ProcessButton)> _ProcessButton;
+	};
+
+	class DragonCameraStateHook
+	{
+	public:
+		static void Hook()
+		{
+			REL::Relocation<std::uintptr_t> DragonCameraStateVtbl{ RE::VTABLE_DragonCameraState[0] };
+			_OnEnterState = DragonCameraStateVtbl.write_vfunc(0x1, OnEnterState);
+			_OnExitState = DragonCameraStateVtbl.write_vfunc(0x2, OnExitState);
+			_UpdateRotation = DragonCameraStateVtbl.write_vfunc(0xE, UpdateRotation);
+			_HandleLookInput = DragonCameraStateVtbl.write_vfunc(0xF, HandleLookInput);
+			REL::Relocation<std::uintptr_t> PlayerInputHandlerVtbl{ RE::VTABLE_DragonCameraState[1] };
+			_ProcessButton = PlayerInputHandlerVtbl.write_vfunc(0x4, ProcessButton);
+		}
+
+	private:
+		static void OnEnterState(RE::DragonCameraState* a_this);
+		static void OnExitState(RE::DragonCameraState* a_this);
+		static void UpdateRotation(RE::DragonCameraState* a_this);
+		static void HandleLookInput(RE::DragonCameraState* a_this, const RE::NiPoint2& a_input); 
+		static void ProcessButton(RE::DragonCameraState* a_this, RE::ButtonEvent* a_event, RE::PlayerControlsData* a_data);
 
 		static inline REL::Relocation<decltype(OnEnterState)> _OnEnterState;
 		static inline REL::Relocation<decltype(OnExitState)> _OnExitState;

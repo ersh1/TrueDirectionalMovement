@@ -67,7 +67,7 @@ namespace
 		spdlog::set_pattern("%g(%#): [%^%l%$] %v"s);
 	}
 }
-
+/*
 extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Query(const SKSE::QueryInterface* a_skse, SKSE::PluginInfo* a_info)
 {
 	a_info->infoVersion = SKSE::PluginInfo::kVersion;
@@ -100,11 +100,19 @@ extern "C" DLLEXPORT constinit auto SKSEPlugin_Version = []() {
 
 	return v;
 }();
+*/
+SKSEPluginInfo(
+    .Version = Plugin::VERSION,
+    .Name = Plugin::NAME,
+    .Author = "Ersh",
+    .RuntimeCompatibility = SKSE::PluginDeclaration::RuntimeCompatibility(SKSE::VersionIndependence::AddressLibrary),
+    .MinimumSKSEVersion = { 2, 2, 3 } // or 0 if you want to support all
+)
 
 extern "C" DLLEXPORT bool SKSEAPI SKSEPlugin_Load(const SKSE::LoadInterface* a_skse)
 {
 #ifndef NDEBUG
-	while (!IsDebuggerPresent()) { Sleep(100); }
+//	while (!IsDebuggerPresent()) { Sleep(100); }
 #endif
 	REL::Module::reset();  // Clib-NG bug workaround
 
@@ -137,6 +145,10 @@ extern "C" DLLEXPORT void* SKSEAPI RequestPluginAPI(const TDM_API::InterfaceVers
 	case TDM_API::InterfaceVersion::V2:
 		[[fallthrough]];
 	case TDM_API::InterfaceVersion::V3:
+		[[fallthrough]];
+	case TDM_API::InterfaceVersion::V4:
+		[[fallthrough]];
+	case TDM_API::InterfaceVersion::V5:
 		logger::info("TrueDirectionalMovement::RequestPluginAPI returned the API singleton");
 		return static_cast<void*>(api);
 	}

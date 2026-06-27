@@ -34,7 +34,8 @@ RE::NiPoint3 GetCameraPos()
 
 	if (playerCamera->currentState == playerCamera->cameraStates[RE::CameraStates::kFirstPerson] || 
 		playerCamera->currentState == playerCamera->cameraStates[RE::CameraStates::kThirdPerson] ||
-		playerCamera->currentState == playerCamera->cameraStates[RE::CameraStates::kMount]) {
+		playerCamera->currentState == playerCamera->cameraStates[RE::CameraStates::kMount] ||
+		playerCamera->currentState == playerCamera->cameraStates[RE::CameraStates::kDragon]) {
 		RE::NiNode* root = playerCamera->cameraRoot.get();
 		if (root) {
 			ret.x = root->world.translate.x;
@@ -233,4 +234,53 @@ bool PredictAimProjectile(RE::NiPoint3 a_projectilePos, RE::NiPoint3 a_targetPos
 	}
 
 	return bValidSolutionFound;
+}
+
+float GetLandHeightWithWater(RE::NiPoint3 a_pos)
+{
+	/* Extension of function GetLandHeight() from PO3_SKSEFunctions*/
+	float heightOut = -1;
+
+	if (auto TES = RE::TES::GetSingleton()) {
+		TES->GetLandHeight(a_pos, heightOut);
+
+		auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+
+		auto cell = playerCharacter->GetParentCell();
+		auto waterHeight = !cell || cell == playerCharacter->parentCell ? playerCharacter->GetWaterHeight() : cell->GetExteriorWaterHeight();
+
+		if (waterHeight == -FLT_MAX && cell) {
+			waterHeight = cell->GetExteriorWaterHeight();
+		}
+
+		if (heightOut < waterHeight) {
+			heightOut = waterHeight;
+		}
+	}
+
+	return heightOut;
+}
+	
+RE::TESCondition* condition_GetFlyingState;
+int GetFlyingState(RE::Actor* a_akActor) {
+	if (!a_akActor) {
+		logger::warn("{}: error, a_akActor doesn't exist", __func__);
+		return -1;
+	}
+
+	if (!condition_GetFlyingState) {
+		auto* conditionItem = new RE::TESConditionItem;
+		conditionItem->data.functionData.function = RE::FUNCTION_DATA::FunctionID::kGetFlyingState;
+
+		condition_GetFlyingState = new RE::TESCondition;
+		condition_GetFlyingState->head = conditionItem;
+	}
+
+	for (int i = 0; i < 6; i++) {
+		condition_GetFlyingState->head->data.comparisonValue.f = static_cast<float>(i);
+		if (condition_GetFlyingState->IsTrue(a_akActor, nullptr)) {
+			return i;
+		}
+	}
+	return -1;
 }

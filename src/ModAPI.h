@@ -9,8 +9,10 @@ namespace Messaging
 	using InterfaceVersion1 = ::TDM_API::IVTDM1;
 	using InterfaceVersion2 = ::TDM_API::IVTDM2;
 	using InterfaceVersion3 = ::TDM_API::IVTDM3;
+	using InterfaceVersion4 = ::TDM_API::IVTDM4;
+	using InterfaceVersion5 = ::TDM_API::IVTDM5;
 
-	class TDMInterface : public InterfaceVersion3
+	class TDMInterface : public InterfaceVersion5
 	{
 	private:
 		TDMInterface() noexcept;
@@ -44,9 +46,19 @@ namespace Messaging
 		virtual TDM_API::DirectionalMovementMode GetDirectionalMovementMode() const noexcept override;
 		virtual RE::NiPoint2 GetActualMovementInput() const noexcept override;
 
+		// InterfaceVersion4
+		virtual bool IsTargetLockBehindTarget() const noexcept override;
+
+		// InterfaceVersion5
+		virtual APIResult RequestDisableTargetLock(SKSE::PluginHandle a_modHandle) noexcept override;
+		virtual SKSE::PluginHandle GetDisableTargetLockOwner() const noexcept override;
+		virtual APIResult ReleaseDisableTargetLock(SKSE::PluginHandle a_modHandle) noexcept override;
+
 		// Internal
 		// Mark directional movement control as required by True Directional Movement for API requests
 		void SetNeedsDirectionalMovementControl(bool a_needsControl) noexcept;
+		// Mark target lock reticle control as required by True Directional Movement for API requests
+		void SetNeedsTargetLockControl(bool a_needsControl) noexcept;
 		// Mark headtracking control as required by True Directional Movement for API requests
 		void SetNeedsHeadtrackingControl(bool a_needsControl) noexcept;
 		// Mark player yaw control as required by True Directional Movement for API requests
@@ -54,6 +66,8 @@ namespace Messaging
 
 		// Does a mod have control over the directional movement?
 		bool IsDirectionalMovementControlTaken() const noexcept;
+		// Does a mod have control over the target lock reticle?
+		bool IsTargetLockControlTaken() const noexcept;
 		// Does a mod have control over the headtracking?
 		bool IsHeadtrackingControlTaken() const noexcept;
 		// Does a mod have control over the player character's yaw?
@@ -64,6 +78,9 @@ namespace Messaging
 
 		bool needsDirectionalMovementControl = false;
 		std::atomic<SKSE::PluginHandle> directionalMovementOwner = SKSE::kInvalidPluginHandle;
+
+		bool needsTargetLockControl = false;
+		std::atomic<SKSE::PluginHandle> targetLockReticleOwner = SKSE::kInvalidPluginHandle;
 
 		bool needsHeadtrackingControl = false;
 		std::atomic<SKSE::PluginHandle> headtrackingOwner = SKSE::kInvalidPluginHandle;

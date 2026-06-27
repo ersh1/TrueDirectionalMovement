@@ -46,6 +46,15 @@ namespace Papyrus
 		DirectionalMovementHandler::GetSingleton()->PapyrusDisableDirectionalMovement(a_modName, a_bDisable);
 	}
 
+    void TrueDirectionalMovement::ToggleDisableTargetLock(RE::StaticFunctionTag*, RE::BSFixedString a_modName, bool a_bDisable)
+	{
+		if (a_modName.empty()) {
+		    return;
+		}
+
+		DirectionalMovementHandler::GetSingleton()->PapyrusDisableTargetLock(a_modName, a_bDisable);
+	}
+
     void TrueDirectionalMovement::ToggleDisableHeadtracking(RE::StaticFunctionTag*, RE::BSFixedString a_modName, bool a_bDisable)
 	{
 		if (a_modName.empty()) {
@@ -61,6 +70,7 @@ namespace Papyrus
 		a_vm->RegisterFunction("GetTargetLockState", "TrueDirectionalMovement", GetTargetLockState);
 		a_vm->RegisterFunction("GetCurrentTarget", "TrueDirectionalMovement", GetCurrentTarget);
 		a_vm->RegisterFunction("ToggleDisableDirectionalMovement", "TrueDirectionalMovement", ToggleDisableDirectionalMovement);
+		a_vm->RegisterFunction("ToggleDisableTargetLock", "TrueDirectionalMovement", ToggleDisableTargetLock);
 		a_vm->RegisterFunction("ToggleDisableHeadtracking", "TrueDirectionalMovement", ToggleDisableHeadtracking);
 
 		logger::info("Registered TrueDirectionalMovement class");

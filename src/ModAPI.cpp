@@ -31,6 +31,15 @@ bool Messaging::TDMInterface::GetTargetLockState() const noexcept
 	return false;
 }
 
+bool Messaging::TDMInterface::IsTargetLockBehindTarget() const noexcept
+{
+	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+	if (directionalMovementHandler) {
+		return directionalMovementHandler->IsTargetLockBehindTarget();
+	}
+	return false;
+}
+
 RE::ActorHandle Messaging::TDMInterface::GetCurrentTarget() const noexcept
 {
 	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
@@ -58,6 +67,29 @@ Messaging::APIResult Messaging::TDMInterface::RequestDisableDirectionalMovement(
 	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 	if (directionalMovementHandler) {
 		directionalMovementHandler->SetForceDisableDirectionalMovement(true);
+	}
+
+	return APIResult::OK;
+}
+
+Messaging::APIResult Messaging::TDMInterface::RequestDisableTargetLock(SKSE::PluginHandle a_modHandle) noexcept
+{
+	const auto owner = targetLockReticleOwner.load(std::memory_order::memory_order_acquire);
+	if (owner != SKSE::kInvalidPluginHandle)
+		if (owner == a_modHandle)
+			return APIResult::AlreadyGiven;
+		else
+			return APIResult::AlreadyTaken;
+
+	if (needsTargetLockControl)
+		return APIResult::MustKeep;
+	auto expected = static_cast<SKSE::PluginHandle>(SKSE::kInvalidPluginHandle);
+	if (!targetLockReticleOwner.compare_exchange_strong(expected, a_modHandle, std::memory_order::memory_order_acq_rel))
+		return APIResult::AlreadyTaken;
+
+	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+	if (directionalMovementHandler) {
+		directionalMovementHandler->SetForceDisableTargetLock(true);
 	}
 
 	return APIResult::OK;
@@ -91,6 +123,11 @@ SKSE::PluginHandle Messaging::TDMInterface::GetDisableDirectionalMovementOwner()
 	return directionalMovementOwner;
 }
 
+SKSE::PluginHandle Messaging::TDMInterface::GetDisableTargetLockOwner() const noexcept
+{
+	return targetLockReticleOwner;
+}
+
 SKSE::PluginHandle Messaging::TDMInterface::GetDisableHeadtrackingOwner() const noexcept
 {
 	return headtrackingOwner;
@@ -105,6 +142,19 @@ Messaging::APIResult Messaging::TDMInterface::ReleaseDisableDirectionalMovement(
 	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 	if (directionalMovementHandler) {
 		directionalMovementHandler->SetForceDisableDirectionalMovement(false);
+	}
+
+	return APIResult::OK;
+}
+
+Messaging::APIResult Messaging::TDMInterface::ReleaseDisableTargetLock(SKSE::PluginHandle a_modHandle) noexcept
+{
+	if (targetLockReticleOwner != a_modHandle)
+		return APIResult::NotOwner;
+	targetLockReticleOwner.store(SKSE::kInvalidPluginHandle, std::memory_order::memory_order_release);
+	auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+	if (directionalMovementHandler) {
+		directionalMovementHandler->SetForceDisableTargetLock(false);
 	}
 
 	return APIResult::OK;
@@ -191,6 +241,11 @@ void Messaging::TDMInterface::SetNeedsDirectionalMovementControl(bool a_needsCon
 	needsDirectionalMovementControl = a_needsControl;
 }
 
+void Messaging::TDMInterface::SetNeedsTargetLockControl(bool a_needsControl) noexcept
+{
+	needsTargetLockControl = a_needsControl;
+}
+
 void Messaging::TDMInterface::SetNeedsHeadtrackingControl(bool a_needsControl) noexcept
 {
 	needsHeadtrackingControl = a_needsControl;
@@ -204,6 +259,11 @@ void Messaging::TDMInterface::SetNeedsYawControl(bool a_needsControl) noexcept
 bool Messaging::TDMInterface::IsDirectionalMovementControlTaken() const noexcept
 {
 	return directionalMovementOwner.load(std::memory_order::memory_order_acquire) != SKSE::kInvalidPluginHandle;
+}
+
+bool Messaging::TDMInterface::IsTargetLockControlTaken() const noexcept
+{
+	return targetLockReticleOwner.load(std::memory_order::memory_order_acquire) != SKSE::kInvalidPluginHandle;
 }
 
 bool Messaging::TDMInterface::IsHeadtrackingControlTaken() const noexcept

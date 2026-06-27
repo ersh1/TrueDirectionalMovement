@@ -60,6 +60,11 @@ namespace Events
 					continue;
 				}
 
+				if (key == Settings::uTargetLockBehindTargetKey) 
+				{
+					DirectionalMovementHandler::GetSingleton()->ToggleLockBehindTarget();
+				}
+
 				if (key == Settings::uTargetLockKey) {
 					bool bIgnore = false;
 

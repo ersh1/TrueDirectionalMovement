@@ -41,4 +41,13 @@ void APIs::RequestAPIs()
 			logger::warn("Failed to obtain TrueHUD API");
 		}
 	}	
+
+	if (!IDRC) {
+		IDRC = reinterpret_cast<IDRC_API::IVIDRC1*>(IDRC_API::RequestPluginAPI(IDRC_API::InterfaceVersion::V1));
+		if (IDRC) {
+			logger::info("Obtained IDRC API - {0:x}", reinterpret_cast<uintptr_t>(IDRC));
+		} else {
+			logger::warn("Failed to obtain IDRC API");
+		}
+	}	
 }

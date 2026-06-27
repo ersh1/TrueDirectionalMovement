@@ -14,7 +14,7 @@ namespace Hooks
 			kNone,
 			kFirstPerson,
 			kThirdPerson,
-			kHorse
+			kMount
 		};
 		
 		RotationType rotationType = RotationType::kNone;
@@ -102,6 +102,7 @@ namespace Hooks
 		FirstPersonStateHook::Hook();
 		ThirdPersonStateHook::Hook();
 		HorseCameraStateHook::Hook();
+		DragonCameraStateHook::Hook();
 		TweenMenuCameraStateHook::Hook();
 		VATSCameraStateHook::Hook();
 		PlayerCameraTransitionStateHook::Hook();
@@ -516,7 +517,7 @@ namespace Hooks
 		_OnEnterState(a_this);
 
 		if (DirectionalMovementHandler::GetSingleton()->GetFreeCameraEnabled()) {
-			if (savedCamera.rotationType == SaveCamera::RotationType::kHorse) {
+			if (savedCamera.rotationType == SaveCamera::RotationType::kMount) {
 				a_this->freeRotation.x = savedCamera.ConsumeYaw();
 			}
 
@@ -674,7 +675,7 @@ namespace Hooks
 	void HorseCameraStateHook::OnExitState(RE::HorseCameraState* a_this)
 	{
 		if (DirectionalMovementHandler::GetSingleton()->GetFreeCameraEnabled()) {
-			savedCamera.SaveRotation(a_this->freeRotation, SaveCamera::RotationType::kHorse);
+			savedCamera.SaveRotation(a_this->freeRotation, SaveCamera::RotationType::kMount);
 			savedCamera.SaveZoom(a_this->currentZoomOffset, a_this->pitchZoomOffset);
 		}
 
@@ -749,7 +750,125 @@ namespace Hooks
 
 		_ProcessButton(a_this, a_event, a_data);
 	}
+
+// DragonCameraStateHook implementation is identical to HorseCameraStateHook
+	void DragonCameraStateHook::OnEnterState(RE::DragonCameraState* a_this)
+	{
+		_OnEnterState(a_this);
+
+		if (DirectionalMovementHandler::GetSingleton()->GetFreeCameraEnabled()) {
+			auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+
+			RE::Actor* dragon = nullptr;
+			dragon = static_cast<RE::Actor*>(a_this->dragonRefHandle.get().get());
+
+			if (savedCamera.rotationType != SaveCamera::RotationType::kNone) {
+				auto rotationType = savedCamera.rotationType;
+				RE::NiPoint2 rot = savedCamera.ConsumeRotation();
+				if (rotationType == SaveCamera::RotationType::kThirdPerson) {
+					playerCharacter->data.angle.x = -rot.y;
+				}
+				
+				a_this->freeRotation.x = NormalAbsoluteAngle(rot.x - dragon->data.angle.z);
+			}
+
+			if (savedCamera.bZoomSaved) {
+				float zoomOffset, pitchZoomOffset;
+				savedCamera.ConsumeZoom(zoomOffset, pitchZoomOffset);
+				a_this->targetZoomOffset = zoomOffset;
+				a_this->currentZoomOffset = a_this->targetZoomOffset;
+				a_this->savedZoomOffset = a_this->targetZoomOffset;
+			}
+
+			a_this->dragonCurrentDirection = dragon->GetHeading(false);
+		}
+	}
+
 	
+	void DragonCameraStateHook::OnExitState(RE::DragonCameraState* a_this)
+	{
+		if (DirectionalMovementHandler::GetSingleton()->GetFreeCameraEnabled()) {
+			savedCamera.SaveRotation(a_this->freeRotation, SaveCamera::RotationType::kMount);
+			savedCamera.SaveZoom(a_this->currentZoomOffset, a_this->pitchZoomOffset);
+		}
+
+		_OnExitState(a_this);
+	}
+
+	void DragonCameraStateHook::UpdateRotation(RE::DragonCameraState* a_this)
+	{
+		if (APIs::IDRC  && APIs::IDRC->GetDragon()) {
+			_UpdateRotation(a_this);
+			return;
+		}
+
+		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+		if (directionalMovementHandler->GetFreeCameraEnabled() && !directionalMovementHandler->IFPV_IsFirstPerson() && !directionalMovementHandler->ImprovedCamera_IsFirstPerson()) {
+			float dragonCurrentDirection = a_this->dragonCurrentDirection;
+			float freeRotationX = a_this->freeRotation.x;
+
+			a_this->freeRotationEnabled = true;
+
+			_UpdateRotation(a_this);
+
+			a_this->dragonCurrentDirection = dragonCurrentDirection;
+			a_this->freeRotation.x = freeRotationX;
+
+			if (a_this->dragonRefHandle) {
+				RE::Actor* dragon = nullptr;
+				dragon = static_cast<RE::Actor*>(a_this->dragonRefHandle.get().get());
+				if (dragon) {
+					float heading = dragon->GetHeading(false);
+
+					a_this->freeRotation.x += a_this->dragonCurrentDirection - heading;
+
+					NiQuaternion_SomeRotationManipulation(a_this->rotation, -a_this->freeRotation.y, 0.f, heading + a_this->freeRotation.x);
+					a_this->dragonCurrentDirection = heading;
+				}
+			}
+		} else {
+			_UpdateRotation(a_this);
+		}
+	}
+
+	void DragonCameraStateHook::HandleLookInput(RE::DragonCameraState* a_this, const RE::NiPoint2& a_input)
+	{
+		if (DirectionalMovementHandler::GetSingleton()->HasTargetLocked()) {
+			return;
+		}
+
+		_HandleLookInput(a_this, a_input);
+	}
+
+	void DragonCameraStateHook::ProcessButton(RE::DragonCameraState* a_this, RE::ButtonEvent* a_event, RE::PlayerControlsData* a_data)
+	{
+		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
+		if (a_event && directionalMovementHandler->HasTargetLocked() && Settings::bTargetLockUseScrollWheel) {
+			auto& userEvent = a_event->QUserEvent();
+			auto userEvents = RE::UserEvents::GetSingleton();
+
+			if (userEvent == userEvents->zoomIn) {
+				directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kLeft);
+				return;
+			} else if (userEvent == userEvents->zoomOut) {
+				directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kRight);
+				return;
+			}
+		}
+
+		if (a_event && BSInputDeviceManager_IsUsingGamepad(RE::BSInputDeviceManager::GetSingleton()) ? Settings::bTargetLockUsePOVSwitchGamepad : Settings::bTargetLockUsePOVSwitchKeyboard) {
+			auto& userEvent = a_event->QUserEvent();
+			auto userEvents = RE::UserEvents::GetSingleton();
+
+			if (userEvent == userEvents->togglePOV && a_event->IsUp() && a_event->HeldDuration() < Settings::fTargetLockPOVHoldDuration) {
+				//directionalMovementHandler->ToggleTargetLock(!directionalMovementHandler->HasTargetLocked());
+				return;
+			}
+		}
+
+		_ProcessButton(a_this, a_event, a_data);
+	}
+
 	void TweenMenuCameraStateHook::OnEnterState(RE::TESCameraState* a_this)
 	{
 		if (DirectionalMovementHandler::GetSingleton()->IsFreeCamera()) {
@@ -779,15 +898,17 @@ namespace Hooks
 
 	void PlayerCameraTransitionStateHook::OnEnterState(RE::PlayerCameraTransitionState* a_this)
 	{
-		if (a_this->transitionFrom->id == RE::CameraStates::kMount && a_this->transitionTo->id == RE::CameraStates::kThirdPerson) {
-			if (savedCamera.rotationType == SaveCamera::RotationType::kHorse) {
+		if ((a_this->transitionFrom->id == RE::CameraStates::kMount || a_this->transitionFrom->id == RE::CameraStates::kDragon)
+			 && a_this->transitionTo->id == RE::CameraStates::kThirdPerson) {
+			if (savedCamera.rotationType == SaveCamera::RotationType::kMount) {
 				auto thirdPersonState = static_cast<RE::ThirdPersonState*>(a_this->transitionTo);
 				auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 				thirdPersonState->freeRotation.x = savedCamera.ConsumeYaw();
 				playerCharacter->data.angle.x = -savedCamera.ConsumePitch();
 			}
-		} else if (a_this->transitionFrom->id == RE::CameraStates::kMount && a_this->transitionTo->id == RE::CameraStates::kFirstPerson) {
-			if (savedCamera.rotationType == SaveCamera::RotationType::kHorse) {
+		} else if ((a_this->transitionFrom->id == RE::CameraStates::kMount || a_this->transitionFrom->id == RE::CameraStates::kDragon)
+			 && a_this->transitionTo->id == RE::CameraStates::kFirstPerson) {
+			if (savedCamera.rotationType == SaveCamera::RotationType::kMount) {
 				auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 				playerCharacter->data.angle.x = -savedCamera.ConsumePitch();
 			}
@@ -1002,12 +1123,22 @@ namespace Hooks
 			auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 			if (!directionalMovementHandler->HasTargetLocked() && directionalMovementHandler->GetCurrentlyMountedAiming()) {
 				auto playerCamera = RE::PlayerCamera::GetSingleton();
-				if (playerCamera->currentState && playerCamera->currentState->id == RE::CameraState::kMount) {
-					auto horseCameraState = static_cast<RE::HorseCameraState*>(playerCamera->currentState.get());
+				if (playerCamera->currentState 
+					&& (playerCamera->currentState->id == RE::CameraState::kMount || playerCamera->currentState->id == RE::CameraState::kDragon)) {
 					constexpr RE::NiPoint3 forwardVector{ 0.f, 1.f, 0.f };
 					constexpr RE::NiPoint3 upVector{ 0.f, 0.f, 1.f };
 					RE::NiQuaternion cameraRotation;
-					horseCameraState->GetRotation(cameraRotation);
+					if (playerCamera->currentState->id == RE::CameraState::kMount) {
+						auto horseCameraState = static_cast<RE::HorseCameraState*>(playerCamera->currentState.get());
+						horseCameraState->GetRotation(cameraRotation);
+					} else if (playerCamera->currentState->id == RE::CameraState::kDragon) {
+						auto dragonCameraState = static_cast<RE::DragonCameraState*>(playerCamera->currentState.get());
+						dragonCameraState->GetRotation(cameraRotation);
+					} else {
+						logger::error("ProjectileHook::InitProjectile: PlayerCamera current state is not a horse or dragon camera state, cannot set projectile rotation.");
+						return;
+					}
+
 					auto cameraForwardVector = RotateVector(forwardVector, cameraRotation);
 
 					cameraForwardVector.Unitize();
@@ -1225,9 +1356,14 @@ namespace Hooks
 			float pitch = a_this->data.angle.x * 0.5f;
 
 			auto currentState = RE::PlayerCamera::GetSingleton()->currentState;
-			if (currentState && currentState->id == RE::CameraState::kMount) {
-				auto horseCameraState = static_cast<RE::HorseCameraState*>(currentState.get());
-				yaw += horseCameraState->freeRotation.x;
+			if (currentState) {
+				if (currentState->id == RE::CameraState::kMount) {
+					auto horseCameraState = static_cast<RE::HorseCameraState*>(currentState.get());
+					yaw += horseCameraState->freeRotation.x;
+				} else if (currentState->id == RE::CameraState::kDragon) {
+					auto dragonCameraState = static_cast<RE::DragonCameraState*>(currentState.get());
+					yaw += dragonCameraState->freeRotation.x;
+				}
 			}
 
 			yaw = NormalRelativeAngle(yaw);

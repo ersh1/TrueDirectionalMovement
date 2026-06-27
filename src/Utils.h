@@ -26,6 +26,8 @@ bool GetTargetPointPosition(RE::ObjectRefHandle a_target, std::string_view a_tar
 
 void SetRotationMatrix(RE::NiMatrix3& a_matrix, float sacb, float cacb, float sb);
 bool PredictAimProjectile(RE::NiPoint3 a_projectilePos, RE::NiPoint3 a_targetPosition, RE::NiPoint3 a_targetVelocity, float a_gravity, RE::NiPoint3& a_projectileVelocity);
+float GetLandHeightWithWater(RE::NiPoint3 a_pos);
+int GetFlyingState(RE::Actor* a_akActor);
 
 [[nodiscard]] inline float GetPlayerTimeMultiplier()
 {
@@ -275,4 +277,10 @@ bool PredictAimProjectile(RE::NiPoint3 a_projectilePos, RE::NiPoint3 a_targetPos
 [[nodiscard]] inline float Remap(const float a_oldValue, const float a_oldMin, const float a_oldMax, const float a_newMin, const float a_newMax)
 {
 	return (((a_oldValue - a_oldMin) * (a_newMax - a_newMin)) / (a_oldMax - a_oldMin)) + a_newMin;
+}
+
+[[nodiscard]] inline float GetYaw(const RE::NiQuaternion a_rotation)
+{
+	// will not produce reliable results near the gimbal lock (pitch approaching +/- PI/2, ie straight upwards or downwards pitch)
+	return std::atan2(2.0f * (a_rotation.w * a_rotation.z + a_rotation.x * a_rotation.y), 1.0f - 2.0f * (a_rotation.y * a_rotation.y + a_rotation.z * a_rotation.z));
 }
