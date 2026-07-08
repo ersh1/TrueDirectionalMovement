@@ -948,6 +948,9 @@ namespace Hooks
 				case RE::FormType::ProjectileMissile:
 					aimType = Settings::uTargetLockMissileAimType;
 					break;
+				case RE::FormType::ProjectileCone:
+					aimType = Settings::uTargetLockMissileAimType;
+					break;
 				default:
 					aimType = TargetLockProjectileAimType::kFreeAim;
 				}
@@ -1066,6 +1069,13 @@ namespace Hooks
 	void ProjectileHook::GetLinearVelocityMissile(RE::Projectile* a_this, RE::NiPoint3& a_outVelocity)
 	{
 		_GetLinearVelocityMissile(a_this, a_outVelocity);
+
+		ProjectileAimSupport(a_this);
+	}
+
+	void ProjectileHook::GetLinearVelocityCone(RE::Projectile* a_this, RE::NiPoint3& a_outVelocity)
+	{
+		_GetLinearVelocityCone(a_this, a_outVelocity);
 
 		ProjectileAimSupport(a_this);
 	}
@@ -1213,6 +1223,93 @@ namespace Hooks
 
 					RE::NiPoint3 rightVector = direction.Cross(upVector);
 					direction = RotateAngleAxis(direction, AngleToRadian(*g_f3PArrowTiltUpAngle), rightVector);
+
+					linearVelocity = direction * velocityScalar;
+				}
+			} else if (a_this->formType.get() == RE::FormType::ProjectileCone && directionalMovementHandler->IsFreeCamera() &&
+					   (!directionalMovementHandler->HasTargetLocked() || Settings::uTargetLockMissileAimType == TargetLockProjectileAimType::kFreeAim)) {
+				// The game launches cone projectiles with the shooter's body pitch instead of the camera aim pitch,
+				// so they miss the crosshair while the third person free camera is active (the character's pitch is
+				// not synced to the camera). Re-aim them along the camera ray. Only relevant for long range cone
+				// projectiles used by some spell mods, e.g. Astral Magic 2.
+				auto playerCamera = RE::PlayerCamera::GetSingleton();
+				if (playerCamera->currentState && playerCamera->currentState->id == RE::CameraState::kThirdPerson) {
+					constexpr RE::NiPoint3 forwardVector{ 0.f, 1.f, 0.f };
+					auto thirdPersonState = static_cast<RE::ThirdPersonState*>(playerCamera->currentState.get());
+					RE::NiQuaternion cameraRotation;
+					thirdPersonState->GetRotation(cameraRotation);
+
+					auto cameraForwardVector = RotateVector(forwardVector, cameraRotation);
+
+					cameraForwardVector.Unitize();
+
+					auto cameraPos = playerCamera->cameraRoot->world.translate;
+
+					RE::NiPoint3 rayStart = cameraPos;
+					RE::NiPoint3 rayEnd = cameraPos + cameraForwardVector * 5000.f;
+					RE::NiPoint3 hitPos = rayEnd;
+
+					RE::NiPoint3 cameraToPlayer = playerCamera->cameraTarget.get()->GetPosition() - cameraPos;
+					RE::NiPoint3 cameraToTarget = rayEnd - cameraPos;
+					RE::NiPoint3 projected = Project(cameraToPlayer, cameraToTarget);
+					RE::NiPoint3 projectedPos = RE::NiPoint3(projected.x + cameraPos.x, projected.y + cameraPos.y, projected.z + cameraPos.z);
+					rayStart = projectedPos;
+
+					uint16_t playerCollisionGroup = 0;
+
+					auto playerCharacter = RE::PlayerCharacter::GetSingleton();
+					if (auto playerBody = playerCharacter->Get3D()) {
+						if (auto collisionObject = playerBody->GetCollisionObject()) {
+							if (auto rigidBody = collisionObject->GetRigidBody()) {
+								playerCollisionGroup = static_cast<RE::hkpEntity*>(rigidBody->referencedObject.get())->collidable.broadPhaseHandle.collisionFilterInfo >> 16;
+							}
+						}
+					}
+
+					float bhkWorldScale = *g_worldScale;
+
+					collector.Reset();
+					RE::hkpWorldRayCastInput raycastInput;
+					raycastInput.filterInfo = ((uint32_t)playerCollisionGroup << 16) | 0x28;
+					raycastInput.from.quad = _mm_setr_ps(rayStart.x * bhkWorldScale, rayStart.y * bhkWorldScale, rayStart.z * bhkWorldScale, 0.f);
+					raycastInput.to.quad = _mm_setr_ps(rayEnd.x * bhkWorldScale, rayEnd.y * bhkWorldScale, rayEnd.z * bhkWorldScale, 0.f);
+					auto world = playerCharacter->parentCell->GetbhkWorld();
+					world->worldLock.LockForRead();
+					CastRay(world->GetWorld2(), raycastInput, collector);
+					world->worldLock.UnlockForRead();
+					if (collector.doesHitExist) {
+						auto distance = rayEnd - rayStart;
+						hitPos = rayStart + (distance * collector.closestHitInfo.hitFraction);
+					}
+
+					RE::NiPoint3 direction = hitPos - a_this->data.location;
+					direction.Unitize();
+
+					float rotationX, rotationZ;
+
+					rotationX = atan2(-direction.z, std::sqrtf(direction.x * direction.x + direction.y * direction.y));
+					rotationZ = atan2(direction.x, direction.y);
+
+					if (rotationZ < 0.0) {
+						rotationZ += PI;
+					}
+
+					if (direction.x < 0.0) {
+						rotationZ += PI;
+					}
+
+					a_this->data.angle.x = rotationX;
+					a_this->data.angle.z = rotationZ;
+
+					auto projectileNode = a_this->Get3D();
+					if (projectileNode) {
+						SetRotationMatrix(projectileNode->local.rotate, direction.x, direction.y, direction.z);
+					}
+
+					// no f3PArrowTiltUpAngle tilt here: unlike arrows, cone projectiles get no engine side
+					// crosshair correction that would compensate for it, so the exact ray direction is what we want
+					auto& linearVelocity = a_this->GetProjectileRuntimeData().linearVelocity;
+					float velocityScalar = linearVelocity.Length();
 
 					linearVelocity = direction * velocityScalar;
 				}
