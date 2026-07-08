@@ -948,6 +948,9 @@ namespace Hooks
 				case RE::FormType::ProjectileMissile:
 					aimType = Settings::uTargetLockMissileAimType;
 					break;
+				case RE::FormType::ProjectileCone:
+					aimType = Settings::uTargetLockMissileAimType;
+					break;
 				default:
 					aimType = TargetLockProjectileAimType::kFreeAim;
 				}
@@ -1066,6 +1069,13 @@ namespace Hooks
 	void ProjectileHook::GetLinearVelocityMissile(RE::Projectile* a_this, RE::NiPoint3& a_outVelocity)
 	{
 		_GetLinearVelocityMissile(a_this, a_outVelocity);
+
+		ProjectileAimSupport(a_this);
+	}
+
+	void ProjectileHook::GetLinearVelocityCone(RE::Projectile* a_this, RE::NiPoint3& a_outVelocity)
+	{
+		_GetLinearVelocityCone(a_this, a_outVelocity);
 
 		ProjectileAimSupport(a_this);
 	}
