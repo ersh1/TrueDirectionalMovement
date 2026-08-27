@@ -460,7 +460,7 @@ namespace Hooks
 		static inline REL::Relocation<decltype(SetInt)> _SetInt;
 	};
 
-	class PlayerCameraHook // to fix Improved Camera breaking player pitch during target lock
+	class PlayerCameraHook // to fix freeRotation.y (pitch) breaking when freeRotationEnabled is active during target lock.
 	{
 	public:
 		static void Hook()

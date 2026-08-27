@@ -39,35 +39,35 @@ DirectionalMovementHandler* DirectionalMovementHandler::GetSingleton()
 	return std::addressof(singleton);
 }
 
-void DirectionalMovementHandler::Register()
+void DirectionalMovementHandler::RegisterAnimationEvents()
 {
-	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
-	bool bSuccess = playerCharacter->AddAnimationGraphEventSink(DirectionalMovementHandler::GetSingleton());
-	if (bSuccess) {
-		logger::info("Registered {}"sv, typeid(RE::BSAnimationGraphEvent).name());
-	} else {
-		RE::BSAnimationGraphManagerPtr graphManager;
-		playerCharacter->GetAnimationGraphManager(graphManager);
-		bool bSinked = false;
-		if (graphManager) {			
-			for (auto& animationGraph : graphManager->graphs) {
-				if (bSinked) {
-					break;
-				}
-				auto eventSource = animationGraph->GetEventSource<RE::BSAnimationGraphEvent>();
-				for (auto& sink : eventSource->sinks) {
-					if (sink == DirectionalMovementHandler::GetSingleton()) {
-						bSinked = true;
-						break;
-					}
-				}
-			}
-		}
-		
-		if (!bSinked) {
-			logger::info("Failed to register {}"sv, typeid(RE::BSAnimationGraphEvent).name());
-		}		
+	auto player = RE::PlayerCharacter::GetSingleton();
+	if (!player) {
+		return;
 	}
+
+	RE::BSAnimationGraphManagerPtr graphManager;
+	player->GetAnimationGraphManager(graphManager);
+	if (!graphManager || graphManager->graphs.empty()) {
+		return;
+	}
+
+	RE::BShkbAnimationGraphPtr graph = graphManager->graphs[0];
+	if (!graph) {
+		return;
+	}
+
+	auto eventSource = graph->GetEventSource<RE::BSAnimationGraphEvent>();
+	if (!eventSource) {
+		return;
+	}
+
+	for (const auto& sink : eventSource->sinks) {
+		if (sink == this) {
+			return;
+		}
+	}
+	eventSource->AddEventSink(this);
 }
 
 constexpr uint32_t hash(const char* data, size_t const size) noexcept
@@ -163,6 +163,8 @@ void DirectionalMovementHandler::Update()
 	if (RE::UI::GetSingleton()->GameIsPaused()) {
 		return;
 	}
+
+	RegisterAnimationEvents();
 
 	Settings::UpdateGlobals();
 
@@ -1316,8 +1318,41 @@ bool DirectionalMovementHandler::IFPV_IsFirstPerson() const
 
 bool DirectionalMovementHandler::ImprovedCamera_IsFirstPerson() const
 {
-	if (_ImprovedCamera_IsFirstPerson) {
-		return *_ImprovedCamera_IsFirstPerson;
+	if (_bICInstalled) {
+		// Reddit version 1.0.0.4
+		if (_ImprovedCamera_IsFirstPerson) {
+			return *_ImprovedCamera_IsFirstPerson;
+		}
+
+		auto camera = RE::PlayerCamera::GetSingleton();
+		if (!camera) {
+			return false;
+		}
+
+		// Normal first person.
+		if (camera->IsInFirstPerson()) {
+			return true;
+		}
+		// TFC.
+		if (camera->IsInFreeCameraMode()) {
+			return false;
+		}
+
+		auto currentState = camera ? camera->currentState.get() : nullptr;
+		if (!currentState) {
+			return false;
+		}
+
+		// CameraID correction, not all camera states inherit from ThirdPersonState.
+		auto cameraID = currentState->id;
+		if (cameraID < RE::CameraState::kThirdPerson || cameraID > RE::CameraState::kDragon) {
+			cameraID = RE::CameraState::kThirdPerson;
+		}
+		// Fake first person.
+		auto thirdPersonState = static_cast<RE::ThirdPersonState*>(camera->cameraStates[cameraID].get());
+		if (thirdPersonState && thirdPersonState->targetZoomOffset == -0.275f) {
+			return true;
+		}
 	}
 
 	return false;
@@ -2931,7 +2966,7 @@ void DirectionalMovementHandler::InitCameraModsCompatibility()
 		_bACCInstalled = true;
 	}
 
-	if (GetModuleHandle("ImprovedCameraSE.dll")) {
+	if (GetModuleHandle("ImprovedCameraSE.dll") || GetModuleHandle("ImprovedCameraNG.dll")) {
 		_bICInstalled = true;
 	}
 
@@ -2973,6 +3008,7 @@ void DirectionalMovementHandler::InitCameraModsCompatibility()
 						if (v0 == ICSignatures::FileVersion[0] && v1 == ICSignatures::FileVersion[1] &&
 							v2 == ICSignatures::FileVersion[2] && v3 == ICSignatures::FileVersion[3])
 						{
+							_bICInstalled = true;
 							_ImprovedCamera_IsFirstPerson = reinterpret_cast<bool*>(reinterpret_cast<uintptr_t>(hMod) + 0x4d510);
 						}		
 					}
