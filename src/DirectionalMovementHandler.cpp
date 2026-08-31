@@ -2,7 +2,7 @@
 #include "Settings.h"
 #include "Events.h"
 #include "Offsets.h"
-#include "DragonCameraState.h"
+#include "Hooks.h"
 
 #include <Psapi.h>
 #include <DbgHelp.h>
@@ -31,6 +31,49 @@ namespace GraphVarNames
 	static const RE::BSFixedString TDM_HorseAimTurn_Angle_Absolute{ "TDM_HorseAimTurn_Angle_Absolute"sv };
 	static const RE::BSFixedString tdmHeadtrackingSKSE{ "tdmHeadtrackingSKSE"sv };
 	static const RE::BSFixedString HorseGen360{ "360HorseGen"sv };
+}
+
+namespace
+{
+	struct TargetLockAdjustSpeeds
+	{
+		float yaw;
+		float pitch;
+	};
+
+	TargetLockAdjustSpeeds GetTargetLockAdjustSpeeds(const RE::NiPoint3& a_targetPos, bool a_forceLegacyCorrection)
+	{
+		TargetLockAdjustSpeeds speeds{ Settings::fTargetLockYawAdjustSpeed, Settings::fTargetLockPitchAdjustSpeed };
+		if (Settings::uTargetLockMode != TargetLockMode::kRelaxed || a_forceLegacyCorrection) {
+			return speeds;
+		}
+
+		RE::NiPoint2 targetScreenPosition;
+		float targetDepth;
+		bool projectedToScreen = RE::NiCamera::WorldPtToScreenPt3((float(*)[4])g_worldToCamMatrix, *g_viewPort, a_targetPos, targetScreenPosition.x, targetScreenPosition.y, targetDepth, 1e-5f);
+		if (!projectedToScreen || targetDepth < 0.f) {
+			return speeds;
+		}
+
+		const float screenEdgeMargin = Clamp(Settings::fTargetLockRelaxedScreenEdgeMargin * 0.01f, 0.f, 0.45f);
+		const float relaxedFollowCurveStrength = Clamp(Settings::fTargetLockRelaxedFollowCurveStrength, 1.f, 8.f);
+		auto getAxisAdjustSpeed = [&](float a_screenPosition, float a_baseSpeed) {
+			float distanceOutsideSafeArea = 0.f;
+			if (a_screenPosition < screenEdgeMargin) {
+				distanceOutsideSafeArea = screenEdgeMargin - a_screenPosition;
+			} else if (a_screenPosition > 1.f - screenEdgeMargin) {
+				distanceOutsideSafeArea = a_screenPosition - (1.f - screenEdgeMargin);
+			} else {
+				return 0.f;
+			}
+
+			const float edgeProgress = screenEdgeMargin > 0.f ? Clamp(distanceOutsideSafeArea / screenEdgeMargin, 0.f, 1.f) : 1.f;
+			return a_baseSpeed * powf(edgeProgress, relaxedFollowCurveStrength);
+		};
+		speeds.yaw = getAxisAdjustSpeed(targetScreenPosition.x, speeds.yaw);
+		speeds.pitch = getAxisAdjustSpeed(targetScreenPosition.y, speeds.pitch);
+		return speeds;
+	}
 }
 
 DirectionalMovementHandler* DirectionalMovementHandler::GetSingleton()
@@ -277,7 +320,7 @@ void DirectionalMovementHandler::Update()
 				cameraTarget = horseCameraState->horseRefHandle.get().get();
 			} else if (bIsMountedDragon) {
 				auto dragonCameraState = static_cast<RE::DragonCameraState*>(thirdPersonState);
-				cameraTarget = dragonCameraState->dragonRefHandle.get().get();
+				cameraTarget = dragonCameraState->dragonHandle.get().get();
 			} else {
 				cameraTarget = RE::PlayerCharacter::GetSingleton();
 			}
@@ -453,6 +496,7 @@ void DirectionalMovementHandler::UpdateFacingState()
 	playerCharacter->GetGraphVariableInt(GraphVarNames::iState, iState);
 
 	auto rightHand = playerCharacter->GetEquippedObject(false);
+	auto rightSpell = playerCharacter->GetActorRuntimeData().selectedSpells[RE::Actor::SlotTypes::kRightHand];
 	if (rightHand) {
 		auto rightWeapon = rightHand->As<RE::TESObjectWEAP>();
 		if (rightWeapon && rightWeapon->IsBow()) {
@@ -487,27 +531,26 @@ void DirectionalMovementHandler::UpdateFacingState()
 				return;
 			}
 		}
-
-		auto rightSpell = rightHand->As<RE::SpellItem>();
-		if (rightSpell && playerCharacter->IsCasting(rightSpell)) {
-			if (rightSpell->GetDelivery() != Delivery::kSelf) {
-				SetIsAiming(!HasTargetLocked() || rightSpell->GetDelivery() == Delivery::kTargetLocation || Settings::uTargetLockMissileAimType == kFreeAim);
-				_bShouldFaceCrosshair = IsAiming();
-				if (_bShouldFaceCrosshair) {
-					_faceCrosshairTimer = _faceCrosshairDuration;
-				}
-				_bShouldFaceTarget = true;
-				return;
-			} else if (Settings::bFaceCrosshairWhileBlocking && rightSpell->avEffectSetting && rightSpell->avEffectSetting->HasKeyword(Settings::kywd_magicWard)) {
-				_bShouldFaceCrosshair = true;
+	}
+	if (rightSpell && playerCharacter->IsCasting(rightSpell)) {
+		if (rightSpell->GetDelivery() != Delivery::kSelf) {
+			SetIsAiming(!HasTargetLocked() || rightSpell->GetDelivery() == Delivery::kTargetLocation || Settings::uTargetLockMissileAimType == kFreeAim);
+			_bShouldFaceCrosshair = IsAiming();
+			if (_bShouldFaceCrosshair) {
 				_faceCrosshairTimer = _faceCrosshairDuration;
-				_bShouldFaceTarget = true;
-				return;
 			}
+			_bShouldFaceTarget = true;
+			return;
+		} else if (Settings::bFaceCrosshairWhileBlocking && rightSpell->avEffectSetting && rightSpell->avEffectSetting->HasKeyword(Settings::kywd_magicWard)) {
+			_bShouldFaceCrosshair = true;
+			_faceCrosshairTimer = _faceCrosshairDuration;
+			_bShouldFaceTarget = true;
+			return;
 		}
 	}
 
 	auto leftHand = playerCharacter->GetEquippedObject(true);
+	auto leftSpell = playerCharacter->GetActorRuntimeData().selectedSpells[RE::Actor::SlotTypes::kLeftHand];
 	if (leftHand) {
 		auto leftWeapon = leftHand->As<RE::TESObjectWEAP>();
 		if (leftWeapon && leftWeapon->IsStaff()) {
@@ -521,24 +564,21 @@ void DirectionalMovementHandler::UpdateFacingState()
 				return;
 			}
 		}
-
-		auto leftSpell = leftHand->As<RE::SpellItem>();
-		if (leftSpell && playerCharacter->IsCasting(leftSpell)) {
-			if (leftSpell->GetDelivery() != Delivery::kSelf) {
-				SetIsAiming(!HasTargetLocked() || leftSpell->GetDelivery() == Delivery::kTargetLocation || Settings::uTargetLockMissileAimType == kFreeAim);
-				_bShouldFaceCrosshair = IsAiming();
-				if (_bShouldFaceCrosshair) {
-					_faceCrosshairTimer = _faceCrosshairDuration;
-				}
-				_bShouldFaceTarget = true;
-				return;
-			}
-			else if (Settings::bFaceCrosshairWhileBlocking && leftSpell->avEffectSetting && leftSpell->avEffectSetting->HasKeyword(Settings::kywd_magicWard)) {
-				_bShouldFaceCrosshair = true;
+	}
+	if (leftSpell && playerCharacter->IsCasting(leftSpell)) {
+		if (leftSpell->GetDelivery() != Delivery::kSelf) {
+			SetIsAiming(!HasTargetLocked() || leftSpell->GetDelivery() == Delivery::kTargetLocation || Settings::uTargetLockMissileAimType == kFreeAim);
+			_bShouldFaceCrosshair = IsAiming();
+			if (_bShouldFaceCrosshair) {
 				_faceCrosshairTimer = _faceCrosshairDuration;
-				_bShouldFaceTarget = true;
-				return;
 			}
+			_bShouldFaceTarget = true;
+			return;
+		} else if (Settings::bFaceCrosshairWhileBlocking && leftSpell->avEffectSetting && leftSpell->avEffectSetting->HasKeyword(Settings::kywd_magicWard)) {
+			_bShouldFaceCrosshair = true;
+			_faceCrosshairTimer = _faceCrosshairDuration;
+			_bShouldFaceTarget = true;
+			return;
 		}
 	}
 
@@ -806,7 +846,7 @@ void DirectionalMovementHandler::UpdateCameraAutoRotation()
 			cameraTarget = horseCameraState->horseRefHandle.get()->As<RE::Actor>();
 		} else if (bIsMountedDragon) {
 			auto dragonCameraState = static_cast<RE::DragonCameraState*>(thirdPersonState);
-			cameraTarget = dragonCameraState->dragonRefHandle.get()->As<RE::Actor>();
+			cameraTarget = dragonCameraState->dragonHandle.get()->As<RE::Actor>();
 		} else {
 			cameraTarget = RE::PlayerCharacter::GetSingleton();
 		}
@@ -1163,6 +1203,11 @@ void DirectionalMovementHandler::UpdateRotation(bool bForceInstant /*= false */)
 				}
 			}
 
+			// skip attack rotation multipliers while sprinting to minimize running power attacks missing a locked target
+			if (playerCharacter->AsActorState()->IsSprinting()) {
+				bSkipAttackRotationMultipliers = true;
+			}
+
 			RE::ATTACK_STATE_ENUM playerAttackState = playerActorState->GetAttackState();
 			bool bIsAttacking = playerAttackState > RE::ATTACK_STATE_ENUM::kNone && playerAttackState < RE::ATTACK_STATE_ENUM::kBowDraw;
 			if (playerCharacter->IsInMidair()) {
@@ -1275,23 +1320,28 @@ void DirectionalMovementHandler::UpdateRotationLockedCam()
 	float angleDelta = GetAngle(currentPlayerDirection, playerDirectionToTargetXY);
 	angleDelta = NormalRelativeAngle(angleDelta);
 
+	const auto targetLockAdjustSpeeds = GetTargetLockAdjustSpeeds(targetPos, false);
 	const float realTimeDeltaTime = GetRealTimeDeltaTime();
 
 	float desiredCharacterYaw = currentCharacterYaw + angleDelta;
-	playerCharacter->SetHeading(InterpAngleTo(currentCharacterYaw, desiredCharacterYaw, realTimeDeltaTime, Settings::fTargetLockYawAdjustSpeed));
+	if (targetLockAdjustSpeeds.yaw > 0.f) {
+		playerCharacter->SetHeading(InterpAngleTo(currentCharacterYaw, desiredCharacterYaw, realTimeDeltaTime, targetLockAdjustSpeeds.yaw));
+	}
 
 	// pitch
 	RE::NiPoint3 playerAngle = ToOrientationRotation(playerDirectionToTarget);
 	float desiredPlayerPitch = -playerAngle.x;
 
-	playerCharacter->SetLooking(InterpAngleTo(currentCharacterPitch, desiredPlayerPitch, realTimeDeltaTime, Settings::fTargetLockPitchAdjustSpeed));
+	if (targetLockAdjustSpeeds.pitch > 0.f) {
+		playerCharacter->SetLooking(InterpAngleTo(currentCharacterPitch, desiredPlayerPitch, realTimeDeltaTime, targetLockAdjustSpeeds.pitch));
+	}
 }
 
 void DirectionalMovementHandler::UpdateTweeningState()
 {
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 	if (playerCharacter) {
-		auto movementController = playerCharacter->GetActorRuntimeData().movementController;
+		auto& movementController = playerCharacter->GetActorRuntimeData().movementController;
 		if (movementController && movementController->unk0F8) {
 			uintptr_t tweenerArbiterPtr = movementController->unk0F8 - 0x20;
 
@@ -1367,7 +1417,7 @@ bool DirectionalMovementHandler::IsPlayerAIDriven() const
 	}
 
 	auto& movementController = playerCharacter->GetActorRuntimeData().movementController;
-	if (movementController && !movementController->playerControls) {
+	if (movementController && !movementController->controlsDriven) {
 		return true;
 	}
 
@@ -1412,6 +1462,8 @@ void DirectionalMovementHandler::ResetCamera()
 
 bool DirectionalMovementHandler::ToggleTargetLock(bool bEnable, bool bPressedManually /*= false */)
 {
+	Hooks::ResetRelaxedTargetLockGesture();
+
 	ResetLockBehindTarget();
 
 	auto playerCharacter = RE::PlayerCharacter::GetSingleton();
@@ -2570,7 +2622,7 @@ void DirectionalMovementHandler::UpdateMoveCameraBehindTarget(const float a_dist
 			dragonCameraState = static_cast<RE::DragonCameraState*>(playerCamera->currentState.get());
 			if (dragonCameraState)
 			{
-				if (auto dragonRefPtr = dragonCameraState->dragonRefHandle.get())
+				if (auto dragonRefPtr = dragonCameraState->dragonHandle.get())
 				{
 					auto* dragonActor = dragonRefPtr->As<RE::Actor>();
 					if (dragonActor && GetFlyingState(dragonActor) != 0)
@@ -2648,7 +2700,7 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	RE::Actor* yawActor = static_cast<RE::Actor*>(playerCharacter);
 	if (bIsDragonCamera) {
 		auto dragonCameraState = static_cast<RE::DragonCameraState*>(thirdPersonState);
-		if (auto dragonRefPtr = dragonCameraState->dragonRefHandle.get())
+		if (auto dragonRefPtr = dragonCameraState->dragonHandle.get())
 		{
 			yawActor = dragonRefPtr->As<RE::Actor>();
 		} else
@@ -2668,6 +2720,11 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	float distanceToTarget = playerPos.GetDistance(targetPos);
 
 	UpdateMoveCameraBehindTarget(distanceToTarget);
+	const bool forceLegacyCorrection = _moveCameraBehindTarget || _isLockedCameraTransitioning;
+	const auto targetLockAdjustSpeeds = GetTargetLockAdjustSpeeds(targetPos, forceLegacyCorrection);
+	float yawAdjustSpeed = targetLockAdjustSpeeds.yaw;
+	float pitchAdjustSpeed = targetLockAdjustSpeeds.pitch;
+
 	
 	float zOffset = distanceToTarget * Settings::fTargetLockPitchOffsetStrength;
 
@@ -2696,7 +2753,6 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	RE::NiPoint3 cameraToPlayer = RE::NiPoint3(playerPos.x - cameraPos.x, playerPos.y - cameraPos.y, playerPos.z - cameraPos.z);
 
 	// If the camera should move behind the target, use the camera-player line as 1st reference for deltaAngle
-	// If the camera should move behind the player, use the camera-target line as 1st reference for deltaAngle
 	// This ensures that for both cases deltaAngle gets smaller as the camera approaches the target line
 	RE::NiPoint3 from = _moveCameraBehindTarget ? playerToTarget : cameraToPlayer;
 	RE::NiPoint3 onto = _moveCameraBehindTarget ? cameraToPlayer : cameraToTarget;
@@ -2746,8 +2802,10 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 		currentCameraDirection.y = -playerToTarget.y;
 		currentCameraDirection.Unitize();
 	}
-	auto reversedCameraDirection = currentCameraDirection * -1.f;
-	float behindAngle = _isLockedCameraTransitioning ? -PI2 : GetAngle(reversedCameraDirection, projectedDirectionXY); // always transition counterclockwise
+	// Use the actual camera-to-target angle when the target is behind the camera.
+	// Comparing against the reversed camera direction makes a directly-behind target
+	// appear already aligned, leaving the camera facing away from it.
+	float behindAngle = _isLockedCameraTransitioning ? -PI2 : GetAngle(currentCameraDirection, projectedDirectionXY); // always transition counterclockwise
 	float angleDelta = _isBehind ? behindAngle : GetAngle(currentCameraDirection, projectedDirectionXY);
 	if (_moveCameraBehindTarget) {
 		float cameraDirectionYaw = std::atan2(currentCameraDirection.x, currentCameraDirection.y);
@@ -2766,7 +2824,9 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 		_isLockedCameraTransitioning_prev = false;
 	}
 
-	thirdPersonState->freeRotation.x = InterpAngleTo(currentCameraYawOffset, desiredFreeCameraRotation, realTimeDeltaTime, Settings::fTargetLockYawAdjustSpeed);
+	if (yawAdjustSpeed > 0.f) {
+		thirdPersonState->freeRotation.x = InterpAngleTo(currentCameraYawOffset, desiredFreeCameraRotation, realTimeDeltaTime, yawAdjustSpeed);
+	}
 
 	if (_isBehind)
 	{
@@ -2812,7 +2872,9 @@ void DirectionalMovementHandler::LookAtTarget(RE::ActorHandle a_target)
 	if (!bIsHorseCamera && !bIsDragonCamera) {
 		thirdPersonState->freeRotation.y += cameraPitchOffset;
 	}
-	thirdPersonState->freeRotation.y = InterpAngleTo(thirdPersonState->freeRotation.y, desiredCameraAngle, realTimeDeltaTime, Settings::fTargetLockPitchAdjustSpeed);
+	if (pitchAdjustSpeed > 0.f) {
+		thirdPersonState->freeRotation.y = InterpAngleTo(thirdPersonState->freeRotation.y, desiredCameraAngle, realTimeDeltaTime, pitchAdjustSpeed);
+	}
 }
 
 RE::NiPoint3 DirectionalMovementHandler::GetCameraAngle(RE::NiPoint3& a_playerPos, RE::NiPoint3& a_cameraPos, RE::NiPoint3& a_cameraDirection) 

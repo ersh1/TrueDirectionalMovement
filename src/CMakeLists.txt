@@ -1,41 +1,11 @@
 set(ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
 set(SOURCE_DIR "${ROOT_DIR}/src")
-set(SOURCE_FILES
-	"${SOURCE_DIR}/DirectionalMovementHandler.cpp"
-	"${SOURCE_DIR}/DirectionalMovementHandler.h"
-	"${SOURCE_DIR}/Events.cpp"
-	"${SOURCE_DIR}/Events.h"
-	"${SOURCE_DIR}/Hooks.cpp"
-	"${SOURCE_DIR}/Hooks.h"
-	"${SOURCE_DIR}/main.cpp"
-	"${SOURCE_DIR}/ModAPI.cpp"
-	"${SOURCE_DIR}/ModAPI.h"
-	"${SOURCE_DIR}/OARFunctions.cpp"
-	"${SOURCE_DIR}/OARFunctions.h"
-	"${SOURCE_DIR}/Offsets.h"
-	"${SOURCE_DIR}/Papyrus.cpp"
-	"${SOURCE_DIR}/Papyrus.h"
-	"${SOURCE_DIR}/PCH.h"
-	"${SOURCE_DIR}/Settings.cpp"
-	"${SOURCE_DIR}/Settings.h"
-	"${SOURCE_DIR}/TrueDirectionalMovementAPI.h"
-	"${SOURCE_DIR}/Raycast.cpp"
-	"${SOURCE_DIR}/Raycast.h"
-	"${SOURCE_DIR}/Utils.cpp"
-	"${SOURCE_DIR}/Utils.h"
-	"${SOURCE_DIR}/API/APIManager.cpp"
-	"${SOURCE_DIR}/API/APIManager.h"
-	"${SOURCE_DIR}/API/DodgeFrameworkAPI.h"
-	"${SOURCE_DIR}/API/OpenAnimationReplacerAPI-Functions.cpp"
-	"${SOURCE_DIR}/API/OpenAnimationReplacerAPI-Functions.h"
-	"${SOURCE_DIR}/API/OpenAnimationReplacer-FunctionTypes.cpp"
-	"${SOURCE_DIR}/API/OpenAnimationReplacer-FunctionTypes.h"
-	"${SOURCE_DIR}/API/OpenAnimationReplacer-SharedTypes.h"
-	"${SOURCE_DIR}/API/SmoothCamAPI.h"
-	"${SOURCE_DIR}/API/TrueHUDAPI.h"
-	"${SOURCE_DIR}/Widgets/TargetLockReticle.cpp"
-	"${SOURCE_DIR}/Widgets/TargetLockReticle.h"
+file(
+	GLOB_RECURSE SOURCE_FILES
+	CONFIGURE_DEPENDS
+		"${SOURCE_DIR}/*.cpp"
+		"${SOURCE_DIR}/*.h"
 )
 
 source_group(TREE "${ROOT_DIR}" FILES ${SOURCE_FILES})

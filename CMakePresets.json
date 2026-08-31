@@ -36,7 +36,11 @@
         },
         "VCPKG_TARGET_TRIPLET": {
           "type": "STRING",
-          "value": "x64-windows-static-md"
+          "value": "x64-windows-static-md-v143"
+        },
+        "VCPKG_OVERLAY_TRIPLETS": {
+          "type": "PATH",
+          "value": "${sourceDir}/cmake/triplets"
         }
       },
       "hidden": true,

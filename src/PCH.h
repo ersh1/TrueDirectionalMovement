@@ -29,6 +29,13 @@ namespace util
 #define DLLEXPORT __declspec(dllexport)
 
 #define RELOCATION_OFFSET(SE, AE) REL::VariantOffset(SE, AE, 0).offset()
-#define RELOCATION_OFFSET2(SE, AE, AE629) REL::VariantOffset(SE, REL::Module::get().version().compare(SKSE::RUNTIME_SSE_1_6_629) == std::strong_ordering::less ? AE : AE629, 0).offset()
-
+#define RELOCATION_OFFSET1799(SE, AE, AE1799) REL::VariantOffset(SE, REL::Module::get().version().compare(SKSE::RUNTIME_SSE_1_7_99) == std::strong_ordering::less ? AE : AE1799, 0).offset()
+#define RELOCATION_OFFSET3(SE, AE, AE629, AE1799)                                                                \
+	REL::VariantOffset(                                                                                          \
+		SE,                                                                                                      \
+		REL::Module::get().version().compare(SKSE::RUNTIME_SSE_1_7_99) != std::strong_ordering::less  ? AE1799 : \
+		REL::Module::get().version().compare(SKSE::RUNTIME_SSE_1_6_629) != std::strong_ordering::less ? AE629 :  \
+																										AE,      \
+		0)                                                                                                       \
+		.offset()
 #include "Plugin.h"

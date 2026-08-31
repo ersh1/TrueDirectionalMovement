@@ -1,16 +1,18 @@
 #pragma once
-#include "DragonCameraState.h"
 
 namespace Hooks
 {
+	void ResetRelaxedTargetLockGesture();
+
 	class MovementHook
 	{
 	public:
 		static void Hook()
 		{
 			REL::Relocation<std::uintptr_t> MovementHandlerVtbl{ RE::VTABLE_MovementHandler[0] };
-			_ProcessThumbstick = MovementHandlerVtbl.write_vfunc(0x2, ProcessThumbstick);
-			_ProcessButton = MovementHandlerVtbl.write_vfunc(0x4, ProcessButton);
+			auto vtblShift = REL::Module::IsAtLeast(SKSE::RUNTIME_SSE_1_7_99) ? 2 : 0;
+			_ProcessThumbstick = MovementHandlerVtbl.write_vfunc(0x2 + vtblShift, ProcessThumbstick);
+			_ProcessButton = MovementHandlerVtbl.write_vfunc(0x4 + vtblShift, ProcessButton);
 		}
 
 	private:
@@ -43,8 +45,9 @@ namespace Hooks
 		static void Hook()
 		{
 			REL::Relocation<std::uintptr_t> LookHandlerVtbl{ RE::VTABLE_LookHandler[0] };
-			_ProcessThumbstick = LookHandlerVtbl.write_vfunc(0x2, ProcessThumbstick);
-			_ProcessMouseMove = LookHandlerVtbl.write_vfunc(0x3, ProcessMouseMove);
+			auto vtblShift = REL::Module::IsAtLeast(SKSE::RUNTIME_SSE_1_7_99) ? 2 : 0;
+			_ProcessThumbstick = LookHandlerVtbl.write_vfunc(0x2 + vtblShift, ProcessThumbstick);
+			_ProcessMouseMove = LookHandlerVtbl.write_vfunc(0x3 + vtblShift, ProcessMouseMove);
 		}
 
 	private:
@@ -61,7 +64,8 @@ namespace Hooks
 		static void Hook()
 		{
 			REL::Relocation<std::uintptr_t> TogglePOVHandlerVtbl{ RE::VTABLE_TogglePOVHandler[0] };
-			_ProcessButton = TogglePOVHandlerVtbl.write_vfunc(0x4, ProcessButton);
+			auto vtblShift = REL::Module::IsAtLeast(SKSE::RUNTIME_SSE_1_7_99) ? 2 : 0;
+			_ProcessButton = TogglePOVHandlerVtbl.write_vfunc(0x4 + vtblShift, ProcessButton);
 		}
 
 	private:
@@ -79,7 +83,8 @@ namespace Hooks
 			_OnEnterState = FirstPersonStateVtbl.write_vfunc(0x1, OnEnterState);
 			_OnExitState = FirstPersonStateVtbl.write_vfunc(0x2, OnExitState);
 			REL::Relocation<std::uintptr_t> PlayerInputHandlerVtbl{ RE::VTABLE_FirstPersonState[1] };
-			_ProcessButton = PlayerInputHandlerVtbl.write_vfunc(0x4, ProcessButton);
+			auto vtblShift = REL::Module::IsAtLeast(SKSE::RUNTIME_SSE_1_7_99) ? 2 : 0;
+			_ProcessButton = PlayerInputHandlerVtbl.write_vfunc(0x4 + vtblShift, ProcessButton);
 		}
 
 	private:
@@ -102,7 +107,8 @@ namespace Hooks
 			_OnExitState = ThirdPersonStateVtbl.write_vfunc(0x2, OnExitState);
 			_SetFreeRotationMode = ThirdPersonStateVtbl.write_vfunc(0xD, SetFreeRotationMode);
 			REL::Relocation<std::uintptr_t> PlayerInputHandlerVtbl{ RE::VTABLE_ThirdPersonState[1] };
-			_ProcessButton = PlayerInputHandlerVtbl.write_vfunc(0x4, ProcessButton);
+			auto vtblShift = REL::Module::IsAtLeast(SKSE::RUNTIME_SSE_1_7_99) ? 2 : 0;
+			_ProcessButton = PlayerInputHandlerVtbl.write_vfunc(0x4 + vtblShift, ProcessButton);
 		}
 	private:		
 		static void OnEnterState(RE::ThirdPersonState* a_this);
@@ -127,7 +133,8 @@ namespace Hooks
 			_UpdateRotation = HorseCameraStateVtbl.write_vfunc(0xE, UpdateRotation);
 			_HandleLookInput = HorseCameraStateVtbl.write_vfunc(0xF, HandleLookInput);
 			REL::Relocation<std::uintptr_t> PlayerInputHandlerVtbl{ RE::VTABLE_HorseCameraState[1] };
-			_ProcessButton = PlayerInputHandlerVtbl.write_vfunc(0x4, ProcessButton);
+			auto vtblShift = REL::Module::IsAtLeast(SKSE::RUNTIME_SSE_1_7_99) ? 2 : 0;
+			_ProcessButton = PlayerInputHandlerVtbl.write_vfunc(0x4 + vtblShift, ProcessButton);
 		}
 
 	private:
@@ -155,7 +162,8 @@ namespace Hooks
 			_UpdateRotation = DragonCameraStateVtbl.write_vfunc(0xE, UpdateRotation);
 			_HandleLookInput = DragonCameraStateVtbl.write_vfunc(0xF, HandleLookInput);
 			REL::Relocation<std::uintptr_t> PlayerInputHandlerVtbl{ RE::VTABLE_DragonCameraState[1] };
-			_ProcessButton = PlayerInputHandlerVtbl.write_vfunc(0x4, ProcessButton);
+			auto vtblShift = REL::Module::IsAtLeast(SKSE::RUNTIME_SSE_1_7_99) ? 2 : 0;
+			_ProcessButton = PlayerInputHandlerVtbl.write_vfunc(0x4 + vtblShift, ProcessButton);
 		}
 
 	private:
@@ -297,7 +305,7 @@ namespace Hooks
 			auto& trampoline = SKSE::GetTrampoline();
 			REL::Relocation<uintptr_t> hook{ RELOCATION_ID(39375, 40447) };  // 69E580, 6C6440
 
-			_UpdateSprintState = trampoline.write_call<5>(hook.address() + RELOCATION_OFFSET2(0xDAE, 0x140B, 0x140D), UpdateSprintState);
+			_UpdateSprintState = trampoline.write_call<5>(hook.address() + RELOCATION_OFFSET3(0xDAE, 0x140B, 0x140D, 0x1406), UpdateSprintState);
 		}
 
 	private:
@@ -325,9 +333,9 @@ namespace Hooks
 			auto& trampoline = SKSE::GetTrampoline();			
 			REL::Relocation<uintptr_t> hook{ RELOCATION_ID(41288, 42338) };  // 706AF0, 72E720
 
-			_CheckIsInSyncAnim = trampoline.write_call<5>(hook.address() + RELOCATION_OFFSET(0xD8, 0x153), CheckIsInSyncAnim);
-			_Check2 = trampoline.write_call<5>(hook.address() + RELOCATION_OFFSET(0x99, 0x106), Check2);
-			_Check3 = trampoline.write_call<5>(hook.address() + RELOCATION_OFFSET(0xB9, 0x12A), Check3);
+			_CheckIsInSyncAnim = trampoline.write_call<5>(hook.address() + RELOCATION_OFFSET1799(0xD8, 0x153, 0x14A), CheckIsInSyncAnim);
+			_Check2 = trampoline.write_call<5>(hook.address() + RELOCATION_OFFSET1799(0x99, 0x106, 0xFD), Check2);
+			_Check3 = trampoline.write_call<5>(hook.address() + RELOCATION_OFFSET1799(0xB9, 0x12A, 0x121), Check3);
 		}
 
 	private:
@@ -377,7 +385,7 @@ namespace Hooks
 			REL::Relocation<uintptr_t> hook2{ RELOCATION_ID(36365, 37356) };  // 5D87F0, 5FD7E0
 			REL::Relocation<uintptr_t> hook3{ RELOCATION_ID(38613, 39644) };  // 664C80, 68C160
 
-			_Actor_SetRotationX = trampoline.write_call<5>(hook1.address() + RELOCATION_OFFSET(0x4DC, 0x667), Actor_SetRotationX);    // 4EC7DC
+			_Actor_SetRotationX = trampoline.write_call<5>(hook1.address() + RELOCATION_OFFSET1799(0x4DC, 0x667, 0x678), Actor_SetRotationX);  // 4EC7DC
 			_Actor_SetRotationZ1 = trampoline.write_call<5>(hook2.address() + RELOCATION_OFFSET(0x9C7, 0xA87), Actor_SetRotationZ1);  // 5D91B7
 			_Actor_SetRotationZ2 = trampoline.write_call<5>(hook3.address() + RELOCATION_OFFSET(0x59A, 0x5C5), Actor_SetRotationZ2);  // 66521A
 		}
@@ -488,8 +496,8 @@ namespace Hooks
 		{
 			auto& trampoline = SKSE::GetTrampoline();
 			REL::Relocation<uintptr_t> hook{ RELOCATION_ID(35565, 36564) };  // 5B2FF0, 5D9F50, main update
-			
-			_Nullsub = trampoline.write_call<5>(hook.address() + RELOCATION_OFFSET(0x748, 0xC26), Nullsub);  // 5B3738, 5DAB76
+
+			_Nullsub = trampoline.write_call<5>(hook.address() + RELOCATION_OFFSET1799(0x748, 0xC26, 0xC38), Nullsub);  // 5B3738, 5DAB76
 		}
 
 	private:
@@ -507,7 +515,7 @@ namespace Hooks
 			REL::Relocation<uintptr_t> hook2{ RELOCATION_ID(49960, 50896) };  // 84F490, 87B570
 			REL::Relocation<uintptr_t> hook3{ RELOCATION_ID(43009, 44200) };  // 7516E0, 77EFD0, replace horse aim yaw
 
-			_GetHorseCameraFreeRotationYaw = trampoline.write_call<5>(hook1.address() + RELOCATION_OFFSET(0x17A, 0x1B5), GetHorseCameraFreeRotationYaw);  // 72FC3A
+			_GetHorseCameraFreeRotationYaw = trampoline.write_call<5>(hook1.address() + RELOCATION_OFFSET1799(0x17A, 0x1B5, 0x1C4), GetHorseCameraFreeRotationYaw);  // 72FC3A
 			//_GetMovementAgentPosition = trampoline.write_call<5>(hook1.address() + 0x22B, GetMovementAgentPosition); // 72FCEB - NPC Z offset after the location is set
 			_Func = trampoline.write_call<5>(hook2.address() + RELOCATION_OFFSET(0x45, 0x45), Func);  // 84F4D5
 			_GetYaw = trampoline.write_call<5>(hook3.address() + RELOCATION_OFFSET(0x1C0, 0x1C0), GetYaw);  // 7518A0

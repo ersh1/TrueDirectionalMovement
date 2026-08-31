@@ -7,6 +7,12 @@ enum DirectionalMovementMode : std::uint32_t
 	kDirectional = 2
 };
 
+enum TargetLockMode : std::uint32_t
+{
+	kLocked = 0,
+	kRelaxed = 1
+};
+
 enum TargetLockProjectileAimType : std::uint32_t
 {
 	kFreeAim = 0,
@@ -109,6 +115,10 @@ struct Settings
 	static inline CameraHeadtrackingMode uCameraHeadtrackingMode = CameraHeadtrackingMode::kDisable;
 
 	// Target Lock
+	static inline TargetLockMode uTargetLockMode = TargetLockMode::kLocked;
+	static inline float fTargetLockRelaxedScreenEdgeMargin = 15.f;
+	static inline float fTargetLockThumbstickTapDuration = 0.15f;
+	static inline float fTargetLockRelaxedFollowCurveStrength = 3.0f;
 	static inline bool bAutoTargetNextOnDeath = true;
 	static inline bool bTargetLockTestLOS = true;
 	static inline bool bTargetLockHostileActorsOnly = true;

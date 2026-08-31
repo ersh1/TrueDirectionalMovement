@@ -139,6 +139,10 @@ void Settings::ReadSettings()
 		ReadUInt32Setting(mcm, "Headtracking", "uCameraHeadtrackingMode", (uint32_t&)uCameraHeadtrackingMode);
 
 		// Target Lock
+		ReadUInt32Setting(mcm, "TargetLock", "uTargetLockMode", (uint32_t&)uTargetLockMode);
+		ReadFloatSetting(mcm, "TargetLock", "fTargetLockRelaxedScreenEdgeMargin", fTargetLockRelaxedScreenEdgeMargin);
+		ReadFloatSetting(mcm, "TargetLock", "fTargetLockThumbstickTapDuration", fTargetLockThumbstickTapDuration);
+		ReadFloatSetting(mcm, "TargetLock", "fTargetLockRelaxedFollowCurveStrength", fTargetLockRelaxedFollowCurveStrength);
 		ReadBoolSetting(mcm, "TargetLock", "bAutoTargetNextOnDeath", bAutoTargetNextOnDeath);
 		ReadBoolSetting(mcm, "TargetLock", "bTargetLockTestLOS", bTargetLockTestLOS);
 		ReadBoolSetting(mcm, "TargetLock", "bTargetLockHostileActorsOnly", bTargetLockHostileActorsOnly);

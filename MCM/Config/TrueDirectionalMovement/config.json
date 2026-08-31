@@ -651,6 +651,20 @@
                 "type": "header"
             },
             {
+                "id": "uTargetLockMode:TargetLock",
+                "text": "$TrueDirectionalMovement_TargetLockMode_OptionText",
+                "type": "enum",
+                "help": "$TrueDirectionalMovement_TargetLockMode_InfoText",
+                "groupControl": 5,
+                "valueOptions": {
+                    "options": [
+                        "$TrueDirectionalMovement_TargetLockMode_Locked",
+                        "$TrueDirectionalMovement_TargetLockMode_Relaxed"
+                    ],
+                    "sourceType": "ModSettingInt"
+                }
+            },
+            {
                 "id": "bAutoTargetNextOnDeath:TargetLock",
                 "text": "$TrueDirectionalMovement_AutoTargetNextOnDeath_OptionText",
                 "type": "toggle",
@@ -750,6 +764,34 @@
             {
                 "text": "$TrueDirectionalMovement_CameraSettings_HeaderText",
                 "type": "header"
+            },
+            {
+                "id": "fTargetLockRelaxedScreenEdgeMargin:TargetLock",
+                "text": "$TrueDirectionalMovement_TargetLockRelaxedScreenEdgeMargin_OptionText",
+                "type": "slider",
+                "help": "$TrueDirectionalMovement_TargetLockRelaxedScreenEdgeMargin_InfoText",
+                "groupCondition": 5,
+                "valueOptions": {
+                    "min": 0,
+                    "max": 45,
+                    "step": 1,
+                    "formatString": "{0}%",
+                    "sourceType": "ModSettingFloat"
+                }
+            },
+            {
+                "id": "fTargetLockRelaxedFollowCurveStrength:TargetLock",
+                "text": "$TrueDirectionalMovement_TargetLockRelaxedFollowCurveStrength_OptionText",
+                "type": "slider",
+                "help": "$TrueDirectionalMovement_TargetLockRelaxedFollowCurveStrength_InfoText",
+                "groupCondition": 5,
+                "valueOptions": {
+                    "min": 1.0,
+                    "max": 8.0,
+                    "step": 0.1,
+                    "formatString": "{1}",
+                    "sourceType": "ModSettingFloat"
+                }
             },
             {
                 "id": "fTargetLockPitchAdjustSpeed:TargetLock",
@@ -910,6 +952,7 @@
                 "text": "$TrueDirectionalMovement_TargetLockUseMouse_OptionText",
                 "type": "toggle",
                 "help": "$TrueDirectionalMovement_TargetLockUseMouse_InfoText",
+                "groupCondition": {"NOT": 5},
                 "groupControl": 4,
                 "valueOptions": {
                     "sourceType": "ModSettingBool"
@@ -920,7 +963,7 @@
                 "text": "$TrueDirectionalMovement_TargetLockMouseSensitivity_OptionText",
                 "type": "slider",
                 "help": "$TrueDirectionalMovement_TargetLockMouseSensitivity_InfoText",
-                "groupCondition": 4,
+                "groupCondition": {"AND": [4, {"NOT": 5}]},
                 "valueOptions": {
                     "min": 1,
                     "max": 200,
@@ -942,8 +985,23 @@
                 "text": "$TrueDirectionalMovement_TargetLockUseRightThumbstick_OptionText",
                 "type": "toggle",
                 "help": "$TrueDirectionalMovement_TargetLockUseRightThumbstick_InfoText",
+                "groupControl": 6,
                 "valueOptions": {
                     "sourceType": "ModSettingBool"
+                }
+            },
+            {
+                "id": "fTargetLockThumbstickTapDuration:TargetLock",
+                "text": "$TrueDirectionalMovement_TargetLockThumbstickTapDuration_OptionText",
+                "type": "slider",
+                "help": "$TrueDirectionalMovement_TargetLockThumbstickTapDuration_InfoText",
+                "groupCondition": {"AND": [5, 6]},
+                "valueOptions": {
+                    "min": 0.05,
+                    "max": 0.4,
+                    "step": 0.01,
+                    "formatString": "{2} s",
+                    "sourceType": "ModSettingFloat"
                 }
             },
 

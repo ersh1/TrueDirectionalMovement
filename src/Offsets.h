@@ -28,8 +28,23 @@ static void** g_142EC5C60 = (void**)RELOCATION_ID(514725, 400883).address();    
 typedef RE::BGSMovementType*(__fastcall* tGetMovementTypeFromString)(const char** a1);
 static REL::Relocation<tGetMovementTypeFromString> GetMovementTypeFromString{ RELOCATION_ID(23268, 23727) };
 
+inline std::size_t GetIsUsingGamepadAddressLibID()
+{
+	const auto version = REL::Module::get().version();
+
+	if (version == SKSE::RUNTIME_1_6_1179) {  // GOG
+		return 510926;
+	}
+
+	if (version >= SKSE::RUNTIME_SSE_1_6_1130) {
+		return 443396;
+	}
+
+	return 68622;
+}
+
 typedef bool(__fastcall* tBSInputDeviceManager_IsUsingGamepad)(RE::BSInputDeviceManager* a_this);
-static REL::Relocation<tBSInputDeviceManager_IsUsingGamepad> BSInputDeviceManager_IsUsingGamepad{ RELOCATION_ID(67320, 68622) };
+static REL::Relocation<tBSInputDeviceManager_IsUsingGamepad> BSInputDeviceManager_IsUsingGamepad{ REL::RelocationID(62654, GetIsUsingGamepadAddressLibID()) };
 
 typedef int64_t(__fastcall* tBShkbAnimationGraph_GetCurrentMovementTypeName)(RE::BShkbAnimationGraph* a_this, RE::BSFixedString* a_string);
 static REL::Relocation<tBShkbAnimationGraph_GetCurrentMovementTypeName> BShkbAnimationGraph_GetCurrentMovementTypeName{ RELOCATION_ID(62654, 63599) };

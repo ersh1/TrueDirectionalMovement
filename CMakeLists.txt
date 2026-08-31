@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 set(NAME "TrueDirectionalMovement" CACHE STRING "")
-set(VERSION 2.2.7 CACHE STRING "")
+set(VERSION 2.3.0 CACHE STRING "")
 
 project(
 	${NAME}

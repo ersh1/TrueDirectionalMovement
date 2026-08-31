@@ -279,6 +279,72 @@ namespace Hooks
 		}
 	}
 
+	enum class RelaxedThumbstickGestureState
+	{
+		kIdle,
+		kPending,
+		kCamera
+	};
+
+	struct RelaxedThumbstickGesture
+	{
+		RelaxedThumbstickGestureState state = RelaxedThumbstickGestureState::kIdle;
+		std::chrono::steady_clock::time_point startTime;
+		RE::NiPoint2 strongestInput{ 0.f, 0.f };
+		float peakMagnitude = 0.f;
+
+		void Reset()
+		{
+			state = RelaxedThumbstickGestureState::kIdle;
+			strongestInput = RE::NiPoint2(0.f, 0.f);
+			peakMagnitude = 0.f;
+		}
+
+		void Begin(float a_x, float a_y, float a_magnitude)
+		{
+			state = RelaxedThumbstickGestureState::kPending;
+			startTime = std::chrono::steady_clock::now();
+			strongestInput = RE::NiPoint2(a_x, a_y);
+			peakMagnitude = a_magnitude;
+		}
+
+		void Sample(float a_x, float a_y, float a_magnitude)
+		{
+			if (a_magnitude > peakMagnitude) {
+				strongestInput = RE::NiPoint2(a_x, a_y);
+				peakMagnitude = a_magnitude;
+			}
+		}
+	};
+
+	static RelaxedThumbstickGesture relaxedThumbstickGesture;
+	void ResetRelaxedTargetLockGesture()
+	{
+		relaxedThumbstickGesture.Reset();
+	}
+
+
+	static void SwitchTargetFromThumbstick(DirectionalMovementHandler* a_handler, const RE::NiPoint2& a_input)
+	{
+		float absX = fabs(a_input.x);
+		float absY = fabs(a_input.y);
+		if (absX > absY) {
+			a_handler->SwitchTarget(a_input.x > 0.f ? DirectionalMovementHandler::Direction::kRight : DirectionalMovementHandler::Direction::kLeft);
+		} else {
+			a_handler->SwitchTarget(a_input.y > 0.f ? DirectionalMovementHandler::Direction::kUp : DirectionalMovementHandler::Direction::kDown);
+		}
+	}
+
+	static void NotifyManualCameraInput(DirectionalMovementHandler* a_handler)
+	{
+		if (Settings::bCameraHeadtracking && Settings::fCameraHeadtrackingDuration > 0.f) {
+			a_handler->RefreshCameraHeadtrackTimer();
+		}
+
+		if (Settings::uAdjustCameraYawDuringMovement > CameraAdjustMode::kDisable && Settings::fCameraAutoAdjustDelay > 0.f) {
+			a_handler->ResetCameraRotationDelay();
+		}
+	}
 	static bool bTargetRecentlySwitched;
 
 	void LookHook::ProcessThumbstick(RE::LookHandler* a_this, RE::ThumbstickEvent* a_event, RE::PlayerControlsData* a_data)
@@ -286,38 +352,95 @@ namespace Hooks
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 		if (a_event && a_event->IsRight() && directionalMovementHandler->HasTargetLocked() && !directionalMovementHandler->ShouldFaceCrosshair()) 
 		{
-			if (!Settings::bTargetLockUseRightThumbstick)
+			// switch target with thumbstick movement
+			if (Settings::bTargetLockUseRightThumbstick && Settings::uTargetLockMode == TargetLockMode::kLocked)
 			{
+				float absX = fabs(a_event->xValue);
+				float absY = fabs(a_event->yValue);
+
+				if (absX + absY > 0.1f && !bTargetRecentlySwitched) {
+					if (absX > absY) {
+						if (a_event->xValue > 0) {
+							directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kRight);
+						} else {
+							directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kLeft);
+						}
+					} else {
+						if (a_event->yValue > 0) {
+							directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kUp);
+						} else {
+							directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kDown);
+						}
+					}
+
+					bTargetRecentlySwitched = true;
+				} else if (absX + absY <= 0.1f) {
+					bTargetRecentlySwitched = false;
+				}
+			}
+
+			if (Settings::uTargetLockMode == TargetLockMode::kLocked) {
+				relaxedThumbstickGesture.Reset();
 				return;  // ensure lock camera movement during lockon
 			}
 
-			float absX = fabs(a_event->xValue);
-			float absY = fabs(a_event->yValue);
+			bTargetRecentlySwitched = false;
+			if (!Settings::bTargetLockUseRightThumbstick) {
+				relaxedThumbstickGesture.Reset();
+				NotifyManualCameraInput(directionalMovementHandler);
+				_ProcessThumbstick(a_this, a_event, a_data);
+				return;
+			}
 
-			if (absX + absY > 0.1f && !bTargetRecentlySwitched) {
-				if (absX > absY) {
-					if (a_event->xValue > 0) {
-						directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kRight);
-					} else {
-						directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kLeft);
-					}
-				} else {
-					if (a_event->yValue > 0) {
-						directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kUp);
-					} else {
-						directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kDown);
-					}
+			const float x = a_event->xValue;
+			const float y = a_event->yValue;
+			const float magnitude = std::sqrt(x * x + y * y);
+			const bool isNeutral = magnitude <= 0.1f;
+			const float tapDuration = Clamp(Settings::fTargetLockThumbstickTapDuration, 0.05f, 0.4f);
+
+			switch (relaxedThumbstickGesture.state) {
+			case RelaxedThumbstickGestureState::kIdle:
+				if (!isNeutral) {
+					relaxedThumbstickGesture.Begin(x, y, magnitude);
+					return;
+				}
+				NotifyManualCameraInput(directionalMovementHandler);
+				_ProcessThumbstick(a_this, a_event, a_data);
+				return;
+			case RelaxedThumbstickGestureState::kPending:
+				if (!isNeutral) {
+					relaxedThumbstickGesture.Sample(x, y, magnitude);
 				}
 
-				bTargetRecentlySwitched = true;
-			} 
-			else if (absX + absY <= 0.1f)
-			{
-				bTargetRecentlySwitched = false;
+				{
+					const float elapsed = std::chrono::duration<float>(std::chrono::steady_clock::now() - relaxedThumbstickGesture.startTime).count();
+					if (isNeutral) {
+						if (elapsed <= tapDuration && relaxedThumbstickGesture.peakMagnitude >= 0.5f) {
+							SwitchTargetFromThumbstick(directionalMovementHandler, relaxedThumbstickGesture.strongestInput);
+						}
+						relaxedThumbstickGesture.Reset();
+						return;
+					}
+
+					if (elapsed >= tapDuration) {
+						relaxedThumbstickGesture.state = RelaxedThumbstickGestureState::kCamera;
+						NotifyManualCameraInput(directionalMovementHandler);
+						_ProcessThumbstick(a_this, a_event, a_data);
+					}
+				}
+				return;
+			case RelaxedThumbstickGestureState::kCamera:
+				NotifyManualCameraInput(directionalMovementHandler);
+				_ProcessThumbstick(a_this, a_event, a_data);
+				if (isNeutral) {
+					relaxedThumbstickGesture.Reset();
+				}
+				return;
 			}
 		}
 		else
 		{
+			relaxedThumbstickGesture.Reset();
 			bTargetRecentlySwitched = false;
 			if (Settings::bCameraHeadtracking && Settings::fCameraHeadtrackingDuration > 0.f) {
 				directionalMovementHandler->RefreshCameraHeadtrackTimer();
@@ -340,42 +463,46 @@ namespace Hooks
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 		if (a_event && directionalMovementHandler->HasTargetLocked() && !directionalMovementHandler->ShouldFaceCrosshair())
 		{
-			if (!Settings::bTargetLockUseMouse)
+			// switch target with mouse movement
+			if (Settings::bTargetLockUseMouse && Settings::uTargetLockMode == TargetLockMode::kLocked)
 			{
-				return; // ensure lock camera movement during lockon
+				int32_t absX = abs(a_event->mouseInputX);
+				int32_t absY = abs(a_event->mouseInputY);
+
+				if (absX + absY > static_cast<int32_t>(Settings::uTargetLockMouseSensitivity)) {
+					if (absX > absY) {
+						if (a_event->mouseInputX > 0) {
+							directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kRight);
+						} else {
+							directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kLeft);
+						}
+					} else {
+						if (a_event->mouseInputY > 0) {
+							directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kDown);
+						} else {
+							directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kUp);
+						}
+					}
+
+					bTargetRecentlySwitched = true;
+				} else if (absX + absY <= static_cast<int32_t>(Settings::uTargetLockMouseSensitivity)) {
+					bTargetRecentlySwitched = false;
+				}
 			}
 
-			int32_t absX = abs(a_event->mouseInputX);
-			int32_t absY = abs(a_event->mouseInputY);
-
-			if (absX + absY > static_cast<int32_t>(Settings::uTargetLockMouseSensitivity))
-			{
-				if (absX > absY)
-				{
-					if (a_event->mouseInputX > 0) {
-						directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kRight);
-					} else {
-						directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kLeft);
-					}
-				}
-				else 
-				{
-					if (a_event->mouseInputY > 0) {
-						directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kDown);
-					} else {
-						directionalMovementHandler->SwitchTarget(DirectionalMovementHandler::Direction::kUp);
-					}
-				}
-
-				bTargetRecentlySwitched = true;
-			} 
-			else if (absX + absY <= static_cast<int32_t>(Settings::uTargetLockMouseSensitivity))
-			{
-				bTargetRecentlySwitched = false;
+			if (Settings::uTargetLockMode == TargetLockMode::kLocked) {
+				return;  // ensure lock camera movement during lockon
 			}
+
+			relaxedThumbstickGesture.Reset();
+			bTargetRecentlySwitched = false;
+			NotifyManualCameraInput(directionalMovementHandler);
+			_ProcessMouseMove(a_this, a_event, a_data);
+			return;
 		}
 		else
 		{
+			relaxedThumbstickGesture.Reset();
 			bTargetRecentlySwitched = false;
 			if (Settings::bCameraHeadtracking && Settings::fCameraHeadtrackingDuration > 0.f) {
 				directionalMovementHandler->RefreshCameraHeadtrackTimer();
@@ -760,7 +887,7 @@ namespace Hooks
 			auto playerCharacter = RE::PlayerCharacter::GetSingleton();
 
 			RE::Actor* dragon = nullptr;
-			dragon = static_cast<RE::Actor*>(a_this->dragonRefHandle.get().get());
+			dragon = static_cast<RE::Actor*>(a_this->dragonHandle.get().get());
 
 			if (savedCamera.rotationType != SaveCamera::RotationType::kNone) {
 				auto rotationType = savedCamera.rotationType;
@@ -780,7 +907,7 @@ namespace Hooks
 				a_this->savedZoomOffset = a_this->targetZoomOffset;
 			}
 
-			a_this->dragonCurrentDirection = dragon->GetHeading(false);
+			SetDragonCurrentDirection(a_this, dragon->GetHeading(false));
 		}
 	}
 
@@ -804,26 +931,26 @@ namespace Hooks
 
 		auto directionalMovementHandler = DirectionalMovementHandler::GetSingleton();
 		if (directionalMovementHandler->GetFreeCameraEnabled() && !directionalMovementHandler->IFPV_IsFirstPerson() && !directionalMovementHandler->ImprovedCamera_IsFirstPerson()) {
-			float dragonCurrentDirection = a_this->dragonCurrentDirection;
+			float dragonCurrentDirection = GetDragonCurrentDirection(a_this);
 			float freeRotationX = a_this->freeRotation.x;
 
 			a_this->freeRotationEnabled = true;
 
 			_UpdateRotation(a_this);
 
-			a_this->dragonCurrentDirection = dragonCurrentDirection;
+			SetDragonCurrentDirection(a_this, dragonCurrentDirection);
 			a_this->freeRotation.x = freeRotationX;
 
-			if (a_this->dragonRefHandle) {
+			if (a_this->dragonHandle) {
 				RE::Actor* dragon = nullptr;
-				dragon = static_cast<RE::Actor*>(a_this->dragonRefHandle.get().get());
+				dragon = static_cast<RE::Actor*>(a_this->dragonHandle.get().get());
 				if (dragon) {
 					float heading = dragon->GetHeading(false);
 
-					a_this->freeRotation.x += a_this->dragonCurrentDirection - heading;
+					a_this->freeRotation.x += GetDragonCurrentDirection(a_this) - heading;
 
 					NiQuaternion_SomeRotationManipulation(a_this->rotation, -a_this->freeRotation.y, 0.f, heading + a_this->freeRotation.x);
-					a_this->dragonCurrentDirection = heading;
+					SetDragonCurrentDirection(a_this, heading);
 				}
 			}
 		} else {
@@ -1161,7 +1288,7 @@ namespace Hooks
 					if (auto playerBody = playerCharacter->Get3D()) {
 						if (auto collisionObject = playerBody->GetCollisionObject()) {
 							if (auto rigidBody = collisionObject->GetRigidBody()) {
-								playerCollisionGroup = static_cast<RE::hkpEntity*>(rigidBody->referencedObject.get())->collidable.broadPhaseHandle.collisionFilterInfo >> 16;
+								playerCollisionGroup = static_cast<RE::hkpEntity*>(rigidBody->referencedObject.get())->collidable.broadPhaseHandle.collisionFilterInfo.filter >> 16;
 							}
 						}
 					}
@@ -1170,7 +1297,7 @@ namespace Hooks
 
 					collector.Reset();
 					RE::hkpWorldRayCastInput raycastInput;
-					raycastInput.filterInfo = ((uint32_t)playerCollisionGroup << 16) | 0x28;
+					raycastInput.filterInfo.filter = ((uint32_t)playerCollisionGroup << 16) | 0x28;
 					raycastInput.from.quad = _mm_setr_ps(rayStart.x * bhkWorldScale, rayStart.y * bhkWorldScale, rayStart.z * bhkWorldScale, 0.f);
 					raycastInput.to.quad = _mm_setr_ps(rayEnd.x * bhkWorldScale, rayEnd.y * bhkWorldScale, rayEnd.z * bhkWorldScale, 0.f);
 					auto world = playerCharacter->parentCell->GetbhkWorld();
