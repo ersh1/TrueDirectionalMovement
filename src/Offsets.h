@@ -44,7 +44,7 @@ inline std::size_t GetIsUsingGamepadAddressLibID()
 }
 
 typedef bool(__fastcall* tBSInputDeviceManager_IsUsingGamepad)(RE::BSInputDeviceManager* a_this);
-static REL::Relocation<tBSInputDeviceManager_IsUsingGamepad> BSInputDeviceManager_IsUsingGamepad{ REL::RelocationID(62654, GetIsUsingGamepadAddressLibID()) };
+static REL::Relocation<tBSInputDeviceManager_IsUsingGamepad> BSInputDeviceManager_IsUsingGamepad{ REL::RelocationID(67320, GetIsUsingGamepadAddressLibID()) };
 
 typedef int64_t(__fastcall* tBShkbAnimationGraph_GetCurrentMovementTypeName)(RE::BShkbAnimationGraph* a_this, RE::BSFixedString* a_string);
 static REL::Relocation<tBShkbAnimationGraph_GetCurrentMovementTypeName> BShkbAnimationGraph_GetCurrentMovementTypeName{ RELOCATION_ID(62654, 63599) };
