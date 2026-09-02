@@ -32,7 +32,6 @@ void MessageHandler(SKSE::MessagingInterface::Message* a_msg)
 	case SKSE::MessagingInterface::kNewGame:
 		APIs::RequestAPIs();
 		Settings::OnPostLoadGame();
-		DirectionalMovementHandler::Register();
 		break;
 	}
 }

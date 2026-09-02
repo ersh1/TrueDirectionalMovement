@@ -42,7 +42,6 @@ public:
 	using EventResult = RE::BSEventNotifyControl;
 
 	static DirectionalMovementHandler* GetSingleton();
-	static void Register();
 
 	// override BSTEventSink
 	virtual EventResult ProcessEvent(const RE::BSAnimationGraphEvent* a_event, RE::BSTEventSource<RE::BSAnimationGraphEvent>* a_eventSource) override;
@@ -58,6 +57,7 @@ public:
 	void UpdateSwimmingPitchOffset();
 	void UpdateMountedArchery();
 	void ProgressTimers();
+	void RegisterAnimationEvents();
 
 	void OnDodge();
 	
